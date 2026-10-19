@@ -65,9 +65,8 @@
 
       <div id="panel-cuentas" class="panel hidden space-y-3">
         <p class="text-sm text-slate-600">
-          Tabla de equivalencias entre la <strong>cuenta de Falcon</strong> (código contable) y la <strong>cuenta de NetSuite</strong>
-          (ID interno o nombre). Al generar los CSV, las columnas de cuenta (Cuenta, Gastos: Cuenta, Account, A/P ACCOUNT, ACCOUNT)
-          que traigan un código de Falcon se reemplazan por la cuenta de NetSuite; lo que no esté en la tabla se deja igual.
+          Tabla de equivalencias entre la <strong>cuenta de Falcon</strong> (código contable) y la <strong>ID interno de la cuenta en NetSuite</strong>. Al generar los CSV, las columnas de cuenta (Cuenta, Gastos: Cuenta, Account, A/P ACCOUNT, ACCOUNT)
+          que traigan un código de Falcon se reemplazan por su ID interno de NetSuite; lo que no esté en la tabla se deja igual.
         </p>
         <div class="flex flex-wrap items-center gap-3 text-sm">
           <input type="file" id="archivo-cuentas" accept=".xlsx,.xlsm,.csv" class="border rounded p-1.5 bg-white">
@@ -82,7 +81,7 @@
           <input type="search" id="filtro-cuentas" placeholder="Buscar cuenta…" class="border rounded px-2 py-1.5 text-sm w-64">
           <div class="overflow-auto border rounded" style="max-height: calc(100vh - 30rem); min-height: 10rem;">
             <table class="grilla border-collapse text-left w-full">
-              <thead><tr><th>Cuenta Falcon</th><th>Nombre Falcon</th><th>Cuenta NetSuite</th><th>Nombre NetSuite</th><th title="Asiento de destino del PCGE: solo informativo, no se envía a NetSuite">Cuenta destino</th><th title="Contrapartida del asiento de destino">Contrapartida</th></tr></thead>
+              <thead><tr><th>Cuenta Falcon</th><th>Nombre Falcon</th><th>ID interno NetSuite</th><th>Nombre NetSuite</th><th title="Asiento de destino del PCGE: solo informativo, no se envía a NetSuite">Cuenta destino</th><th title="Contrapartida del asiento de destino">Contrapartida</th></tr></thead>
               <tbody id="cuerpo-cuentas" class="text-sm"></tbody>
             </table>
           </div>
