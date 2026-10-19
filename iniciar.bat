@@ -30,8 +30,8 @@ if errorlevel 1 (
 )
 
 rem Busca el primer puerto libre desde el 8002. Se saltan los reservados por otras apps Falcon:
-rem   8000 = Falcon Contable, 8001 = Falcon Tesoreria. Agregue aqui el puerto de Falcon PDB u otras.
-set "RESERVADOS= 8000 8001 "
+rem   8000 = Falcon Contable, 8001 = Falcon Tesoreria, 8003 = Falcon PDB. Agregue aqui otras apps.
+set "RESERVADOS= 8000 8001 8003 "
 set PUERTO=
 for /l %%P in (8002,1,8099) do if not defined PUERTO call :probar %%P
 if not defined PUERTO (
