@@ -61,13 +61,14 @@ def _pestanas() -> list[dict]:
 
 def _git(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=RAIZ, capture_output=True, text=True, timeout=90,
+                          encoding="utf-8", errors="replace",
                           env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
 
 
 def _version() -> str:
     try:
-        r = _git("log", "-1", "--format=%h · %cd", "--date=format:%d/%m/%Y %H:%M")
-        return r.stdout.strip() if r.returncode == 0 else ""
+        r = _git("log", "-1", "--format=%h|%cd", "--date=format:%d/%m/%Y %H:%M")
+        return r.stdout.strip().replace("|", " - ") if r.returncode == 0 else ""
     except Exception:
         return ""
 
