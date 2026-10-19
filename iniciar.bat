@@ -30,9 +30,9 @@ if errorlevel 1 (
 )
 
 echo.
-echo Servidor en http://localhost:8000  (cierre esta ventana o pulse Ctrl+C para detenerlo)
-start "" /b cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:8000"
-".venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+echo Servidor en http://localhost:8002  (cierre esta ventana o pulse Ctrl+C para detenerlo)
+start "" /b cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:8002"
+".venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8002
 goto :fin
 
 :error

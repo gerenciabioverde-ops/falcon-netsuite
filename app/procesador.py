@@ -196,7 +196,16 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
     cabeceras: dict[str, list[str]] = {}
     saldos: dict[str, Decimal] = {}
 
+    autocalc = [(idx(i), idx(c), idx(t)) for i, c, t in r.get("autocalcular", [])]
+
     for nro, fila in filas[1:]:
+        fila = list(fila)
+        for i_imp, i_cant, i_tar in autocalc:  # Importe = Cantidad × Tarifa si se deja vacío
+            if fila[i_imp] in (None, "") and fila[i_cant] not in (None, "") and fila[i_tar] not in (None, ""):
+                try:
+                    fila[i_imp] = _num(fila[i_cant]) * _num(fila[i_tar])
+                except (ValueError, TypeError, InvalidOperation):
+                    pass
         salida: list[str] = []
         for i, v in enumerate(fila):
             nom = hoja.encabezados[i].strip()

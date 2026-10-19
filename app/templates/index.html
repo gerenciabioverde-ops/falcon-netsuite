@@ -6,47 +6,257 @@
 <title>Falcon NetSuite CSV</title>
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<style>
+  .grilla th { position: sticky; top: 0; background: #f1f5f9; z-index: 1; white-space: nowrap; }
+  .grilla td, .grilla th { border: 1px solid #e2e8f0; padding: 0; }
+  .grilla th { padding: 4px 8px; font-weight: 600; font-size: 12px; }
+  .grilla input { width: 11rem; padding: 4px 6px; font-size: 13px; border: 0; background: transparent; }
+  .grilla input:focus { outline: 2px solid #1d4ed8; outline-offset: -2px; background: #fff; }
+  .grilla td.nro { background: #f8fafc; color: #64748b; text-align: center; font-size: 12px; min-width: 2.5rem; position: sticky; left: 0; }
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-<main class="max-w-5xl mx-auto p-6 space-y-6">
+<main class="max-w-7xl mx-auto p-6 space-y-6">
   <header>
     <h1 class="text-2xl font-bold">Falcon · Generador de CSV para NetSuite</h1>
-    <p class="text-slate-600 mt-1">Sube tu Excel con la información, se valida contra la plantilla y se descargan los CSV listos para importar.</p>
+    <p class="text-slate-600 mt-1">Escribe o pega los datos en cada pestaña, o sube tu Excel. Se valida contra la plantilla y se descargan los CSV listos para importar.</p>
   </header>
 
-  <section class="bg-white rounded-lg shadow p-5 space-y-4">
-    <ol class="list-decimal ml-5 text-sm text-slate-600 space-y-1">
-      <li>Descarga la plantilla y llena las hojas que necesites (varias líneas con el mismo <em>EXTERNAL ID</em> forman un solo documento).</li>
-      <li>Sube el archivo <strong>.xlsx</strong> (todas las hojas) o un <strong>.csv</strong> de una sola plantilla.</li>
-      <li>Corrige los errores indicados y descarga los CSV.</li>
-    </ol>
-    <a href="/plantilla" class="inline-block text-sm text-blue-700 underline">Descargar plantilla Excel</a>
+  <section class="bg-white rounded-lg shadow">
+    <nav id="tabs" class="flex flex-wrap border-b text-sm" role="tablist">
+      <button type="button" data-tab="subir" class="tab px-4 py-2.5 border-b-2">Subir archivo</button>
+      {% for p in pestanas %}
+      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{{ p.nombre }}
+        <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
+      {% endfor %}
+    </nav>
 
-    <form hx-post="/procesar" hx-target="#resultado" hx-encoding="multipart/form-data"
-          hx-indicator="#cargando" class="grid md:grid-cols-4 gap-3 items-end">
-      <label class="md:col-span-2 text-sm">Archivo
-        <input type="file" name="archivo" accept=".xlsx,.xlsm,.csv" required
-               class="block w-full mt-1 border rounded p-1.5 bg-white">
-      </label>
-      <label class="text-sm">Plantilla (solo CSV)
-        <select name="hoja" class="block w-full mt-1 border rounded p-2 bg-white">
-          <option value="">—</option>
-          {% for h in hojas %}<option>{{ h }}</option>{% endfor %}
-        </select>
-      </label>
-      <label class="text-sm">Formato de fecha en el CSV
-        <select name="formato_fecha" class="block w-full mt-1 border rounded p-2 bg-white">
-          {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
-        </select>
-      </label>
-      <div class="md:col-span-4 flex items-center gap-3">
-        <button class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Validar y generar</button>
-        <span id="cargando" class="htmx-indicator text-sm text-slate-500">Procesando…</span>
+    <div class="p-5">
+      <div id="panel-subir" class="panel space-y-4">
+        <ol class="list-decimal ml-5 text-sm text-slate-600 space-y-1">
+          <li>Descarga la plantilla y llena las hojas que necesites (varias líneas con el mismo <em>EXTERNAL ID</em> forman un solo documento).</li>
+          <li>Sube el archivo <strong>.xlsx</strong> (todas las hojas) o un <strong>.csv</strong> de una sola plantilla.</li>
+        </ol>
+        <a href="/plantilla" class="inline-block text-sm text-blue-700 underline">Descargar plantilla Excel</a>
+        <form hx-post="/procesar" hx-target="#resultado" hx-encoding="multipart/form-data"
+              hx-indicator="#cargando" class="grid md:grid-cols-4 gap-3 items-end">
+          <label class="md:col-span-2 text-sm">Archivo
+            <input type="file" name="archivo" accept=".xlsx,.xlsm,.csv" required
+                   class="block w-full mt-1 border rounded p-1.5 bg-white">
+          </label>
+          <label class="text-sm">Plantilla (solo CSV)
+            <select name="hoja" class="block w-full mt-1 border rounded p-2 bg-white">
+              <option value="">—</option>
+              {% for h in hojas %}<option>{{ h }}</option>{% endfor %}
+            </select>
+          </label>
+          <label class="text-sm">Formato de fecha en el CSV
+            <select name="formato_fecha" class="block w-full mt-1 border rounded p-2 bg-white">
+              {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
+            </select>
+          </label>
+          <div class="md:col-span-4 flex items-center gap-3">
+            <button class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Validar y generar</button>
+            <span id="cargando" class="htmx-indicator text-sm text-slate-500">Procesando…</span>
+          </div>
+        </form>
       </div>
-    </form>
+
+      {% for p in pestanas %}
+      <div id="panel-{{ p.clave }}" class="panel hidden space-y-3" data-hoja="{{ p.clave }}">
+        <p class="text-xs text-slate-500">
+          Las columnas con <span class="text-red-600 font-bold">*</span> son obligatorias. Puedes copiar un rango desde Excel y pegarlo (Ctrl+V)
+          sobre cualquier celda. Varias filas con el mismo EXTERNAL ID forman un solo documento.
+          {% if p.nombre.startswith('Factura') or p.nombre.startswith('Nota') %}«Artículos: Importe» se calcula solo (cantidad × tarifa) si lo dejas vacío.{% endif %}
+        </p>
+        <div class="overflow-auto max-h-[55vh] border rounded">
+          <table class="grilla border-collapse text-left">
+            <thead><tr>
+              <th>#</th>
+              {% for c in p.columnas %}<th>{{ c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}</th>{% endfor %}
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="flex gap-2 text-sm">
+          <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
+          <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div id="barra-grilla" class="hidden mt-4 pt-4 border-t flex flex-wrap items-center gap-3">
+        <label class="text-sm">Formato de fecha en el CSV
+          <select id="formato-grilla" class="ml-2 border rounded p-1.5 bg-white">
+            {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="button" id="btn-grilla" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Validar y generar</button>
+        <span id="estado-grilla" class="text-sm text-slate-500"></span>
+      </div>
+    </div>
   </section>
 
   <section id="resultado"></section>
 </main>
+
+<script id="esquema" type="application/json">{{ pestanas | tojson }}</script>
+<script>
+(function () {
+  const esquema = JSON.parse(document.getElementById('esquema').textContent);
+  const porClave = Object.fromEntries(esquema.map(p => [p.clave, p]));
+  const FILAS_INICIALES = 5;
+  const LLAVE = 'falcon-netsuite-borrador-v1';
+
+  function guardar() {
+    try {
+      const d = {};
+      for (const p of esquema) d[p.clave] = leer(p.clave, true);
+      localStorage.setItem(LLAVE, JSON.stringify(d));
+    } catch (e) {}
+  }
+  function cargarBorrador() {
+    try { return JSON.parse(localStorage.getItem(LLAVE) || '{}'); } catch (e) { return {}; }
+  }
+
+  function panel(clave) { return document.getElementById('panel-' + clave); }
+  function cuerpo(clave) { return panel(clave).querySelector('tbody'); }
+
+  function nuevaFila(clave, valores) {
+    const p = porClave[clave], tb = cuerpo(clave), tr = document.createElement('tr');
+    const n = document.createElement('td');
+    n.className = 'nro'; n.textContent = tb.rows.length + 2;   // la fila 1 es el encabezado
+    tr.appendChild(n);
+    p.columnas.forEach((c, i) => {
+      const td = document.createElement('td'), inp = document.createElement('input');
+      inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
+      if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
+      inp.value = (valores && valores[i]) || '';
+      td.appendChild(inp); tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+    return tr;
+  }
+
+  function renumerar(clave) {
+    [...cuerpo(clave).rows].forEach((tr, i) => tr.cells[0].textContent = i + 2);
+  }
+
+  function leer(clave, conVacias) {
+    return [...cuerpo(clave).rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value))
+      .filter(f => conVacias || f.some(v => v.trim() !== ''));
+  }
+
+  function contadores() {
+    document.querySelectorAll('.tab').forEach(b => {
+      const k = b.dataset.tab, c = b.querySelector('.contador');
+      if (!c) return;
+      const n = leer(k).length;
+      c.textContent = n; c.classList.toggle('hidden', n === 0);
+    });
+  }
+
+  // Datalists: se llenan una sola vez con las opciones originales de cada lista desplegable
+  esquema.forEach(p => {
+    const panelEl = panel(p.clave);
+    p.columnas.forEach((c, i) => {
+      if (!c.opciones.length) return;
+      const dl = document.createElement('datalist');
+      dl.id = 'dl-' + p.clave.replace(/ /g, '_') + '-' + i;
+      c.opciones.forEach(o => { const op = document.createElement('option'); op.value = o; dl.appendChild(op); });
+      panelEl.appendChild(dl);
+    });
+  });
+
+  const borrador = cargarBorrador();
+  esquema.forEach(p => {
+    const filas = borrador[p.clave] || [];
+    filas.forEach(f => nuevaFila(p.clave, f));
+    while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
+  });
+  contadores();
+
+  // Pegar desde Excel: TSV a partir de la celda activa; agrega filas si hacen falta
+  document.addEventListener('paste', ev => {
+    const inp = ev.target;
+    if (!(inp instanceof HTMLInputElement) || !inp.closest('.grilla')) return;
+    const texto = (ev.clipboardData || window.clipboardData).getData('text');
+    if (!/[\t\n]/.test(texto)) return;               // un solo valor: pegado normal
+    ev.preventDefault();
+    const clave = inp.closest('.panel').dataset.hoja, p = porClave[clave], tb = cuerpo(clave);
+    const filas = texto.replace(/\r/g, '').replace(/\n+$/, '').split('\n').map(l => l.split('\t'));
+    const fila0 = inp.closest('tr').rowIndex - 1, col0 = +inp.dataset.col;
+    filas.forEach((cols, r) => {
+      while (tb.rows.length <= fila0 + r) nuevaFila(clave);
+      cols.forEach((v, c) => {
+        if (col0 + c >= p.columnas.length) return;
+        tb.rows[fila0 + r].querySelectorAll('input')[col0 + c].value = v.trim();
+      });
+    });
+    guardar(); contadores();
+  });
+
+  document.addEventListener('input', ev => {
+    if (ev.target.closest && ev.target.closest('.grilla')) { guardar(); contadores(); }
+  });
+
+  // Enter baja a la celda de abajo (agrega fila si es la última)
+  document.addEventListener('keydown', ev => {
+    const inp = ev.target;
+    if (ev.key !== 'Enter' || !(inp instanceof HTMLInputElement) || !inp.closest('.grilla')) return;
+    ev.preventDefault();
+    const clave = inp.closest('.panel').dataset.hoja, tb = cuerpo(clave), tr = inp.closest('tr');
+    let sig = tr.nextElementSibling || nuevaFila(clave);
+    sig.querySelectorAll('input')[+inp.dataset.col].focus();
+  });
+
+  document.querySelectorAll('.btn-fila').forEach(b => b.addEventListener('click', () => {
+    const clave = b.closest('.panel').dataset.hoja;
+    nuevaFila(clave).querySelector('input').focus();
+  }));
+  document.querySelectorAll('.btn-limpiar').forEach(b => b.addEventListener('click', () => {
+    const clave = b.closest('.panel').dataset.hoja;
+    if (!confirm('¿Borrar todas las filas de «' + porClave[clave].nombre + '»?')) return;
+    cuerpo(clave).innerHTML = '';
+    for (let i = 0; i < FILAS_INICIALES; i++) nuevaFila(clave);
+    guardar(); contadores();
+  }));
+
+  function activar(clave) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + clave));
+    document.querySelectorAll('.tab').forEach(b => {
+      const on = b.dataset.tab === clave;
+      b.classList.toggle('border-blue-700', on); b.classList.toggle('text-blue-800', on);
+      b.classList.toggle('font-semibold', on); b.classList.toggle('border-transparent', !on);
+    });
+    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'subir');
+    try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
+  }
+  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => activar(b.dataset.tab)));
+  let inicial = 'subir';
+  try { inicial = sessionStorage.getItem('falcon-netsuite-tab') || 'subir'; } catch (e) {}
+  activar(document.getElementById('panel-' + inicial) ? inicial : 'subir');
+
+  document.getElementById('btn-grilla').addEventListener('click', async () => {
+    const datos = {};
+    esquema.forEach(p => { datos[p.clave] = leer(p.clave, true); });
+    const estado = document.getElementById('estado-grilla');
+    estado.textContent = 'Procesando…';
+    try {
+      const fmt = encodeURIComponent(document.getElementById('formato-grilla').value);
+      const r = await fetch('/procesar_grilla?formato_fecha=' + fmt, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+      });
+      const destino = document.getElementById('resultado');
+      destino.innerHTML = r.ok ? await r.text()
+        : '<div class="bg-red-50 border border-red-300 text-red-800 rounded p-4">Error ' + r.status + ' al procesar.</div>';
+      destino.scrollIntoView({ behavior: 'smooth' });
+      estado.textContent = '';
+    } catch (e) {
+      estado.textContent = 'No se pudo conectar con el servidor.';
+    }
+  });
+})();
+</script>
 </body>
 </html>
