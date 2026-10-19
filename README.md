@@ -4,6 +4,9 @@ App independiente (FastAPI + Jinja2 + HTMX). Recibe un Excel/CSV con la informac
 la valida contra `data/TEMPLATE_CSV_FALCON.xlsx` y entrega los CSV de importación de NetSuite.
 
 ## Uso
+En Windows: doble clic en `iniciar.bat` (crea el entorno, instala dependencias, arranca y abre el navegador).
+
+Manual:
 ```
 pip install -r requirements.txt
 uvicorn app.main:app --reload      # http://localhost:8000
