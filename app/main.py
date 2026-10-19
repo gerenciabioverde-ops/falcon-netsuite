@@ -95,10 +95,10 @@ def actualizar(request: Request):
         return JSONResponse({"ok": False, "mensaje": "No se pudo ejecutar git (¿está instalado y hay internet?): " + str(e)[:120]})
     if antes == despues and rama == "main":
         return JSONResponse({"ok": True, "cambios": False, "mensaje": "Ya tiene la última versión."})
-    # iniciar.bat vuelve a lanzar el servidor cuando termina con código 3
+    # iniciar.bat vuelve a lanzar el servidor cuando termina con código 75
     reinicia = os.environ.get("FALCON_REINICIAR") == "1"
     if reinicia:
-        threading.Timer(1.5, lambda: os._exit(3)).start()
+        threading.Timer(1.5, lambda: os._exit(75)).start()
     return JSONResponse({"ok": True, "cambios": True, "reiniciando": reinicia, "mensaje":
                          "Actualizado. Reiniciando…" if reinicia else "Actualizado. Cierre y vuelva a abrir iniciar.bat para aplicar los cambios."})
 
