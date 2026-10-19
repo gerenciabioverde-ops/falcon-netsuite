@@ -33,6 +33,7 @@ REGLAS: dict[str, dict] = {
         ],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
+        "id_auto": {"prefijo": "VENDB", "campos": ["Proveedor", "Latam - Serie CxP", "Latam - Número Preimpreso"]},
     },
     "Pago Proveedor": {
         "requeridos": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "ACCOUNT", "CURRENCY", "EXCHANGE RATE",
@@ -41,6 +42,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["EXCHANGE RATE", "PAYMENT"],
         "periodo": "POSTING PERIOD",
         "lineas_desde": "BILL",
+        "id_auto": {"prefijo": "BP_PE", "campos": ["Beneficiario", "BILL", "DATE"]},
     },
     "Asiento": {
         "requeridos": ["EXTERNAL ID", "Date", "POSTING PERIOD", "Subsidiary", "Currency", "Exchange Rate", "Account"],
@@ -49,6 +51,7 @@ REGLAS: dict[str, dict] = {
         "periodo": "POSTING PERIOD",
         "lineas_desde": "Account",
         "cuadre": ("Debit", "Credit"),
+        "id_auto": {"prefijo": "Asiento", "modo": "asiento"},
     },
     "Factura de Cliente": {
         "requeridos": ["EXTERNAL ID", "Cliente", "Cuenta", "Moneda", "Fecha", "Subsidiaria",
@@ -58,6 +61,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["Artículos: Cantidad", "Artículos: Tarifa", "Artículos: Importe"],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
+        "id_auto": {"prefijo": "FACT_VENTA", "campos": ["Cliente", "Latam - Serie CxC", "Latam - Número Preimpreso"]},
     },
     "Nota de credito Cliente": {
         "requeridos": ["EXTERNAL ID", "Cliente", "Cuenta", "Moneda", "Fecha", "Subsidiaria",
@@ -69,6 +73,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["Artículos: Cantidad", "Artículos: Tarifa", "Artículos: Importe", "Monto aplicado"],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
+        "id_auto": {"prefijo": "NotaCredito", "campos": ["Cliente", "Latam - Serie CxC", "Latam - Número Preimpreso"]},
     },
     "Pago de factura de cliente": {
         "requeridos": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "ACCOUNT", "CURRENCY", "EXCHANGE RATE",
@@ -77,6 +82,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["EXCHANGE RATE", "Pago"],
         "periodo": "POSTING PERIOD",
         "lineas_desde": "Aplica",
+        "id_auto": {"prefijo": "Pago_FCliente", "campos": ["Beneficiario", "Aplica", "DATE"]},
     },
 }
 

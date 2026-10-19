@@ -16,6 +16,19 @@ uvicorn app.main:app --port 8002 --reload      # http://localhost:8002
 1. Escribir o pegar (Ctrl+V desde Excel) los datos en la pestaña de cada plantilla.
 2. Pulsar «Validar y generar», corregir errores y descargar cada CSV o el `.zip`.
 
+El **EXTERNAL ID se genera solo** si se deja vacío, y es siempre el mismo para el mismo comprobante (así NetSuite no lo duplica al recargarlo):
+
+| Plantilla | Formato | Ejemplo |
+|---|---|---|
+| Factura de Proveedor | `VENDB_{Proveedor}_{Serie}_{Número}` | `VENDB_296720_F001_12` |
+| Pago Proveedor | `BP_PE_{Beneficiario}_{BILL}_{AAAAMMDD}` | `BP_PE_296720_25114824_20261009` |
+| Factura de Cliente | `FACT_VENTA_{Cliente}_{Serie}_{Número}` | |
+| Nota de crédito Cliente | `NotaCredito_{Cliente}_{Serie}_{Número}` | |
+| Pago de factura de cliente | `Pago_FCliente_{Beneficiario}_{Aplica}_{AAAAMMDD}` | |
+| Asiento | `Asiento_{AAAAMMDD}_{huella}`: líneas consecutivas sin ID hasta que Débito = Crédito | `Asiento_20261013_17b853ed` |
+
+Si se escribe un EXTERNAL ID a mano, se respeta tal cual.
+
 Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se calcula (cantidad × tarifa) si se deja vacío.
 
 ## Qué valida
