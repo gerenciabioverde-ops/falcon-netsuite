@@ -12,6 +12,7 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFil
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from . import homologacion
 from .esquema import RUTA_PLANTILLA, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar
 
@@ -118,6 +119,50 @@ def inicio(request: Request):
 @app.get("/plantilla")
 def descargar_plantilla():
     return FileResponse(RUTA_PLANTILLA, filename="TEMPLATE_CSV_FALCON.xlsx")
+
+
+def _solo_local(request: Request) -> None:
+    if not request.client or request.client.host not in ("127.0.0.1", "::1"):
+        raise HTTPException(403, "Solo desde el equipo donde corre la app.")
+
+
+@app.get("/homologacion")
+def ver_homologacion():
+    d = homologacion.cargar()
+    return {"archivo": d["archivo"], "actualizado": d["actualizado"], "cantidad": len(d["filas"]), "filas": d["filas"]}
+
+
+@app.post("/homologacion")
+async def subir_homologacion(request: Request, archivo: UploadFile = File(...)):
+    _solo_local(request)
+    contenido = await archivo.read(_MAX_BYTES + 1)
+    if len(contenido) > _MAX_BYTES:
+        raise HTTPException(413, "El archivo supera 10 MB")
+    try:
+        filas, errores, avisos = homologacion.procesar_archivo(archivo.filename or "", contenido)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "mensaje": str(e), "errores": [], "avisos": []})
+    except Exception:
+        return JSONResponse({"ok": False, "mensaje": "No se pudo leer el archivo; verifique que no esté dañado.", "errores": [], "avisos": []})
+    if errores:  # no se guarda una tabla ambigua o incompleta
+        return JSONResponse({"ok": False, "mensaje": f"Corrija {len(errores)} problema(s) y vuelva a subir.",
+                             "errores": errores[:50], "avisos": avisos[:50]})
+    homologacion.guardar(filas, archivo.filename or "")
+    return {"ok": True, "mensaje": f"{len(filas)} cuentas cargadas.", "errores": [], "avisos": avisos[:50]}
+
+
+@app.delete("/homologacion")
+def borrar_homologacion(request: Request):
+    _solo_local(request)
+    homologacion.borrar()
+    return {"ok": True}
+
+
+@app.get("/homologacion/plantilla")
+def plantilla_homologacion():
+    return Response(homologacion.plantilla_xlsx(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="cuentas_homologadas_plantilla.xlsx"'})
 
 
 @app.post("/procesar", response_class=HTMLResponse)

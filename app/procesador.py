@@ -13,6 +13,7 @@ from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
+from . import homologacion
 from .esquema import Hoja, Plantilla, norm
 
 FORMATOS_FECHA = {
@@ -259,6 +260,9 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
     saldos: dict[str, Decimal] = {}
 
     autocalc = [(idx(i), idx(c), idx(t)) for i, c, t in r.get("autocalcular", [])]
+    cuentas = {idx(c) for c in r.get("cuentas", [])}
+    mapa_h = homologacion.mapa() if cuentas else {}
+    traducidas: dict[tuple, list[int]] = {}
 
     for nro, fila in filas[1:]:
         fila = list(fila)
@@ -284,6 +288,11 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
             try:
                 if isinstance(v, str) and v.startswith("#ERROR"):
                     raise ValueError(v[1:])
+                if i in cuentas and mapa_h:  # cuenta de Falcon -> cuenta de NetSuite
+                    nuevo = mapa_h.get(homologacion.normalizar(v))
+                    if nuevo is not None and nuevo != str(v).strip():
+                        traducidas.setdefault((nom, str(v).strip(), nuevo), []).append(nro)
+                        v = nuevo
                 if i in fechas:
                     texto = _fecha(v).strftime(fmt_out)
                 elif i in numericos:
@@ -333,6 +342,9 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
         res.filas.append(salida)
         res.numeros_fila.append(nro)
 
+    for (col, origen, destino), nros in traducidas.items():
+        res.problemas.append(Problema("aviso", nros[0], col,
+                                      f"Cuenta {origen} → {destino} (homologada, {len(nros)} fila{'s' if len(nros) > 1 else ''})"))
     for ext, saldo in saldos.items():
         if saldo != 0:
             res.problemas.append(Problema("error", None, ext, f"Asiento descuadrado: Débito − Crédito = {_fmt_num(saldo)}"))

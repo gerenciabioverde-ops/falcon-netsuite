@@ -33,6 +33,7 @@ REGLAS: dict[str, dict] = {
         ],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
+        "cuentas": ["Cuenta", "Gastos: Cuenta"],
         "id_auto": {"prefijo": "VENDB", "campos": ["Proveedor", "Latam - Serie CxP", "Latam - Número Preimpreso"]},
     },
     "Pago Proveedor": {
@@ -42,6 +43,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["EXCHANGE RATE", "PAYMENT"],
         "periodo": "POSTING PERIOD",
         "lineas_desde": "BILL",
+        "cuentas": ["A/P ACCOUNT", "ACCOUNT"],
         "id_auto": {"prefijo": "BP_PE", "campos": ["Beneficiario", "BILL", "DATE"]},
     },
     "Asiento": {
@@ -51,6 +53,7 @@ REGLAS: dict[str, dict] = {
         "periodo": "POSTING PERIOD",
         "lineas_desde": "Account",
         "cuadre": ("Debit", "Credit"),
+        "cuentas": ["Account"],
         "id_auto": {"prefijo": "Asiento", "modo": "asiento"},
     },
     "Factura de Cliente": {
@@ -61,6 +64,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["Artículos: Cantidad", "Artículos: Tarifa", "Artículos: Importe"],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
+        "cuentas": ["Cuenta"],
         "id_auto": {"prefijo": "FACT_VENTA", "campos": ["Cliente", "Latam - Serie CxC", "Latam - Número Preimpreso"]},
     },
     "Nota de credito Cliente": {
@@ -73,6 +77,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["Artículos: Cantidad", "Artículos: Tarifa", "Artículos: Importe", "Monto aplicado"],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
+        "cuentas": ["Cuenta"],
         "id_auto": {"prefijo": "NotaCredito", "campos": ["Cliente", "Latam - Serie CxC", "Latam - Número Preimpreso"]},
     },
     "Pago de factura de cliente": {
@@ -82,6 +87,7 @@ REGLAS: dict[str, dict] = {
         "numericos": ["EXCHANGE RATE", "Pago"],
         "periodo": "POSTING PERIOD",
         "lineas_desde": "Aplica",
+        "cuentas": ["A/P ACCOUNT", "ACCOUNT"],
         "id_auto": {"prefijo": "Pago_FCliente", "campos": ["Beneficiario", "Aplica", "DATE"]},
     },
 }
