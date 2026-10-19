@@ -129,6 +129,8 @@ def _desde_coa_pcge(nombre: str, contenido: bytes) -> tuple[list[dict], list[str
     f_pe, e_pe, h_pe = pcge
     i_ns, i_pe = col(h_pe, contiene="coa - netsuite"), col(h_pe, contiene="peru tax code")
     i_desc = col(h_pe, igual="summary description")
+    i_dest = col(h_pe, contiene="cuentas destino")  # la contrapartida va en la columna siguiente (sin encabezado)
+    i_contra = i_dest + 1 if i_dest is not None else None
     cuentas: dict[str, dict] = {}
     errores: list[str] = []
     avisos: list[str] = []
@@ -160,6 +162,9 @@ def _desde_coa_pcge(nombre: str, contenido: bytes) -> tuple[list[dict], list[str
             "netsuite": id_interno,
             "nombre_falcon": _texto(f[i_desc]) if i_desc is not None else "",
             "nombre_netsuite": (ns + " " + _texto(fila_plan[i_cta])).strip() if i_cta is not None else ns,
+            # asiento de destino del PCGE: solo informativo (se hace en Falcon Contable, no en NetSuite)
+            "destino": _texto(f[i_dest]) if i_dest is not None else "",
+            "contrapartida": _texto(f[i_contra]) if i_contra is not None else "",
         }
     if not cuentas:
         raise ValueError("No se pudo cruzar ninguna cuenta entre el COA y la hoja de equivalencias.")

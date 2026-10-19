@@ -82,7 +82,7 @@
           <input type="search" id="filtro-cuentas" placeholder="Buscar cuenta…" class="border rounded px-2 py-1.5 text-sm w-64">
           <div class="overflow-auto border rounded" style="max-height: calc(100vh - 30rem); min-height: 10rem;">
             <table class="grilla border-collapse text-left w-full">
-              <thead><tr><th>Cuenta Falcon</th><th>Nombre Falcon</th><th>Cuenta NetSuite</th><th>Nombre NetSuite</th></tr></thead>
+              <thead><tr><th>Cuenta Falcon</th><th>Nombre Falcon</th><th>Cuenta NetSuite</th><th>Nombre NetSuite</th><th title="Asiento de destino del PCGE: solo informativo, no se envía a NetSuite">Cuenta destino</th><th title="Contrapartida del asiento de destino">Contrapartida</th></tr></thead>
               <tbody id="cuerpo-cuentas" class="text-sm"></tbody>
             </table>
           </div>
@@ -269,7 +269,7 @@
     cuerpo.innerHTML = '';
     tablaCuentas.filter(f => !q || Object.values(f).some(v => String(v).toLowerCase().includes(q))).slice(0, 500).forEach(f => {
       const tr = document.createElement('tr');
-      [f.falcon, f.nombre_falcon, f.netsuite, f.nombre_netsuite].forEach(v => {
+      [f.falcon, f.nombre_falcon, f.netsuite, f.nombre_netsuite, f.destino, f.contrapartida].forEach(v => {
         const td = document.createElement('td'); td.style.padding = '4px 8px'; td.textContent = v || ''; tr.appendChild(td);
       });
       cuerpo.appendChild(tr);
