@@ -69,7 +69,7 @@ def _columnas(encabezado: list) -> tuple[int, int, int | None, int | None]:
     i_fa = next((i for i, t in enumerate(h) if any(a in t for a in _ALIAS_FALCON)
                  and "netsuite" not in t and not t.startswith("nombre")), None)
     if i_fa is None or i_ns is None:
-        raise ValueError("No encontré las columnas. La primera fila debe tener «Cuenta Falcon» y «Cuenta NetSuite» "
+        raise ValueError("No encontré las columnas. La primera fila debe tener «Cuenta Falcon» y «ID interno NetSuite» "
                          "(opcionalmente «Nombre Falcon» y «Nombre NetSuite»). Descargue la plantilla.")
     n_fa = next((i for i, t in enumerate(h) if any(a in t for a in _ALIAS_NOMBRE) and "falcon" in t), None)
     n_ns = next((i for i, t in enumerate(h) if any(a in t for a in _ALIAS_NOMBRE) and "netsuite" in t), None)
@@ -252,14 +252,14 @@ def plantilla_xlsx() -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "Cuentas homologadas"
-    ws.append(["Cuenta Falcon", "Nombre Falcon", "Cuenta NetSuite", "Nombre NetSuite"])
+    ws.append(["Cuenta Falcon", "Nombre Falcon", "ID interno NetSuite", "Nombre NetSuite"])
     for col, ancho in zip("ABCD", (18, 38, 18, 38)):
         ws.column_dimensions[col].width = ancho
     ws2 = wb.create_sheet("Instrucciones")
     for linea in (
         "Una fila por cuenta. Borre esta hoja o déjela: solo se lee la primera hoja.",
         "Cuenta Falcon: código contable que usa en Falcon Contable (por ejemplo 1041).",
-        "Cuenta NetSuite: lo que debe escribirse en el CSV: el ID interno de la cuenta en NetSuite o su nombre completo.",
+        "ID interno NetSuite: el ID interno de la cuenta en NetSuite (lo que se escribirá en el CSV).",
         "Los nombres son opcionales y solo sirven para que usted revise la tabla.",
         "Una misma cuenta Falcon no puede tener dos cuentas NetSuite distintas.",
     ):
