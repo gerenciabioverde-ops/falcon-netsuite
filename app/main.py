@@ -52,7 +52,8 @@ def _pestanas() -> list[dict]:
             "nombre": h.nombre.strip(),
             "columnas": [{
                 "nombre": e.strip(),
-                "requerida": norm(e) in req,
+                "auto": i == 0 and bool(h.reglas.get("id_auto")),
+                "requerida": norm(e) in req and not (i == 0 and h.reglas.get("id_auto")),
                 "opciones": h.listas[i].opciones if i in h.listas else [],
             } for i, e in enumerate(h.encabezados)],
         })

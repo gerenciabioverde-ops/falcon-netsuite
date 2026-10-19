@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import re
 import warnings
@@ -172,6 +173,66 @@ def _fmt_num(d: Decimal) -> str:
     return s
 
 
+def _clave(v, es_fecha: bool = False) -> str:
+    """Texto apto para formar un EXTERNAL ID (solo letras, números y guiones)."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return ""
+    if es_fecha:
+        try:
+            return _fecha(v).strftime("%Y%m%d")
+        except ValueError:
+            return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return re.sub(r"[^A-Za-z0-9]+", "-", str(v).strip()).strip("-")
+
+
+def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, list]]:
+    """Completa EXTERNAL ID vacíos de forma determinista: el mismo comprobante da siempre el mismo ID.
+
+    - Facturas/notas/pagos: prefijo + campos clave (p. ej. VENDB_296720_F001_00000012).
+    - Asientos: líneas consecutivas sin ID hasta que Débito = Crédito forman un asiento
+      (Asiento_AAAAMMDD_hash del contenido).
+    """
+    spec = hoja.reglas.get("id_auto")
+    if not spec:
+        return filas
+    fechas = {hoja.idx(c) for c in hoja.reglas.get("fechas", [])}
+    salida = [(nro, list(fila)) for nro, fila in filas]
+    vacio = lambda v: v is None or (isinstance(v, str) and not v.strip())  # noqa: E731
+
+    if spec.get("modo") == "asiento":
+        i_deb, i_cre, i_fec = hoja.idx("Debit"), hoja.idx("Credit"), hoja.idx("Date")
+        grupo: list[int] = []
+        saldo = Decimal(0)
+        for k, (nro, fila) in enumerate(salida):
+            if not vacio(fila[0]):
+                grupo, saldo = [], Decimal(0)
+                continue
+            grupo.append(k)
+            try:
+                saldo += (_num(fila[i_deb]) or 0) - (_num(fila[i_cre]) or 0)
+            except ValueError:
+                grupo, saldo = [], Decimal(0)
+                continue
+            if saldo == 0:
+                huella = hashlib.sha1("|".join(str(v) for g in grupo for v in salida[g][1][1:]).encode()).hexdigest()[:8]
+                fecha = _clave(salida[grupo[0]][1][i_fec], True)
+                ident = "_".join(x for x in (spec["prefijo"], fecha, huella) if x)
+                for g in grupo:
+                    salida[g][1][0] = ident
+                grupo = []
+        return salida
+
+    cols = [(hoja.idx(c), hoja.idx(c) in fechas) for c in spec["campos"]]
+    for nro, fila in salida:
+        if vacio(fila[0]):
+            partes = [_clave(fila[i], f) for i, f in cols]
+            if all(partes):
+                fila[0] = "_".join([spec["prefijo"], *partes])
+    return salida
+
+
 def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) -> ResultadoHoja:
     res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
     if not filas:
@@ -186,6 +247,7 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
         return res
 
     idx = hoja.idx
+    filas = [filas[0], *generar_ids(hoja, filas[1:])]
     fmt_out = FORMATOS_FECHA[formato_fecha]
     requeridos = [idx(c) for c in r.get("requeridos", [])]
     fechas = {idx(c) for c in r.get("fechas", [])}
@@ -211,7 +273,11 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
             nom = hoja.encabezados[i].strip()
             vacio = v is None or (isinstance(v, str) and not v.strip())
             if vacio:
-                if i in requeridos:
+                if i == 0 and r.get("id_auto"):
+                    falta = ("las líneas consecutivas sin ID no cuadran (Débito ≠ Crédito)" if r["id_auto"].get("modo") == "asiento"
+                             else "complete " + ", ".join(r["id_auto"]["campos"]))
+                    res.problemas.append(Problema("error", nro, nom, f"No se pudo generar el EXTERNAL ID: {falta}"))
+                elif i in requeridos:
                     res.problemas.append(Problema("error", nro, nom, "Campo obligatorio vacío"))
                 salida.append("")
                 continue
@@ -251,7 +317,7 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
             d, c = (salida[idx(x)] for x in r["cuadre"])
             if bool(d) == bool(c):
                 res.problemas.append(Problema("error", nro, "Debit / Credit", "Cada línea debe tener Débito o Crédito (solo uno)"))
-            else:
+            elif salida[col_id]:
                 try:
                     saldos[salida[col_id]] = saldos.get(salida[col_id], Decimal(0)) + Decimal(d or 0) - Decimal(c or 0)
                 except InvalidOperation:
