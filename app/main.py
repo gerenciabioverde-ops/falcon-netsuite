@@ -139,15 +139,16 @@ async def subir_homologacion(request: Request, archivo: UploadFile = File(...)):
     if len(contenido) > _MAX_BYTES:
         raise HTTPException(413, "El archivo supera 10 MB")
     try:
-        filas, errores = homologacion.procesar_archivo(archivo.filename or "", contenido)
+        filas, errores, avisos = homologacion.procesar_archivo(archivo.filename or "", contenido)
     except ValueError as e:
-        return JSONResponse({"ok": False, "mensaje": str(e), "errores": []})
+        return JSONResponse({"ok": False, "mensaje": str(e), "errores": [], "avisos": []})
     except Exception:
-        return JSONResponse({"ok": False, "mensaje": "No se pudo leer el archivo; verifique que no esté dañado.", "errores": []})
+        return JSONResponse({"ok": False, "mensaje": "No se pudo leer el archivo; verifique que no esté dañado.", "errores": [], "avisos": []})
     if errores:  # no se guarda una tabla ambigua o incompleta
-        return JSONResponse({"ok": False, "mensaje": f"Corrija {len(errores)} problema(s) y vuelva a subir.", "errores": errores[:50]})
+        return JSONResponse({"ok": False, "mensaje": f"Corrija {len(errores)} problema(s) y vuelva a subir.",
+                             "errores": errores[:50], "avisos": avisos[:50]})
     homologacion.guardar(filas, archivo.filename or "")
-    return {"ok": True, "mensaje": f"{len(filas)} cuentas cargadas.", "errores": []}
+    return {"ok": True, "mensaje": f"{len(filas)} cuentas cargadas.", "errores": [], "avisos": avisos[:50]}
 
 
 @app.delete("/homologacion")

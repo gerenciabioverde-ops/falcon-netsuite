@@ -77,6 +77,7 @@
         </div>
         <div id="estado-cuentas" class="text-sm"></div>
         <ul id="errores-cuentas" class="text-sm text-red-700 list-disc ml-5"></ul>
+        <ul id="avisos-cuentas" class="text-sm text-amber-700 list-disc ml-5"></ul>
         <div id="detalle-cuentas" class="hidden space-y-2">
           <input type="search" id="filtro-cuentas" placeholder="Buscar cuenta…" class="border rounded px-2 py-1.5 text-sm w-64">
           <div class="overflow-auto border rounded" style="max-height: calc(100vh - 30rem); min-height: 10rem;">
@@ -290,13 +291,14 @@
   $('filtro-cuentas').addEventListener('input', pintarCuentas);
   $('btn-subir-cuentas').addEventListener('click', async () => {
     const f = $('archivo-cuentas').files[0], err = $('errores-cuentas'), est = $('estado-cuentas');
-    err.innerHTML = '';
+    err.innerHTML = ''; $('avisos-cuentas').innerHTML = '';
     if (!f) { est.className = 'text-sm text-red-700'; est.textContent = 'Elija un archivo .xlsx o .csv.'; return; }
     est.className = 'text-sm text-slate-500'; est.textContent = 'Subiendo…';
     const fd = new FormData(); fd.append('archivo', f);
     try {
       const r = await fetch('/homologacion', { method: 'POST', body: fd });
       const d = await r.json();
+      (d.avisos || []).forEach(m => { const li = document.createElement('li'); li.textContent = m; $('avisos-cuentas').appendChild(li); });
       if (!d.ok) {
         est.className = 'text-sm text-red-700'; est.textContent = d.mensaje || ('Error ' + r.status);
         (d.errores || []).forEach(m => { const li = document.createElement('li'); li.textContent = m; err.appendChild(li); });
@@ -304,6 +306,7 @@
       }
       $('archivo-cuentas').value = '';
       await cargarCuentas();
+      if ((d.avisos || []).length) { $('estado-cuentas').textContent += ' Revise los avisos: ' + d.avisos.length + '.'; }
     } catch (e) { est.className = 'text-sm text-red-700'; est.textContent = 'No se pudo conectar con el servidor.'; }
   });
   $('btn-borrar-cuentas').addEventListener('click', async () => {

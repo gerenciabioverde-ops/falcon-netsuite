@@ -11,6 +11,7 @@ import json
 import re
 import time
 import warnings
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
@@ -75,8 +76,106 @@ def _columnas(encabezado: list) -> tuple[int, int, int | None, int | None]:
     return i_fa, i_ns, n_fa, n_ns
 
 
-def procesar_archivo(nombre: str, contenido: bytes) -> tuple[list[dict], list[str]]:
-    """Devuelve (filas válidas, errores). Lanza ValueError si el archivo no sirve."""
+def _num_cuenta(v) -> str:
+    """Número de cuenta NetSuite comparable: 1100 == '1100.00', 1045.1 == '1045.10'."""
+    t = _texto(v)
+    try:
+        return format(Decimal(t).normalize(), "f")
+    except InvalidOperation:
+        return t
+
+
+def _encabezado(filas: list[list], requeridos: tuple[str, ...], limite: int = 20):
+    for i, f in enumerate(filas[:limite]):
+        h = [_sin_tildes(_texto(c)) for c in f]
+        if all(any(r in t for t in h) for r in requeridos):
+            return i, h
+    return None
+
+
+def _desde_coa_pcge(nombre: str, contenido: bytes) -> tuple[list[dict], list[str], list[str]] | None:
+    """Formato del COA de NetSuite + hoja de equivalencia con el PCGE (Peru Tax Code).
+
+    Cruza: código PCGE -> número de cuenta NetSuite -> ID interno (hoja COA). None si el archivo no es de este formato.
+    """
+    if not nombre.lower().endswith((".xlsx", ".xlsm")):
+        return None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        wb = load_workbook(io.BytesIO(contenido), data_only=True, read_only=True)
+    hojas = {n: [list(f) for f in wb[n].iter_rows(values_only=True)] for n in wb.sheetnames}
+    coa = pcge = None
+    for filas in hojas.values():
+        if coa is None and (e := _encabezado(filas, ("id interno", "numero"))):
+            coa = (filas, *e)
+        if pcge is None and (e := _encabezado(filas, ("coa - netsuite", "peru tax code"))):
+            pcge = (filas, *e)
+    if not (coa and pcge):
+        return None
+
+    col = lambda h, igual=None, contiene=None: next(  # noqa: E731
+        (i for i, t in enumerate(h) if (igual and t == igual) or (contiene and contiene in t)), None)
+    f_coa, e_coa, h_coa = coa
+    i_id, i_num, i_cta = col(h_coa, contiene="id interno"), col(h_coa, igual="numero"), col(h_coa, igual="cuenta")
+    i_inact, i_res = col(h_coa, igual="inactivo"), col(h_coa, igual="resumen")
+    if i_id is None or i_num is None:
+        return None
+    plan: dict[str, list] = {}
+    for f in f_coa[e_coa + 1:]:
+        f = list(f) + [None] * 12
+        if _texto(f[i_num]):
+            plan[_num_cuenta(f[i_num])] = f
+
+    f_pe, e_pe, h_pe = pcge
+    i_ns, i_pe = col(h_pe, contiene="coa - netsuite"), col(h_pe, contiene="peru tax code")
+    i_desc = col(h_pe, igual="summary description")
+    cuentas: dict[str, dict] = {}
+    errores: list[str] = []
+    avisos: list[str] = []
+    for nro, f in enumerate(f_pe[e_pe + 1:], start=e_pe + 2):
+        f = list(f) + [None] * 12
+        ns, pe = _texto(f[i_ns]), _texto(f[i_pe])
+        if not ns and not pe:
+            continue
+        if not pe:
+            avisos.append(f"Fila {nro}: la cuenta NetSuite {ns} no tiene código PCGE; se omitió.")
+            continue
+        if not ns:
+            avisos.append(f"Fila {nro}: el PCGE {pe} no tiene cuenta NetSuite; se omitió.")
+            continue
+        fila_plan = plan.get(_num_cuenta(ns))
+        if fila_plan is None:
+            avisos.append(f"Fila {nro}: la cuenta NetSuite {ns} (PCGE {pe}) no existe en el COA; se omitió.")
+            continue
+        id_interno = _texto(fila_plan[i_id])
+        previa = cuentas.get(normalizar(pe))
+        if previa and previa["netsuite"] != id_interno:
+            errores.append(f"Fila {nro}: el PCGE {pe} ya estaba asignado a {previa['netsuite']} y ahora a {id_interno}.")
+            continue
+        if (i_inact is not None and _texto(fila_plan[i_inact]).lower() in ("sí", "si")) or \
+           (i_res is not None and _texto(fila_plan[i_res]).lower() in ("sí", "si")):
+            avisos.append(f"PCGE {pe} → cuenta NetSuite {ns} está inactiva o es de resumen: NetSuite no permitirá registrar en ella.")
+        cuentas[normalizar(pe)] = {
+            "falcon": pe,
+            "netsuite": id_interno,
+            "nombre_falcon": _texto(f[i_desc]) if i_desc is not None else "",
+            "nombre_netsuite": (ns + " " + _texto(fila_plan[i_cta])).strip() if i_cta is not None else ns,
+        }
+    if not cuentas:
+        raise ValueError("No se pudo cruzar ninguna cuenta entre el COA y la hoja de equivalencias.")
+    return list(cuentas.values()), errores, avisos
+
+
+def procesar_archivo(nombre: str, contenido: bytes) -> tuple[list[dict], list[str], list[str]]:
+    """Devuelve (filas válidas, errores, avisos). Lanza ValueError si el archivo no sirve."""
+    cruzado = _desde_coa_pcge(nombre, contenido)
+    if cruzado is not None:
+        return cruzado
+    filas, errores = _procesar_simple(nombre, contenido)
+    return filas, errores, []
+
+
+def _procesar_simple(nombre: str, contenido: bytes) -> tuple[list[dict], list[str]]:
     filas = _filas_de_archivo(nombre, contenido)
     if not filas:
         raise ValueError("El archivo está vacío.")
