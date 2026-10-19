@@ -1,0 +1,49 @@
+@echo off
+setlocal
+REM ============================================================
+REM   FALCON NETSUITE - Actualizar
+REM   Baja la ultima version desde GitHub (rama main), actualiza
+REM   las dependencias y deja todo listo para iniciar.bat.
+REM   No toca tus cuentas homologadas (carpeta datos_usuario).
+REM ============================================================
+cd /d "%~dp0"
+chcp 65001 >nul 2>&1
+title Falcon NetSuite - Actualizar
+
+if not exist .git (
+    echo [ERROR] Esta carpeta no es un clon de git. Clona de nuevo el repositorio.
+    pause
+    exit /b 1
+)
+
+echo Cerrando el servidor de Falcon NetSuite si esta abierto...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*%~dp0.venv\Scripts\python.exe*' -and $_.ProcessId -ne $PID } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1
+
+echo.
+echo Bajando la ultima version...
+git fetch origin
+if errorlevel 1 goto :FALLO
+git checkout main
+if errorlevel 1 goto :FALLO
+git pull --ff-only origin main
+if errorlevel 1 goto :FALLO
+
+if not exist ".venv\Scripts\python.exe" goto :LISTO
+echo.
+echo Actualizando dependencias...
+".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check -r requirements.txt
+if errorlevel 1 goto :FALLO
+
+:LISTO
+echo.
+git log --oneline -1
+echo.
+echo [OK] Listo. Ahora ejecuta iniciar.bat
+pause
+exit /b 0
+
+:FALLO
+echo.
+echo [ERROR] No se pudo actualizar. Copia los mensajes de arriba y enviamelos.
+pause
+exit /b 1
