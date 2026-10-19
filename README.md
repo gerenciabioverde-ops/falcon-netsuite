@@ -11,9 +11,10 @@ Manual:
 pip install -r requirements.txt
 uvicorn app.main:app --reload      # http://localhost:8000
 ```
-1. Descargar la plantilla desde la pantalla principal y llenarla.
-2. Subir el `.xlsx` (procesa todas las hojas) o un `.csv` (indicando la plantilla).
-3. Corregir errores y descargar cada CSV o el `.zip`.
+1. Escribir o pegar (Ctrl+V desde Excel) los datos en la pestaña de cada plantilla, **o** subir el `.xlsx` completo / un `.csv` en la pestaña «Subir archivo».
+2. Pulsar «Validar y generar», corregir errores y descargar cada CSV o el `.zip`.
+
+Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se calcula (cantidad × tarifa) si se deja vacío.
 
 ## Qué valida
 - Encabezados idénticos a la plantilla.

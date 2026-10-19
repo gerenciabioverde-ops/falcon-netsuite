@@ -32,6 +32,7 @@ REGLAS: dict[str, dict] = {
             ("Gastos: Cuenta", ["Gastos: Importe"]),
         ],
         "lineas_desde": "Artículos: Artículo",
+        "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
     },
     "Pago Proveedor": {
         "requeridos": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "ACCOUNT", "CURRENCY", "EXCHANGE RATE",
@@ -56,6 +57,7 @@ REGLAS: dict[str, dict] = {
         "fechas": ["Fecha"],
         "numericos": ["Artículos: Cantidad", "Artículos: Tarifa", "Artículos: Importe"],
         "lineas_desde": "Artículos: Artículo",
+        "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
     },
     "Nota de credito Cliente": {
         "requeridos": ["EXTERNAL ID", "Cliente", "Cuenta", "Moneda", "Fecha", "Subsidiaria",
@@ -66,6 +68,7 @@ REGLAS: dict[str, dict] = {
         "fechas": ["Fecha", "Latam - Fecha del documento Ref"],
         "numericos": ["Artículos: Cantidad", "Artículos: Tarifa", "Artículos: Importe", "Monto aplicado"],
         "lineas_desde": "Artículos: Artículo",
+        "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
     },
     "Pago de factura de cliente": {
         "requeridos": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "ACCOUNT", "CURRENCY", "EXCHANGE RATE",
@@ -87,6 +90,7 @@ class Lista:
     """Lista desplegable: valores exactos o texto crudo (cuando hay comas dentro de un valor)."""
     valores: set[str] = field(default_factory=set)
     crudo: str = ""
+    opciones: list[str] = field(default_factory=list)  # textos originales para ofrecer en pantalla
 
     def acepta(self, valor: str) -> bool:
         v = norm(valor)
@@ -146,17 +150,21 @@ def _resolver_formula(f: str, wb, hoja_actual: str) -> Lista:
     f = f.replace('"&"', "").strip()
     if f.startswith('"'):
         crudo = f.strip('"')
-        return Lista(valores={norm(x) for x in crudo.split(",")}, crudo=crudo)
+        partes = crudo.split(",")
+        # si algún valor lleva comas internas, partirlo por comas sería engañoso
+        ambigua = any(x != x.strip() for x in partes)
+        return Lista(valores={norm(x) for x in partes}, crudo=crudo, opciones=[] if ambigua else partes)
     m = re.match(r"(?:'?([^'!]+)'?!)?\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)", f)
     if not m:
         return Lista()
     ws = wb[m.group(1) or hoja_actual]
-    vals = set()
+    vals, ops = set(), []
     for fila in ws[f"{m.group(2)}{m.group(3)}:{m.group(4)}{m.group(5)}"]:
         for c in fila:
             if c.value is not None:
                 vals.add(norm(c.value))
-    return Lista(valores=vals)
+                ops.append(str(c.value).strip())
+    return Lista(valores=vals, opciones=ops)
 
 
 def _listas_de_hoja(xml: bytes, wb, nombre: str) -> dict[int, Lista]:
