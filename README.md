@@ -29,6 +29,8 @@ El **EXTERNAL ID se genera solo** si se deja vacío, y es siempre el mismo para 
 
 Si se escribe un EXTERNAL ID a mano, se respeta tal cual.
 
+**Cuentas homologadas:** la pestaña del mismo nombre recibe un Excel/CSV con las columnas `Cuenta Falcon` y `Cuenta NetSuite` (más `Nombre Falcon` / `Nombre NetSuite` opcionales; hay plantilla descargable). La tabla se guarda en `datos_usuario/` (fuera de git, no la pisa «Actualizar»). Al generar los CSV, las columnas de cuenta (`Cuenta`, `Gastos: Cuenta`, `Account`, `A/P ACCOUNT`, `ACCOUNT`) que traigan un código de Falcon se reemplazan por la cuenta de NetSuite, y cada traducción aparece como aviso en el resultado; lo que no está en la tabla se deja igual.
+
 Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se calcula (cantidad × tarifa) si se deja vacío.
 
 ## Qué valida
