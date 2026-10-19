@@ -9,7 +9,7 @@ En Windows: doble clic en `iniciar.bat` (crea el entorno, instala dependencias, 
 Manual:
 ```
 pip install -r requirements.txt
-uvicorn app.main:app --reload      # http://localhost:8000
+uvicorn app.main:app --port 8002 --reload      # http://localhost:8002
 ```
 1. Escribir o pegar (Ctrl+V desde Excel) los datos en la pestaña de cada plantilla, **o** subir el `.xlsx` completo / un `.csv` en la pestaña «Subir archivo».
 2. Pulsar «Validar y generar», corregir errores y descargar cada CSV o el `.zip`.
