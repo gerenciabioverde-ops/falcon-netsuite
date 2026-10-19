@@ -6,6 +6,8 @@ la valida contra `data/TEMPLATE_CSV_FALCON.xlsx` y entrega los CSV de importaci�
 ## Uso
 En Windows: doble clic en `iniciar.bat` (crea el entorno, instala dependencias, arranca y abre el navegador).
 
+El botón «⟳ Actualizar» (arriba a la derecha) trae la última versión de `main` desde GitHub y reinicia la app sola (requiere haber abierto con `iniciar.bat`).
+
 Manual:
 ```
 pip install -r requirements.txt

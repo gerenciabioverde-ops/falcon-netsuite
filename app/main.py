@@ -1,18 +1,22 @@
 """Aplicativo para generar los CSV de carga de NetSuite a partir de un Excel/CSV."""
 from __future__ import annotations
 
+import os
 import secrets
+import subprocess
+import threading
 import time
 from pathlib import Path
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from .esquema import RUTA_PLANTILLA, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar
 
 BASE = Path(__file__).parent
+RAIZ = BASE.parent
 app = FastAPI(title="Falcon NetSuite CSV")
 templates = Jinja2Templates(directory=str(BASE / "templates"))
 PLANTILLA = cargar_plantilla()
@@ -55,10 +59,54 @@ def _pestanas() -> list[dict]:
     return salida
 
 
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=RAIZ, capture_output=True, text=True, timeout=90,
+                          env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+
+
+def _version() -> str:
+    try:
+        r = _git("log", "-1", "--format=%h · %cd", "--date=format:%d/%m/%Y %H:%M")
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+@app.post("/actualizar")
+def actualizar(request: Request):
+    """Trae la última versión de `main` desde GitHub. Solo desde el propio equipo."""
+    if not request.client or request.client.host not in ("127.0.0.1", "::1"):
+        raise HTTPException(403, "Solo se puede actualizar desde el equipo donde corre la app.")
+    if not (RAIZ / ".git").exists():
+        return JSONResponse({"ok": False, "mensaje": "Esta copia no es un repositorio git; descargue de nuevo desde GitHub."})
+    try:
+        antes = _git("rev-parse", "HEAD").stdout.strip()
+        rama = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        if rama != "main":
+            r = _git("checkout", "main")
+            if r.returncode != 0:
+                return JSONResponse({"ok": False, "mensaje": "No se pudo cambiar a main: " + (r.stderr or r.stdout).strip()[:300]})
+        r = _git("pull", "--ff-only", "origin", "main")
+        if r.returncode != 0:
+            return JSONResponse({"ok": False, "mensaje": "No se pudo actualizar: " + (r.stderr or r.stdout).strip()[:300]})
+        despues = _git("rev-parse", "HEAD").stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        return JSONResponse({"ok": False, "mensaje": "No se pudo ejecutar git (¿está instalado y hay internet?): " + str(e)[:120]})
+    if antes == despues and rama == "main":
+        return JSONResponse({"ok": True, "cambios": False, "mensaje": "Ya tiene la última versión."})
+    # iniciar.bat vuelve a lanzar el servidor cuando termina con código 3
+    reinicia = os.environ.get("FALCON_REINICIAR") == "1"
+    if reinicia:
+        threading.Timer(1.5, lambda: os._exit(3)).start()
+    return JSONResponse({"ok": True, "cambios": True, "reiniciando": reinicia, "mensaje":
+                         "Actualizado. Reiniciando…" if reinicia else "Actualizado. Cierre y vuelva a abrir iniciar.bat para aplicar los cambios."})
+
+
 @app.get("/", response_class=HTMLResponse)
 def inicio(request: Request):
     pestanas = _pestanas()
     return templates.TemplateResponse(request, "index.html", {
+        "version": _version(),
         "hojas": [p["nombre"] for p in pestanas],
         "pestanas": pestanas,
         "formatos": list(FORMATOS_FECHA),
