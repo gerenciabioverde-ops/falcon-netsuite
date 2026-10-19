@@ -29,22 +29,22 @@ if errorlevel 1 (
     if errorlevel 1 goto :error
 )
 
-rem Si el puerto 8002 ya esta en uso, avisar en vez de reintentar sin fin
-netstat -ano | findstr /R /C:":8002 *0\.0\.0\.0:0" /C:":8002 *\[::\]:0" >nul
-if not errorlevel 1 (
-    echo.
-    echo El puerto 8002 ya esta en uso: probablemente Falcon NetSuite ya esta abierto en otra ventana.
-    echo Cierre las otras ventanas negras de Falcon NetSuite o abra http://localhost:8002 directamente.
-    echo Para liberar el puerto: netstat -ano ^| findstr :8002   y luego   taskkill /PID numero /F
+rem Busca el primer puerto libre desde el 8002. Se saltan los reservados por otras apps Falcon:
+rem   8000 = Falcon Contable, 8001 = Falcon Tesoreria. Agregue aqui el puerto de Falcon PDB u otras.
+set "RESERVADOS= 8000 8001 "
+set PUERTO=
+for /l %%P in (8002,1,8099) do if not defined PUERTO call :probar %%P
+if not defined PUERTO (
+    echo No se encontro un puerto libre entre 8002 y 8099.
     goto :fin
 )
 
 echo.
-echo Servidor en http://localhost:8002  (cierre esta ventana o pulse Ctrl+C para detenerlo)
-start "" /b cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:8002"
+echo Servidor en http://localhost:%PUERTO%  (cierre esta ventana o pulse Ctrl+C para detenerlo)
+start "" /b cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:%PUERTO%"
 set FALCON_REINICIAR=1
 :servidor
-".venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8002
+".venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port %PUERTO%
 rem Codigo 75 = el boton Actualizar pidio reiniciar: reinstala dependencias y vuelve a arrancar
 if "%errorlevel%"=="75" (
     echo.
@@ -60,3 +60,10 @@ echo.
 echo Ocurrio un error durante la preparacion. Revise los mensajes anteriores.
 :fin
 pause
+exit /b
+
+:probar
+echo %RESERVADOS% | find " %1 " >nul && goto :eof
+netstat -ano | findstr /R /C:":%1 *0\.0\.0\.0:0" /C:":%1 *\[::\]:0" >nul && goto :eof
+set PUERTO=%1
+goto :eof
