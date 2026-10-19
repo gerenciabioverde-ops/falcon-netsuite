@@ -4,7 +4,7 @@ App independiente (FastAPI + Jinja2 + HTMX). Recibe un Excel/CSV con la informac
 la valida contra `data/TEMPLATE_CSV_FALCON.xlsx` y entrega los CSV de importación de NetSuite.
 
 ## Uso
-En Windows: doble clic en `iniciar.bat` (crea el entorno, instala dependencias, arranca y abre el navegador). Usa el primer puerto libre desde el 8002, saltando los reservados por otras apps Falcon (8000 Contable, 8001 Tesorería; editar `RESERVADOS` en `iniciar.bat` para agregar más, p. ej. Falcon PDB).
+En Windows: doble clic en `iniciar.bat` (crea el entorno, instala dependencias, arranca y abre el navegador). Usa el primer puerto libre desde el 8002, saltando los reservados por otras apps Falcon (8000 Contable, 8001 Tesorería, 8003 Falcon PDB; editar `RESERVADOS` en `iniciar.bat` para agregar más). Mapa de puertos: Contable 8000 · Tesorería 8001 · NetSuite 8002 · PDB 8003.
 
 `actualizar.bat` baja la última versión de `main` y actualiza dependencias; `detener.bat` cierra el servidor de esta carpeta. El botón «⟳ Actualizar» (arriba a la derecha) trae la última versión de `main` desde GitHub y reinicia la app sola (requiere haber abierto con `iniciar.bat`).
 
