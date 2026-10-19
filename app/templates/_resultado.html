@@ -1,0 +1,51 @@
+{% if error %}
+<div class="bg-red-50 border border-red-300 text-red-800 rounded p-4">{{ error }}</div>
+{% else %}
+<div class="space-y-4">
+  {% for a in avisos %}<div class="bg-amber-50 border border-amber-300 text-amber-800 rounded p-3 text-sm">{{ a }}</div>{% endfor %}
+
+  <div class="bg-white rounded-lg shadow p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold">Resultado</h2>
+      {% if resultados|selectattr('exportable')|list %}
+      <a href="/descargar/{{ token }}/todos.zip" class="bg-green-700 text-white text-sm px-3 py-1.5 rounded">Descargar todo (.zip)</a>
+      {% endif %}
+    </div>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-slate-500 border-b">
+        <th class="py-1">Plantilla</th><th>Filas</th><th>Errores</th><th>Avisos</th><th></th></tr></thead>
+      <tbody>
+      {% for r in resultados %}
+        <tr class="border-b">
+          <td class="py-1.5">{{ r.nombre.strip() }}</td>
+          <td>{{ r.filas|length }}</td>
+          <td class="{{ 'text-red-700 font-semibold' if r.errores else '' }}">{{ r.errores }}</td>
+          <td>{{ r.avisos }}</td>
+          <td class="text-right">
+            {% if r.exportable %}<a class="text-blue-700 underline" href="/descargar/{{ token }}/{{ r.archivo }}">CSV</a>
+            {% elif not r.filas and not r.errores %}<span class="text-slate-400">sin datos</span>
+            {% else %}<span class="text-red-700">corregir</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% for r in resultados if r.problemas %}
+  <details class="bg-white rounded-lg shadow p-4" {{ 'open' if r.errores }}>
+    <summary class="cursor-pointer font-medium">{{ r.nombre.strip() }} — {{ r.errores }} error(es), {{ r.avisos }} aviso(s)</summary>
+    <table class="w-full text-sm mt-3">
+      <thead><tr class="text-left text-slate-500 border-b"><th class="py-1">Fila</th><th>Columna</th><th>Detalle</th></tr></thead>
+      <tbody>
+      {% for p in r.problemas[:200] %}
+        <tr class="border-b {{ 'text-red-800' if p.nivel == 'error' else 'text-amber-800' }}">
+          <td class="py-1">{{ p.fila or '—' }}</td><td>{{ p.columna }}</td><td>{{ p.mensaje }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if r.problemas|length > 200 %}<p class="text-xs text-slate-500 mt-2">Se muestran los primeros 200.</p>{% endif %}
+  </details>
+  {% endfor %}
+</div>
+{% endif %}

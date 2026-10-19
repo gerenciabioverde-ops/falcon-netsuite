@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Falcon NetSuite CSV</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<main class="max-w-5xl mx-auto p-6 space-y-6">
+  <header>
+    <h1 class="text-2xl font-bold">Falcon · Generador de CSV para NetSuite</h1>
+    <p class="text-slate-600 mt-1">Sube tu Excel con la información, se valida contra la plantilla y se descargan los CSV listos para importar.</p>
+  </header>
+
+  <section class="bg-white rounded-lg shadow p-5 space-y-4">
+    <ol class="list-decimal ml-5 text-sm text-slate-600 space-y-1">
+      <li>Descarga la plantilla y llena las hojas que necesites (varias líneas con el mismo <em>EXTERNAL ID</em> forman un solo documento).</li>
+      <li>Sube el archivo <strong>.xlsx</strong> (todas las hojas) o un <strong>.csv</strong> de una sola plantilla.</li>
+      <li>Corrige los errores indicados y descarga los CSV.</li>
+    </ol>
+    <a href="/plantilla" class="inline-block text-sm text-blue-700 underline">Descargar plantilla Excel</a>
+
+    <form hx-post="/procesar" hx-target="#resultado" hx-encoding="multipart/form-data"
+          hx-indicator="#cargando" class="grid md:grid-cols-4 gap-3 items-end">
+      <label class="md:col-span-2 text-sm">Archivo
+        <input type="file" name="archivo" accept=".xlsx,.xlsm,.csv" required
+               class="block w-full mt-1 border rounded p-1.5 bg-white">
+      </label>
+      <label class="text-sm">Plantilla (solo CSV)
+        <select name="hoja" class="block w-full mt-1 border rounded p-2 bg-white">
+          <option value="">—</option>
+          {% for h in hojas %}<option>{{ h }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="text-sm">Formato de fecha en el CSV
+        <select name="formato_fecha" class="block w-full mt-1 border rounded p-2 bg-white">
+          {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="md:col-span-4 flex items-center gap-3">
+        <button class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Validar y generar</button>
+        <span id="cargando" class="htmx-indicator text-sm text-slate-500">Procesando…</span>
+      </div>
+    </form>
+  </section>
+
+  <section id="resultado"></section>
+</main>
+</body>
+</html>
