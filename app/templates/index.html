@@ -20,7 +20,7 @@
   <header class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h1 class="text-2xl font-bold">Falcon · Generador de CSV para NetSuite</h1>
-      <p class="text-slate-600 mt-1">Escribe o pega los datos en cada pestaña, o sube tu Excel. Se valida contra la plantilla y se descargan los CSV listos para importar.</p>
+      <p class="text-slate-600 mt-1">Escribe o pega los datos en cada pestaña. Se valida contra la plantilla y se descargan los CSV listos para importar.</p>
     </div>
     <div class="text-right text-xs text-slate-500">
       {% if version %}<div>Versión {{ version }}</div>{% endif %}
@@ -31,7 +31,6 @@
 
   <section class="bg-white rounded-lg shadow">
     <nav id="tabs" class="flex flex-wrap border-b text-sm" role="tablist">
-      <button type="button" data-tab="subir" class="tab px-4 py-2.5 border-b-2">Subir archivo</button>
       {% for p in pestanas %}
       <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{{ p.nombre }}
         <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
@@ -39,36 +38,6 @@
     </nav>
 
     <div class="p-3">
-      <div id="panel-subir" class="panel space-y-4">
-        <ol class="list-decimal ml-5 text-sm text-slate-600 space-y-1">
-          <li>Descarga la plantilla y llena las hojas que necesites (varias líneas con el mismo <em>EXTERNAL ID</em> forman un solo documento).</li>
-          <li>Sube el archivo <strong>.xlsx</strong> (todas las hojas) o un <strong>.csv</strong> de una sola plantilla.</li>
-        </ol>
-        <a href="/plantilla" class="inline-block text-sm text-blue-700 underline">Descargar plantilla Excel</a>
-        <form hx-post="/procesar" hx-target="#resultado" hx-encoding="multipart/form-data"
-              hx-indicator="#cargando" class="grid md:grid-cols-4 gap-3 items-end">
-          <label class="md:col-span-2 text-sm">Archivo
-            <input type="file" name="archivo" accept=".xlsx,.xlsm,.csv" required
-                   class="block w-full mt-1 border rounded p-1.5 bg-white">
-          </label>
-          <label class="text-sm">Plantilla (solo CSV)
-            <select name="hoja" class="block w-full mt-1 border rounded p-2 bg-white">
-              <option value="">—</option>
-              {% for h in hojas %}<option>{{ h }}</option>{% endfor %}
-            </select>
-          </label>
-          <label class="text-sm">Formato de fecha en el CSV
-            <select name="formato_fecha" class="block w-full mt-1 border rounded p-2 bg-white">
-              {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
-            </select>
-          </label>
-          <div class="md:col-span-4 flex items-center gap-3">
-            <button class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Validar y generar</button>
-            <span id="cargando" class="htmx-indicator text-sm text-slate-500">Procesando…</span>
-          </div>
-        </form>
-      </div>
-
       {% for p in pestanas %}
       <div id="panel-{{ p.clave }}" class="panel hidden space-y-3" data-hoja="{{ p.clave }}">
         <p class="text-xs text-slate-500">
@@ -92,7 +61,7 @@
       </div>
       {% endfor %}
 
-      <div id="barra-grilla" class="hidden mt-4 pt-4 border-t flex flex-wrap items-center gap-3">
+      <div id="barra-grilla" class="mt-4 pt-4 border-t flex flex-wrap items-center gap-3">
         <label class="text-sm">Formato de fecha en el CSV
           <select id="formato-grilla" class="ml-2 border rounded p-1.5 bg-white">
             {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
@@ -236,13 +205,12 @@
       b.classList.toggle('border-blue-700', on); b.classList.toggle('text-blue-800', on);
       b.classList.toggle('font-semibold', on); b.classList.toggle('border-transparent', !on);
     });
-    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'subir');
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
   }
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => activar(b.dataset.tab)));
-  let inicial = 'subir';
-  try { inicial = sessionStorage.getItem('falcon-netsuite-tab') || 'subir'; } catch (e) {}
-  activar(document.getElementById('panel-' + inicial) ? inicial : 'subir');
+  let inicial = esquema[0].clave;
+  try { inicial = sessionStorage.getItem('falcon-netsuite-tab') || inicial; } catch (e) {}
+  activar(document.getElementById('panel-' + inicial) ? inicial : esquema[0].clave);
 
   document.getElementById('btn-grilla').addEventListener('click', async () => {
     const datos = {};
