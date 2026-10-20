@@ -89,6 +89,23 @@ def proponer_detraccion(concepto: str) -> str:
     return ""
 
 
+# (palabras del concepto, inicio de la opción de «Clasificación de bienes y servicios» de SUNAT); lo demás = «OTROS GASTOS…»
+REGLAS_CLASIFICACION: list[tuple[tuple[str, ...], str]] = [
+    (("equipo",), "ACTIVO FIJO"),
+    (("viatico", "pasaje", "boleto", "movilidad", "atencion", "representacion", "funeral", "combustible"), "GASTOS DE EDUCAC"),
+    (("envase", "empaque", "material", "suministro", "repuesto", "util", "compra de cafe"), "MERCADERIA"),
+]
+
+
+def proponer_clasificacion(concepto: str) -> str:
+    """Opción de la tabla de clasificación de bienes y servicios de SUNAT (la de la plantilla) para el concepto del gasto."""
+    from . import esquema
+    opciones = esquema.LISTAS_EXTRA["Gastos"].get("Clasificación Bienes y Servicios", [])
+    c = _plano(concepto)
+    inicio = next((ini for palabras, ini in REGLAS_CLASIFICACION if any(p in c for p in palabras)), "OTROS GASTOS NO INCLUIDOS")
+    return next((o for o in opciones if o.upper().startswith(inicio)), "")
+
+
 def proponer_departamento(concepto: str) -> str:
     """Departamento sugerido para el concepto, o '' si no hay sugerencia."""
     c = _plano(concepto)

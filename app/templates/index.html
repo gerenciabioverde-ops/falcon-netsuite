@@ -439,7 +439,7 @@
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
     poner('Gastos: Cuenta', cuentaID(v(COL_PCGE))); poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
-    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : 'SIN DETRACCIÓN'); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : 'SIN DETRACCIÓN'); poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
   // modo 'completar': solo celdas vacías (botón de Gastos). modo 'actualizar': también cambia lo que ya no coincide con Gastos.
@@ -520,7 +520,8 @@
   // Met. Pago según la Caja: con número de cuenta = Transferencia de Fondos; Caja Chica = Efectivo
   const metodoPago = caja => { const c = String(caja || '').trim().toLowerCase(); return !c ? '' : c.includes('caja chica') ? 'Efectivo' : /\d/.test(c) ? 'Transferencia de Fondos' : ''; };
   // Detracción SUNAT: Sujeto (Sí/No) + Concepto -> % de la tabla de la plantilla -> Monto Detr. = Total × %
-  const COL_SUJ = 'Sujeto a Detracción', COL_CDET = 'Concepto Detracción', COL_PDET = '% Detracción';
+  const COL_SUJ = 'Sujeto a Detracción', COL_CDET = 'Concepto Detracción', COL_PDET = '% Detracción', COL_TOP = 'Tipo Operación SUNAT', COL_CLAS = 'Clasificación Bienes y Servicios';
+  const CODIGOS_SERVICIO = new Set(['12', '19', '20', '21', '22', '24', '25', '26', '27', '30', '37']);
   const numero = t => { const n = parseFloat(String(t || '').replace(/,/g, '')); return isNaN(n) ? 0 : n; };
   const porcentajeTxt = pct => pct ? (+(pct * 100).toFixed(2)) + '%' : '';
   // v: valores en orden de columna (de la fila o del formulario); recalcular = el usuario acaba de cambiar Sujeto/Concepto
@@ -531,13 +532,17 @@
     const si = /^(s[ií]|t|1)$/i.test(String(v[colG(COL_SUJ)]).trim());
     if (si && pct && (recalcular || !numero(v[colG('Monto Detr.')]))) v[colG('Monto Detr.')] = (numero(v[colG('Total')]) * pct).toFixed(2);
     if (!si && recalcular) v[colG('Monto Detr.')] = '0.00';
+    // servicios: el tipo de operación de la tabla de SUNAT es «prestación de servicios…» (para bienes lo eliges tú)
+    if (si && !String(v[colG(COL_TOP)]).trim() && CODIGOS_SERVICIO.has(String(v[colG(COL_CDET)]).split(' ')[0])) {
+      v[colG(COL_TOP)] = (porClave.gastos.columnas[colG(COL_TOP)].opciones.find(o => o.startsWith('Venta de bienes muebles')) || '');
+    }
     return v;
   }
   function completarDetraccion(tr, recalcular) {
     const ins = tr.querySelectorAll('input');
     if (!ins[colG('Total')].value.trim() && !ins[colG(COL_CDET)].value.trim()) return;       // fila vacía
     const v = calcularDetraccion([...ins].map(i => i.value), recalcular);
-    [COL_SUJ, COL_PDET, 'Monto Detr.'].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
+    [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
   }
   function completarIdGasto(tr) {
     const ins = tr.querySelectorAll('input'), iM = colG('Met. Pago');
@@ -588,17 +593,19 @@
   });
   $id('btn-proponer').addEventListener('click', async () => {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), iD = colG('Departamento');
-    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && (!ins[iP].value.trim() || !ins[iD].value.trim() || (/^s[ií]$/i.test(ins[colG(COL_SUJ)].value.trim()) && !ins[colG(COL_CDET)].value.trim())); });
+    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && (!ins[iP].value.trim() || !ins[iD].value.trim() || !ins[colG(COL_CLAS)].value.trim() || (/^s[ií]$/i.test(ins[colG(COL_SUJ)].value.trim()) && !ins[colG(COL_CDET)].value.trim())); });
     if (!filas.length) { alert('No hay gastos sin cuenta ni departamento para proponer.'); return; }
     const conceptos = [...new Set(filas.map(tr => tr.querySelectorAll('input')[iC].value.trim()))];
     const r = await fetch('/gastos/proponer', { method: 'POST', headers: JSON_H, body: JSON.stringify({ conceptos }) });
     if (!r.ok) { alert('No se pudo proponer (error ' + r.status + ').'); return; }
-    const resp = await r.json(), cuentas = resp.propuestas, deptos = resp.departamentos || {}, detrs = resp.detracciones || {}, sinC = new Set(), sinD = new Set(); let nc = 0, nd = 0, nx = 0;
+    const resp = await r.json(), cuentas = resp.propuestas, deptos = resp.departamentos || {}, detrs = resp.detracciones || {}, clasifs = resp.clasificaciones || {}, sinC = new Set(), sinD = new Set(); let nc = 0, nd = 0, nx = 0;
     filas.forEach(tr => {
       const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim();
       if (!ins[iP].value.trim()) {
         if (cuentas[c]) { ins[iP].value = cuentas[c]; ins[iP].classList.add('propuesta'); sincronizarNS(tr); nc++; } else sinC.add(c);
       }
+      const iK = colG(COL_CLAS);
+      if (!ins[iK].value.trim() && clasifs[c]) { ins[iK].value = clasifs[c]; ins[iK].classList.add('propuesta'); }
       const iS = colG(COL_SUJ), iX = colG(COL_CDET);       // concepto de detracción solo donde el gasto ya está marcado «Sí»
       if (/^s[ií]$/i.test(ins[iS].value.trim()) && !ins[iX].value.trim() && detrs[c]) { ins[iX].value = detrs[c]; ins[iX].classList.add('propuesta'); completarDetraccion(tr, false); nx++; }
       if (!ins[iD].value.trim()) {
@@ -710,8 +717,8 @@
     if (clave === 'gastos') {                 // bloque «Detracción (SUNAT)» bajo el de la cuenta contable
       const etiq = n => cont.querySelector('input[data-col="' + colG(n) + '"]').parentElement, bd = document.createElement('div'), gd = document.createElement('div');
       bd.className = 'bloque-cuenta'; bd.innerHTML = '<div class="bloque-cuenta-titulo">Detracción (SUNAT)</div>';
-      [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.'].forEach(n => gd.appendChild(etiq(n)));
-      gd.style.gridTemplateColumns = '1fr 2fr 1fr 1fr 1fr';
+      [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.', COL_TOP].forEach(n => gd.appendChild(etiq(n)));
+      gd.style.gridTemplateColumns = '1fr 2fr 1fr 1fr 1fr'; etiq(COL_TOP).style.gridColumn = '1 / -1';
       bd.appendChild(gd);
       const nd = document.createElement('div'); nd.className = 'bloque-cuenta-nota';
       nd.textContent = 'Marca «Sí» o elige el concepto: el % sale de la tabla de detracciones de la plantilla y el Monto Detr. = Total × %. Pasa a «Latam - Concepto Detracción» de Factura de Proveedor (si es «No», va «SIN DETRACCIÓN»).';
@@ -719,7 +726,7 @@
       cont.insertBefore(bd, cont.children[2]);
       const ms = camposModal(), refrescar = recalcular => {
         const v = calcularDetraccion(ms.map(m => m.value), recalcular);
-        [COL_SUJ, COL_PDET, 'Monto Detr.'].forEach(n => { ms[colG(n)].value = v[colG(n)]; });
+        [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP].forEach(n => { ms[colG(n)].value = v[colG(n)]; });
       };
       ms[colG(COL_PDET)].readOnly = true; ms[colG(COL_PDET)].style.background = '#f1f5f9';
       ms[colG(COL_CDET)].setAttribute('list', 'dl-gastos-' + colG(COL_CDET));

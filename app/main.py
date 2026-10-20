@@ -116,7 +116,8 @@ async def proponer_cuentas(request: Request):
     conceptos = [str(c) for c in (cuerpo.get("conceptos") or [])][:500]
     return {"propuestas": {c: gastos_cuentas.proponer(c) for c in conceptos},
             "departamentos": {c: gastos_cuentas.proponer_departamento(c) for c in conceptos},
-            "detracciones": {c: gastos_cuentas.proponer_detraccion(c) for c in conceptos}}
+            "detracciones": {c: gastos_cuentas.proponer_detraccion(c) for c in conceptos},
+            "clasificaciones": {c: gastos_cuentas.proponer_clasificacion(c) for c in conceptos}}
 
 
 @app.get("/homologacion")
