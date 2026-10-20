@@ -426,7 +426,7 @@
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
     poner('Gastos: Cuenta', v(COL_NS)); poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
-    poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
   // modo 'completar': solo celdas vacías (botón de Gastos). modo 'actualizar': también cambia lo que ya no coincide con Gastos.
@@ -501,6 +501,15 @@
     if (!ins[0].value.trim()) ins[0].value = idGasto([...ins].map(i => i.value));
     if (!ins[iM].value.trim()) ins[iM].value = metodoPago(ins[colG('Caja')].value);
   }
+  // Departamento / Clase: al elegir uno en un gasto se ofrece copiarlo a los demás gastos del mismo concepto que lo tienen vacío
+  function ofrecerAplicarCol(tr, nombre) {
+    const iC = colG('Concepto'), iK = colG(nombre), ins = tr.querySelectorAll('input'), valor = ins[iK].value.trim(), concepto = ins[iC].value.trim();
+    if (!valor || !concepto) return;
+    const otras = [...cuerpo('gastos').rows].filter(r => { const x = r.querySelectorAll('input'); return r !== tr && x[iC].value.trim().toLowerCase() === concepto.toLowerCase() && !x[iK].value.trim(); });
+    if (!otras.length || !confirm('¿Poner ' + nombre + ' «' + valor + '» a los ' + otras.length + ' gasto(s) más con el concepto «' + concepto + '» que lo tienen vacío?')) return;
+    otras.forEach(r => { r.querySelectorAll('input')[iK].value = valor; });
+    guardar(); contadores();
+  }
   function sincronizarNS(tr) { const ins = tr.querySelectorAll('input'); ins[colG(COL_NS)].value = cuentaNS(ins[colG(COL_PCGE)].value); }
   function ofrecerAplicar(tr, cod) {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), concepto = tr.querySelectorAll('input')[iC].value.trim();
@@ -516,6 +525,7 @@
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
     if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero'), colG('Caja')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
+    if (i instanceof HTMLInputElement && [colG('Departamento'), colG('Clase')].includes(+i.dataset.col)) { guardar(); ofrecerAplicarCol(i.closest('tr'), porClave.gastos.columnas[+i.dataset.col].nombre); return; }
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
@@ -650,10 +660,12 @@
     const tr = filaTr(); if (!tr) return;
     const ins = tr.querySelectorAll('input');
     const iP = mClave === 'gastos' ? colG(COL_PCGE) : -1, antes = iP >= 0 ? ins[iP].value : '';
+    const antesDC = mClave === 'gastos' ? ['Departamento', 'Clase'].map(n => [n, ins[colG(n)].value]) : [];
     camposModal().forEach((m, i) => { ins[i].value = m.value; });
     if (iP >= 0 && ins[iP].value !== antes) { ins[iP].classList.remove('propuesta'); sincronizarNS(tr); }
     guardar(); contadores();
     if (iP >= 0 && ins[iP].value.trim() && ins[iP].value !== antes) ofrecerAplicar(tr, ins[iP].value.trim());
+    antesDC.forEach(([n, v0]) => { if (ins[colG(n)].value !== v0) ofrecerAplicarCol(tr, n); });
   }
   function cerrarFila() { modal.style.display = 'none'; mClave = null; }
   async function consultarFila() {
