@@ -58,7 +58,7 @@
           {% if p.nombre.startswith('Factura') or p.nombre.startswith('Nota') %}«Artículos: Importe» se calcula solo (cantidad × tarifa) si lo dejas vacío.{% endif %}
           {% if p.nota %}<br><strong>{{ p.nota }}</strong>{% endif %}
         </p>
-        <div class="overflow-auto border rounded" style="height: calc(100vh - 36rem); min-height: 16rem;">
+        <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;">
           <table class="grilla border-collapse text-left">
             <thead><tr>
               <th>#</th>
@@ -282,7 +282,20 @@
     });
     document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas');
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
+    ajustarAlto();
   }
+
+  // La grilla ocupa todo el alto libre de la ventana: desde donde empieza hasta justo antes de los botones y de la barra «Validar y generar»
+  function ajustarAlto() {
+    const pnl = document.querySelector('.panel[data-hoja]:not(.hidden)');
+    if (!pnl) return;
+    const caja = pnl.querySelector('.caja-grilla'), botones = pnl.querySelector('.btn-fila').parentElement, barra = document.getElementById('barra-grilla');
+    const arriba = caja.getBoundingClientRect().top + window.scrollY;
+    const reservado = botones.offsetHeight + barra.offsetHeight + 80;   // + separaciones y márgenes de la tarjeta
+    caja.style.height = Math.max(240, window.innerHeight - arriba - reservado) + 'px';
+  }
+  window.addEventListener('resize', ajustarAlto);
+  window.addEventListener('load', ajustarAlto);
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => activar(b.dataset.tab)));
   let inicial = esquema[0].clave;
   try { inicial = sessionStorage.getItem('falcon-netsuite-tab') || inicial; } catch (e) {}
