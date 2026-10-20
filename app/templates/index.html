@@ -673,7 +673,8 @@
       const iK = colG(COL_CLAS);
       if (!ins[iK].value.trim() && clasifs[c]) { ins[iK].value = clasifs[c]; ins[iK].classList.add('propuesta'); }
       const iS = colG(COL_SUJ), iX = colG(COL_CDET);       // concepto de detracción solo donde el gasto ya está marcado «Sí»
-      if (/^s[ií]$/i.test(ins[iS].value.trim()) && !ins[iX].value.trim() && detrs[c]) { ins[iX].value = detrs[c]; ins[iX].classList.add('propuesta'); completarDetraccion(tr, false); nx++; }
+      const cafeSinFactura = /cafe/.test(quitarTildes(c)) && !/^factura/.test(quitarTildes(ins[colG('Tipo Doc')].value));       // el café con liquidación de compra no lleva el 1.5%
+      if (/^s[ií]$/i.test(ins[iS].value.trim()) && !ins[iX].value.trim() && detrs[c] && !cafeSinFactura) { ins[iX].value = detrs[c]; ins[iX].classList.add('propuesta'); completarDetraccion(tr, false); nx++; }
       if (!ins[iD].value.trim()) {
         if (deptos[c]) { ins[iD].value = deptos[c]; ins[iD].classList.add('propuesta'); nd++; } else sinD.add(c);
       }

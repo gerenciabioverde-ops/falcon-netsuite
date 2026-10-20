@@ -422,6 +422,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                 if not salida[idx(dd["tipo"])] and codigo_det in esquema.CODIGOS_SERVICIO | esquema.CODIGOS_EXONERADO:   # tipo de operación de la tabla de SUNAT
                     inicio = "Venta de bienes exonerada" if codigo_det in esquema.CODIGOS_EXONERADO else "Venta de bienes muebles"
                     salida[idx(dd["tipo"])] = next((o for o in esquema.LISTAS_EXTRA["Gastos"].get("Tipo Operación SUNAT", []) if o.startswith(inicio)), "")
+                if codigo_det in esquema.CODIGOS_EXONERADO and esquema.norm(salida[idx("Tipo Doc")]).startswith("liquidaci"):
+                    res.problemas.append(Problema("aviso", nro, dd["sujeto"], "Una liquidación de compra de café no lleva la detracción del 1.5%: revise si debe estar sujeta"))
                 if igv == 0 and codigo_det not in esquema.CODIGOS_EXONERADO:
                     res.problemas.append(Problema("aviso", nro, dd["sujeto"], "La detracción aplica a operaciones afectas al IGV, y este comprobante tiene IGV 0"))
             else:
