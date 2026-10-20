@@ -11,6 +11,8 @@
   .grilla td, .grilla th { border: 1px solid #e2e8f0; padding: 0; }
   .grilla th { padding: 4px 8px; font-weight: 600; font-size: 12px; }
   .grilla input { width: 11rem; padding: 4px 6px; font-size: 13px; border: 0; background: transparent; }
+  .grilla input[readonly] { background: #f8fafc; color: #334155; cursor: default; }
+  .grilla input[readonly]:focus { outline: 1px dashed #94a3b8; background: #f1f5f9; }
   .grilla input:focus { outline: 2px solid #1d4ed8; outline-offset: -2px; background: #fff; }
   .grilla td.nro { background: #f8fafc; color: #64748b; text-align: center; font-size: 12px; min-width: 6.5rem; position: sticky; left: 0; white-space: nowrap; padding: 0 4px; }
   .grilla td.nro .btn-editar { margin-left: 4px; padding: 1px 7px; border: 1px solid #93c5fd; border-radius: 4px; background: #eff6ff; color: #1d4ed8; font-size: 12px; cursor: pointer; }
@@ -147,7 +149,11 @@
   function guardar() {
     try {
       const d = {};
-      for (const p of esquema) d[p.clave] = leer(p.clave, true);
+      d.__bloqueadas = {};
+      for (const p of esquema) {
+        d[p.clave] = leer(p.clave, true);
+        d.__bloqueadas[p.clave] = [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0);
+      }
       localStorage.setItem(LLAVE, JSON.stringify(d));
     } catch (e) {}
   }
@@ -158,7 +164,8 @@
   function panel(clave) { return document.getElementById('panel-' + clave); }
   function cuerpo(clave) { return panel(clave).querySelector('tbody'); }
 
-  function nuevaFila(clave, valores) {
+  // bloqueada = fila cargada desde un archivo: sus celdas son de solo lectura y se modifican con «✎ Editar»
+  function nuevaFila(clave, valores, bloqueada) {
     const p = porClave[clave], tb = cuerpo(clave), tr = document.createElement('tr');
     const n = document.createElement('td');
     n.className = 'nro';
@@ -172,8 +179,10 @@
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       inp.value = (valores && valores[i]) || '';
+      if (bloqueada) { inp.readOnly = true; inp.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; }
       td.appendChild(inp); tr.appendChild(td);
     });
+    if (bloqueada) tr.dataset.bloqueada = '1';
     tb.appendChild(tr);
     return tr;
   }
@@ -210,8 +219,9 @@
 
   const borrador = cargarBorrador();
   esquema.forEach(p => {
-    const filas = borrador[p.clave] || [];
-    filas.forEach(f => nuevaFila(p.clave, f));
+    const filas = Array.isArray(borrador[p.clave]) ? borrador[p.clave] : [];
+    const bloq = (borrador.__bloqueadas && borrador.__bloqueadas[p.clave]) || [];
+    filas.forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
     while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
   });
   contadores();
@@ -220,6 +230,7 @@
   document.addEventListener('paste', ev => {
     const inp = ev.target;
     if (!(inp instanceof HTMLInputElement) || !inp.closest('.grilla')) return;
+    if (inp.readOnly) { ev.preventDefault(); return; }       // fila bloqueada: se edita con «✎ Editar»
     const texto = (ev.clipboardData || window.clipboardData).getData('text');
     if (!/[\t\n]/.test(texto)) return;               // un solo valor: pegado normal
     ev.preventDefault();
@@ -229,7 +240,7 @@
     filas.forEach((cols, r) => {
       while (tb.rows.length <= fila0 + r) nuevaFila(clave);
       cols.forEach((v, c) => {
-        if (col0 + c >= p.columnas.length) return;
+        if (col0 + c >= p.columnas.length || tb.rows[fila0 + r].dataset.bloqueada) return;
         tb.rows[fila0 + r].querySelectorAll('input')[col0 + c].value = v.trim();
       });
     });
@@ -343,6 +354,10 @@
     const b = ev.target.closest && ev.target.closest('.btn-editar');
     if (b) abrirFila(b.closest('.panel').dataset.hoja, b.closest('tr').rowIndex - 1);
   });
+  document.addEventListener('dblclick', ev => {            // doble clic en una celda bloqueada abre el editor
+    const i = ev.target;
+    if (i instanceof HTMLInputElement && i.readOnly && i.closest('.grilla')) abrirFila(i.closest('.panel').dataset.hoja, i.closest('tr').rowIndex - 1);
+  });
   document.getElementById('mf-guardar').addEventListener('click', () => { guardarFila(); cerrarFila(); });
   document.getElementById('mf-cancelar').addEventListener('click', cerrarFila);
   document.getElementById('mf-ant').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx - 1); });
@@ -449,14 +464,14 @@
       }
       claves.forEach(k => {
         cuerpo(k).innerHTML = '';
-        d.hojas[k].forEach(fila => nuevaFila(k, fila));
+        d.hojas[k].forEach(fila => nuevaFila(k, fila, true));
         while (cuerpo(k).rows.length < FILAS_INICIALES) nuevaFila(k);
       });
       guardar(); contadores();
       activar(claves.includes(claveCarga) ? claveCarga : claves[0]);
       est.className = 'text-sm text-green-700';
       est.textContent = 'Cargado: ' + claves.map(k => d.nombres[k] + ' (' + d.hojas[k].length + ' filas)').join(', ') +
-        '. Revise y pulse «Validar y generar».' + ((d.avisos || []).length ? ' ' + d.avisos.join(' ') : '');
+        '. Las filas cargadas están bloqueadas: use «✎ Editar» para modificar un registro. Revise y pulse «Validar y generar».' + ((d.avisos || []).length ? ' ' + d.avisos.join(' ') : '');
     } catch (e) { est.className = 'text-sm text-red-700'; est.textContent = 'No se pudo leer el archivo.'; }
   });
 

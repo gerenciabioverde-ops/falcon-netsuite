@@ -29,6 +29,8 @@ El **EXTERNAL ID se genera solo** si se deja vacío, y es siempre el mismo para 
 
 Si se escribe un EXTERNAL ID a mano, se respeta tal cual.
 
+**Filas bloqueadas:** las filas que se cargan desde un Excel/CSV quedan de solo lectura (fondo gris); para modificar un registro se usa «✎ Editar» (o doble clic en la celda). Las filas que se escriben o pegan a mano siguen siendo editables en la grilla.
+
 **Editar fila:** cada fila de las grillas tiene un botón «✎ Editar» que abre un formulario con todos los campos (con sus listas desplegables): permite «Autocompletar» los campos vacíos que la app calcula (ID, ciudad, ZIP, persona…), «Validar fila», moverse con «Anterior / Siguiente», «Guardar», «Cancelar» y «Eliminar fila». Esc cierra sin guardar.
 
 **Cargar Excel / CSV:** cada pestaña con grilla tiene el botón «⬆ Cargar Excel / CSV». Lee el archivo en el servidor y llena la(s) grilla(s): del Excel de plantillas carga las 6 hojas, del libro de proveedores toma la hoja `Vendor` (encabezados en la fila 3; ignora las filas de ayuda y de ejemplo) y un CSV va a la pestaña desde la que se carga. Las columnas se buscan por nombre. Hasta 2000 filas por hoja y 40 MB; después se revisa y se pulsa «Validar y generar».
