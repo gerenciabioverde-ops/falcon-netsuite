@@ -12,7 +12,15 @@
   .grilla th { padding: 4px 8px; font-weight: 600; font-size: 12px; }
   .grilla input { width: 11rem; padding: 4px 6px; font-size: 13px; border: 0; background: transparent; }
   .grilla input:focus { outline: 2px solid #1d4ed8; outline-offset: -2px; background: #fff; }
-  .grilla td.nro { background: #f8fafc; color: #64748b; text-align: center; font-size: 12px; min-width: 2.5rem; position: sticky; left: 0; }
+  .grilla td.nro { background: #f8fafc; color: #64748b; text-align: center; font-size: 12px; min-width: 6.5rem; position: sticky; left: 0; white-space: nowrap; padding: 0 4px; }
+  .grilla td.nro .btn-editar { margin-left: 4px; padding: 1px 7px; border: 1px solid #93c5fd; border-radius: 4px; background: #eff6ff; color: #1d4ed8; font-size: 12px; cursor: pointer; }
+  .grilla td.nro .btn-editar:hover { background: #dbeafe; }
+  #modal-fila { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,.55); align-items: center; justify-content: center; padding: 16px; }
+  #modal-fila .caja { background: #fff; border-radius: 8px; width: min(1100px, 100%); max-height: 94vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  #mf-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; padding: 12px 16px; overflow: auto; }
+  #mf-campos label { display: block; font-size: 12px; color: #475569; }
+  #mf-campos input { display: block; width: 100%; margin-top: 2px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
+  #mf-campos input:focus { outline: 2px solid #1d4ed8; outline-offset: -1px; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -104,6 +112,28 @@
   </section>
 
   <section id="resultado"></section>
+
+  <div id="modal-fila" role="dialog" aria-modal="true">
+    <div class="caja">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #e2e8f0">
+        <strong id="mf-titulo" style="font-size:16px"></strong>
+        <div style="display:flex;gap:6px">
+          <button type="button" id="mf-ant" class="border rounded px-3 py-1 text-sm hover:bg-slate-50">◀ Anterior</button>
+          <button type="button" id="mf-sig" class="border rounded px-3 py-1 text-sm hover:bg-slate-50">Siguiente ▶</button>
+        </div>
+      </div>
+      <div id="mf-campos"></div>
+      <ul id="mf-problemas" style="margin:0 16px 8px 32px;font-size:13px;list-style:disc"></ul>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid #e2e8f0">
+        <button type="button" id="mf-guardar" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded text-sm">Guardar</button>
+        <button type="button" id="mf-cancelar" class="border rounded px-4 py-2 text-sm hover:bg-slate-50">Cancelar</button>
+        <button type="button" id="mf-auto" class="border rounded px-3 py-2 text-sm hover:bg-slate-50" title="Llena los campos vacíos que la app calcula sola">Autocompletar</button>
+        <button type="button" id="mf-validar" class="border rounded px-3 py-2 text-sm hover:bg-slate-50">Validar fila</button>
+        <span style="flex:1"></span>
+        <button type="button" id="mf-eliminar" class="border rounded px-3 py-2 text-sm text-red-700 hover:bg-red-50">Eliminar fila</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script id="esquema" type="application/json">{{ pestanas | tojson }}</script>
@@ -131,7 +161,11 @@
   function nuevaFila(clave, valores) {
     const p = porClave[clave], tb = cuerpo(clave), tr = document.createElement('tr');
     const n = document.createElement('td');
-    n.className = 'nro'; n.textContent = tb.rows.length + 2;   // la fila 1 es el encabezado
+    n.className = 'nro';
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = tb.rows.length + 2;  // la fila 1 es el encabezado
+    const bEd = document.createElement('button'); bEd.type = 'button'; bEd.className = 'btn-editar'; bEd.textContent = '✎ Editar';
+    bEd.title = 'Editar esta fila en un formulario';
+    n.append(num, bEd);
     tr.appendChild(n);
     p.columnas.forEach((c, i) => {
       const td = document.createElement('td'), inp = document.createElement('input');
@@ -145,7 +179,7 @@
   }
 
   function renumerar(clave) {
-    [...cuerpo(clave).rows].forEach((tr, i) => tr.cells[0].textContent = i + 2);
+    [...cuerpo(clave).rows].forEach((tr, i) => { tr.cells[0].querySelector('.num').textContent = i + 2; });
   }
 
   function leer(clave, conVacias) {
@@ -262,6 +296,72 @@
       estado.textContent = 'No se pudo conectar con el servidor.';
     }
   });
+  // ---- Formulario de edición de una fila ----
+  const modal = document.getElementById('modal-fila');
+  let mClave = null, mIdx = 0;
+  const filaTr = () => cuerpo(mClave).rows[mIdx];
+  const camposModal = () => [...document.querySelectorAll('#mf-campos input')];
+
+  function abrirFila(clave, idx) {
+    const p = porClave[clave], tr = cuerpo(clave).rows[idx];
+    if (!tr) return;
+    mClave = clave; mIdx = idx;
+    document.getElementById('mf-titulo').textContent = 'Editar fila ' + (idx + 2) + ' · ' + p.nombre;
+    const cont = document.getElementById('mf-campos'), valores = [...tr.querySelectorAll('input')].map(i => i.value);
+    cont.innerHTML = '';
+    p.columnas.forEach((c, i) => {
+      const lab = document.createElement('label'), inp = document.createElement('input');
+      lab.append((c.nombre + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
+      inp.type = 'text'; inp.autocomplete = 'off'; inp.value = valores[i] || '';
+      if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
+      lab.appendChild(inp); cont.appendChild(lab);
+    });
+    document.getElementById('mf-problemas').innerHTML = '';
+    document.getElementById('mf-ant').disabled = idx === 0;
+    document.getElementById('mf-sig').disabled = idx >= cuerpo(clave).rows.length - 1;
+    modal.style.display = 'flex';
+    camposModal()[0].focus();
+  }
+  function guardarFila() {
+    const tr = filaTr(); if (!tr) return;
+    const ins = tr.querySelectorAll('input');
+    camposModal().forEach((m, i) => { ins[i].value = m.value; });
+    guardar(); contadores();
+  }
+  function cerrarFila() { modal.style.display = 'none'; mClave = null; }
+  async function consultarFila() {
+    const r = await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hoja: mClave, fila: camposModal().map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value }) });
+    return r.ok ? r.json() : null;
+  }
+  function mostrarProblemas(ps) {
+    const ul = document.getElementById('mf-problemas'); ul.innerHTML = '';
+    if (!ps.length) { const li = document.createElement('li'); li.style.color = '#15803d'; li.textContent = 'Sin problemas en esta fila.'; ul.appendChild(li); return; }
+    ps.forEach(p => { const li = document.createElement('li'); li.style.color = p.nivel === 'error' ? '#b91c1c' : '#b45309'; li.textContent = p.columna + ': ' + p.mensaje; ul.appendChild(li); });
+  }
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest && ev.target.closest('.btn-editar');
+    if (b) abrirFila(b.closest('.panel').dataset.hoja, b.closest('tr').rowIndex - 1);
+  });
+  document.getElementById('mf-guardar').addEventListener('click', () => { guardarFila(); cerrarFila(); });
+  document.getElementById('mf-cancelar').addEventListener('click', cerrarFila);
+  document.getElementById('mf-ant').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx - 1); });
+  document.getElementById('mf-sig').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx + 1); });
+  document.getElementById('mf-auto').addEventListener('click', async () => {
+    const d = await consultarFila(); if (!d) return;
+    const ins = camposModal();
+    d.fila.forEach((v, i) => { if (ins[i] && !ins[i].value.trim() && v) ins[i].value = v; });  // solo campos vacíos
+    mostrarProblemas(d.problemas);
+  });
+  document.getElementById('mf-validar').addEventListener('click', async () => { const d = await consultarFila(); if (d) mostrarProblemas(d.problemas); });
+  document.getElementById('mf-eliminar').addEventListener('click', () => {
+    if (!confirm('¿Eliminar la fila ' + (mIdx + 2) + '?')) return;
+    const clave = mClave; cuerpo(clave).deleteRow(mIdx); renumerar(clave);
+    while (cuerpo(clave).rows.length < 1) nuevaFila(clave);
+    guardar(); contadores(); cerrarFila();
+  });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && modal.style.display === 'flex') cerrarFila(); });
+
   // ---- Cuentas homologadas ----
   const $ = id => document.getElementById(id);
   let tablaCuentas = [];

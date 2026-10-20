@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import carga, homologacion
 from .esquema import RUTA_PLANTILLA, cargar_plantilla, norm
-from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar
+from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
 
 BASE = Path(__file__).parent
 RAIZ = BASE.parent
@@ -167,6 +167,21 @@ def plantilla_homologacion():
     return Response(homologacion.plantilla_xlsx(),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": 'attachment; filename="cuentas_homologadas_plantilla.xlsx"'})
+
+
+@app.post("/fila")
+def validar_una_fila(datos: dict = Body(...)):
+    """Valida y completa una sola fila (para el formulario de edición): {hoja, fila, formato_fecha}."""
+    hoja = PLANTILLA.hojas.get(datos.get("hoja"))
+    fila = datos.get("fila")
+    fmt = datos.get("formato_fecha", "DD/MM/YYYY")
+    if hoja is None or not isinstance(fila, list) or fmt not in FORMATOS_FECHA:
+        raise HTTPException(400, "Datos no válidos")
+    n = len(hoja.encabezados)
+    celdas = [(c.strip() if isinstance(c, str) and c.strip() else None) for c in (list(fila) + [""] * n)[:n]]
+    res = validar_hoja(hoja, [(1, list(hoja.encabezados)), (2, celdas)], fmt)
+    return {"fila": res.filas[0] if res.filas else [],
+            "problemas": [{"nivel": p.nivel, "columna": p.columna, "mensaje": p.mensaje} for p in res.problemas]}
 
 
 @app.post("/cargar")
