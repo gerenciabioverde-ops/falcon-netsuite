@@ -14,6 +14,11 @@
   .grilla input[readonly] { background: #f8fafc; color: #334155; cursor: default; }
   .grilla input[readonly]:focus { outline: 1px dashed #94a3b8; background: #f1f5f9; }
   .grilla input:focus { outline: 2px solid #1d4ed8; outline-offset: -2px; background: #fff; }
+  /* fila bajo el cursor (celeste claro) y fila seleccionada (celeste más fuerte con barra azul a la izquierda) */
+  .grilla tbody tr:hover td, .grilla tbody tr:hover input:not(.propuesta) { background: #e6efff !important; }
+  .grilla tbody tr.fila-sel td, .grilla tbody tr.fila-sel input:not(.propuesta):not(:focus) { background: #dbeafe !important; }
+  .grilla tbody tr.fila-sel td.nro { box-shadow: inset 4px 0 0 #1d4ed8; font-weight: 700; color: #1e3a8a; }
+  .grilla tbody tr.fila-sel input:focus { background: #fff !important; }
   .grilla td.nro { background: #f8fafc; color: #64748b; text-align: center; font-size: 12px; min-width: 6.5rem; position: sticky; left: 0; white-space: nowrap; padding: 0 4px; }
   .grilla td.nro .btn-editar { margin-left: 4px; padding: 1px 7px; border: 1px solid #93c5fd; border-radius: 4px; background: #eff6ff; color: #1d4ed8; font-size: 12px; cursor: pointer; }
   .grilla td.nro .btn-editar:hover { background: #dbeafe; }
@@ -372,6 +377,13 @@
 
   document.addEventListener('input', ev => {
     if (ev.target.closest && ev.target.closest('.grilla')) { guardar(); contadores(); }
+  });
+  // fila seleccionada: la última en la que se hizo clic o se enfocó una celda (queda marcada aunque se pulse otro botón)
+  document.addEventListener('focusin', ev => {
+    const tr = ev.target.closest && ev.target.closest('.grilla tbody tr');
+    if (!tr) return;
+    const tb = tr.parentElement, previa = tb.querySelector('tr.fila-sel');
+    if (previa !== tr) { if (previa) previa.classList.remove('fila-sel'); tr.classList.add('fila-sel'); }
   });
   document.addEventListener('change', ev => {                  // fecha al formato de Excel y valores fijos de la plantilla
     const i = ev.target;
