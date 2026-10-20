@@ -59,6 +59,7 @@
         </div>
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
+          <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
       </div>
@@ -89,6 +90,7 @@
         </div>
       </div>
 
+      <input type="file" id="archivo-carga" accept=".xlsx,.xlsm,.csv" style="display:none">
       <div id="barra-grilla" class="mt-4 pt-4 border-t flex flex-wrap items-center gap-3">
         <label class="text-sm">Formato de fecha en el CSV
           <select id="formato-grilla" class="ml-2 border rounded p-1.5 bg-white">
@@ -315,6 +317,40 @@
     await cargarCuentas();
   });
   cargarCuentas();
+
+  // ---- Cargar Excel / CSV en las grillas ----
+  let claveCarga = null;
+  document.querySelectorAll('.btn-cargar').forEach(b => b.addEventListener('click', () => {
+    claveCarga = b.closest('.panel').dataset.hoja;
+    $('archivo-carga').value = '';
+    $('archivo-carga').click();
+  }));
+  $('archivo-carga').addEventListener('change', async () => {
+    const f = $('archivo-carga').files[0], est = $('estado-grilla');
+    if (!f) return;
+    est.className = 'text-sm text-slate-500'; est.textContent = 'Leyendo ' + f.name + '… (un libro grande puede tardar unos segundos)';
+    const fd = new FormData(); fd.append('archivo', f); fd.append('hoja', claveCarga || '');
+    try {
+      const r = await fetch('/cargar', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!d.ok) { est.className = 'text-sm text-red-700'; est.textContent = d.mensaje || ('Error ' + r.status); return; }
+      const claves = Object.keys(d.hojas);
+      const conDatos = claves.filter(k => leer(k).length);
+      if (conDatos.length && !confirm('Se reemplazarán las filas actuales de: ' + conDatos.map(k => d.nombres[k]).join(', ') + '. ¿Continuar?')) {
+        est.textContent = ''; return;
+      }
+      claves.forEach(k => {
+        cuerpo(k).innerHTML = '';
+        d.hojas[k].forEach(fila => nuevaFila(k, fila));
+        while (cuerpo(k).rows.length < FILAS_INICIALES) nuevaFila(k);
+      });
+      guardar(); contadores();
+      activar(claves.includes(claveCarga) ? claveCarga : claves[0]);
+      est.className = 'text-sm text-green-700';
+      est.textContent = 'Cargado: ' + claves.map(k => d.nombres[k] + ' (' + d.hojas[k].length + ' filas)').join(', ') +
+        '. Revise y pulse «Validar y generar».' + ((d.avisos || []).length ? ' ' + d.avisos.join(' ') : '');
+    } catch (e) { est.className = 'text-sm text-red-700'; est.textContent = 'No se pudo leer el archivo.'; }
+  });
 
   document.getElementById('btn-actualizar').addEventListener('click', async () => {
     const btn = document.getElementById('btn-actualizar'), out = document.getElementById('estado-actualizar');

@@ -12,7 +12,9 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFil
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from . import homologacion
+from starlette.concurrency import run_in_threadpool
+
+from . import carga, homologacion
 from .esquema import RUTA_PLANTILLA, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar
 
@@ -26,6 +28,7 @@ PLANTILLA = cargar_plantilla()
 _RESULTADOS: dict[str, tuple[float, list[ResultadoHoja]]] = {}
 _TTL = 3600
 _MAX_BYTES = 10 * 1024 * 1024
+_MAX_CARGA = 40 * 1024 * 1024  # el libro de carga completo (con la tabla de códigos postales) pesa ~8 MB
 
 
 def _guardar(resultados: list[ResultadoHoja]) -> str:
@@ -164,6 +167,22 @@ def plantilla_homologacion():
     return Response(homologacion.plantilla_xlsx(),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": 'attachment; filename="cuentas_homologadas_plantilla.xlsx"'})
+
+
+@app.post("/cargar")
+async def cargar_a_grillas(archivo: UploadFile = File(...), hoja: str = Form("")):
+    """Lee un Excel/CSV y devuelve las filas de cada pestaña reconocida para llenar las grillas."""
+    contenido = await archivo.read(_MAX_CARGA + 1)
+    if len(contenido) > _MAX_CARGA:
+        return JSONResponse({"ok": False, "mensaje": "El archivo supera 40 MB."})
+    try:
+        datos, avisos = await run_in_threadpool(carga.leer, archivo.filename or "", contenido, PLANTILLA, hoja)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "mensaje": str(e)})
+    except Exception:
+        return JSONResponse({"ok": False, "mensaje": "No se pudo leer el archivo; verifique que no esté dañado."})
+    nombres = {k: h.nombre.strip() for k, h in PLANTILLA.hojas.items()}
+    return {"ok": True, "hojas": datos, "avisos": avisos, "nombres": {k: nombres[k] for k in datos}}
 
 
 @app.post("/procesar", response_class=HTMLResponse)
