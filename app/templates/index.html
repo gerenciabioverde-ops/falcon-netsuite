@@ -512,7 +512,7 @@
     let dl = $id('dl-cuentas-gasto');
     if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-cuentas-gasto'; document.body.appendChild(dl); }
     dl.innerHTML = '';
-    tablaCuentas.filter(f => String(f.falcon).startsWith('6')).forEach(f => {
+    tablaCuentas.filter(f => String(f.falcon).startsWith('6') || String(f.falcon) === CUENTA_CONTRATO).forEach(f => {
       const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_es || f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
     });
   }
@@ -596,8 +596,8 @@
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
-  // Regla: si el gasto tiene Area/Contrato (va a un contrato o lote), la cuenta es 609219 (costos vinculados) y no la del concepto
-  const CUENTA_CONTRATO = '609219';
+  // Regla: si el gasto tiene Area/Contrato (va a un contrato o lote), la cuenta es 219901 (costos vinculados) y no la del concepto
+  const CUENTA_CONTRATO = '219901';
   $id('btn-proponer').addEventListener('click', async () => {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), iD = colG('Departamento'), iA = colG('Area/Contrato');
     const conContrato = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iA].value.trim() && ins[iP].value.trim() && ins[iP].value.trim() !== CUENTA_CONTRATO; });
@@ -615,7 +615,7 @@
     filas.forEach(tr => {
       const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim();
       if (!ins[iP].value.trim()) {
-        const cod = ins[iA].value.trim() ? CUENTA_CONTRATO : cuentas[c];       // con Area/Contrato = 609219
+        const cod = ins[iA].value.trim() ? CUENTA_CONTRATO : cuentas[c];       // con Area/Contrato = 219901
         if (cod) { ins[iP].value = cod; ins[iP].classList.add('propuesta'); sincronizarNS(tr); nc++; } else sinC.add(c);
       }
       const iK = colG(COL_CLAS);
