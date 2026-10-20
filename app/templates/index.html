@@ -34,8 +34,6 @@
     </div>
     <div class="text-right text-xs text-slate-500">
       {% if version %}<div>Versión {{ version }}</div>{% endif %}
-      <button type="button" id="btn-actualizar" class="mt-1 border rounded px-3 py-1.5 text-sm text-slate-700 bg-white hover:bg-slate-50">⟳ Actualizar</button>
-      <div id="estado-actualizar" class="mt-1 max-w-xs"></div>
     </div>
   </header>
 
@@ -583,26 +581,6 @@
       est.textContent = 'Cargado: ' + claves.map(k => d.nombres[k] + ' (' + d.hojas[k].length + ' filas)').join(', ') +
         '. Las filas cargadas están bloqueadas: use «✎ Editar» para modificar un registro. Revise y pulse «Validar y generar».' + ((d.avisos || []).length ? ' ' + d.avisos.join(' ') : '');
     } catch (e) { est.className = 'text-sm text-red-700'; est.textContent = 'No se pudo leer el archivo.'; }
-  });
-
-  document.getElementById('btn-actualizar').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-actualizar'), out = document.getElementById('estado-actualizar');
-    btn.disabled = true; out.textContent = 'Buscando actualizaciones…';
-    try {
-      const r = await fetch('/actualizar', { method: 'POST' });
-      const d = await r.json();
-      out.textContent = d.mensaje || ('Error ' + r.status);
-      out.className = 'mt-1 max-w-xs ' + (d.ok ? 'text-green-700' : 'text-red-700');
-      if (d.reiniciando) {                       // espera a que el servidor vuelva y recarga
-        const t = setInterval(async () => {
-          try { const x = await fetch('/', { cache: 'no-store' }); if (x.ok) { clearInterval(t); location.reload(); } } catch (e) {}
-        }, 1500);
-        return;
-      }
-    } catch (e) {
-      out.textContent = 'No se pudo conectar con el servidor.'; out.className = 'mt-1 max-w-xs text-red-700';
-    }
-    btn.disabled = false;
   });
 
   // Arranque: el último período usado (o el mes actual)
