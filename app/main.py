@@ -341,6 +341,29 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
     })
 
 
+@app.post("/proveedores/csv")
+def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", filas: list[list[str]] = Body(...)):
+    """Vista previa del CSV de proveedores tal como se enviará a NetSuite (ya completado y validado) + token para descargarlo."""
+    if formato_fecha not in FORMATOS_FECHA:
+        raise HTTPException(400, "Formato de fecha no válido")
+    if len(filas) > 20000:
+        raise HTTPException(413, "Demasiadas filas")
+    hoja = PLANTILLA.hojas["proveedores"]
+    n = len(hoja.encabezados)
+    armado = [(1, list(hoja.encabezados))]
+    for pos, fila in enumerate(filas, start=2):
+        celdas = [(c.strip() if isinstance(c, str) and c.strip() else None) for c in (fila + [""] * n)[:n]]
+        if any(c is not None for c in celdas):
+            armado.append((pos, celdas))
+    res = procesar({"proveedores": armado}, PLANTILLA, formato_fecha, periodo or None)[0] if len(armado) > 1 else ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
+    por_fila: dict[int, list[dict]] = {}
+    for p in res.problemas:
+        por_fila.setdefault(p.fila or 0, []).append({"nivel": p.nivel, "columna": p.columna, "mensaje": p.mensaje})
+    return {"token": _guardar([res], periodo), "encabezados": res.encabezados, "filas": res.filas, "numeros": res.numeros_fila,
+            "problemas": por_fila, "errores": res.errores, "avisos": res.avisos,
+            "con_error": sorted({p.fila for p in res.problemas if p.nivel == "error" and p.fila})}
+
+
 @app.get("/descargar/{token}/{archivo}")
 def descargar(token: str, archivo: str):
     resultados = _obtener(token)
@@ -356,6 +379,16 @@ def descargar(token: str, archivo: str):
         return Response(reporte_errores_xlsx(resultados, periodos.etiqueta(periodo) if periodo else ""),
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         headers={"Content-Disposition": f'attachment; filename="errores_{periodo or "validacion"}.xlsx"'})
+    if archivo.endswith("_sin_errores.csv"):       # solo las filas sin errores (para subir ya los que están completos)
+        for r in resultados:
+            if r.archivo == archivo.replace("_sin_errores.csv", ".csv"):
+                malas = {p.fila for p in r.problemas if p.nivel == "error"}
+                buenas = [f for n, f in zip(r.numeros_fila, r.filas) if n not in malas]
+                if not buenas:
+                    raise HTTPException(409, "Ninguna fila está libre de errores.")
+                sub = ResultadoHoja(nombre=r.nombre, encabezados=r.encabezados, filas=buenas)
+                return Response(sub.csv_bytes(), media_type="text/csv; charset=utf-8",
+                                headers={"Content-Disposition": f'attachment; filename="{archivo}"'})
     for r in resultados:
         if r.archivo == archivo:
             if not r.exportable:
