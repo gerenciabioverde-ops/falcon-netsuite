@@ -417,6 +417,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                         salida[idx(dd["monto"])] = _fmt_num(esperado)
                     elif abs(monto - esperado) > Decimal("0.01"):
                         res.problemas.append(Problema("aviso", nro, dd["monto"], f"Monto Detr. ({_fmt_num(monto)}) difiere del cálculo {pct * 100:g}% × {_fmt_num(total)} = {_fmt_num(esperado)}"))
+                if not salida[idx(dd["tipo"])] and concepto.split(" ", 1)[0] in esquema.CODIGOS_SERVICIO:   # servicios: tipo de operación de la tabla de SUNAT
+                    salida[idx(dd["tipo"])] = next((o for o in esquema.LISTAS_EXTRA["Gastos"].get("Tipo Operación SUNAT", []) if o.startswith("Venta de bienes muebles")), "")
                 if igv == 0:
                     res.problemas.append(Problema("aviso", nro, dd["sujeto"], "La detracción aplica a operaciones afectas al IGV, y este comprobante tiene IGV 0"))
             else:

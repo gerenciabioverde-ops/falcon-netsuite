@@ -102,6 +102,7 @@ GASTOS_ENCABEZADOS = [
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
     "Sujeto a Detracción", "Concepto Detracción", "% Detracción",
+    "Clasificación Bienes y Servicios", "Tipo Operación SUNAT",
 ]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
@@ -131,6 +132,8 @@ LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "U
                                                 "Sujeto a Detracción": ["Sí", "No"]}}
 # Tabla de detracciones (concepto -> porcentaje) de la hoja DATA MAESTRA de la plantilla; se llena en cargar_plantilla()
 DETRACCIONES: dict[str, float] = {}
+# Códigos de concepto de detracción que son servicios (Anexo 3): a esos les corresponde el tipo de operación «prestación de servicios…»
+CODIGOS_SERVICIO = {"12", "19", "20", "21", "22", "24", "25", "26", "27", "30", "37"}
 
 REGLAS["Proveedores"] = {
     "requeridos": proveedores.REQUERIDOS,
@@ -155,7 +158,7 @@ REGLAS["Gastos"] = {
     "cuenta_gasto": ("Cuenta PCGE", "Cuenta NetSuite"),
     "metodo_pago": ("Caja", "Met. Pago"),
     "detraccion": {"sujeto": "Sujeto a Detracción", "concepto": "Concepto Detracción", "porcentaje": "% Detracción",
-                   "monto": "Monto Detr.", "total": "Total", "igv": "Igv"},
+                   "monto": "Monto Detr.", "total": "Total", "igv": "Igv", "tipo": "Tipo Operación SUNAT"},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
     "pagado_vs_total": ("Monto Pagado", "Total"),
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
@@ -235,6 +238,10 @@ def _resolver_formula(f: str, wb, hoja_actual: str) -> Lista:
         partes = crudo.split(",")
         # si algún valor lleva comas internas, partirlo por comas sería engañoso
         ambigua = any(x != x.strip() for x in partes)
+        if ambigua:      # los valores con comas internas las llevan seguidas de espacio; el separador de la lista no
+            mejores = re.split(r",(?! )", crudo)
+            if not any(x != x.strip() for x in mejores):
+                return Lista(valores={norm(x) for x in mejores}, crudo=crudo, opciones=mejores)
         return Lista(valores={norm(x) for x in partes}, crudo=crudo, opciones=[] if ambigua else partes)
     m = re.match(r"(?:'?([^'!]+)'?!)?\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)", f)
     if not m:
@@ -294,6 +301,13 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
                 if nombre_d:
                     DETRACCIONES[str(nombre_d).strip()] = float(pct or 0)
     LISTAS_EXTRA["Gastos"]["Concepto Detracción"] = [n for n, p in DETRACCIONES.items() if p]
+    h_fp = hojas.get(norm("Factura de Proveedor"))      # listas de SUNAT que ya trae la plantilla en Factura de Proveedor
+    if h_fp:
+        for col_g, col_f in (("Clasificación Bienes y Servicios", "Latam - PE Clasific.Bienes y Servicios"),
+                             ("Tipo Operación SUNAT", "Latam - PE Tipo Operacion Sunat")):
+            lista_f = h_fp.listas.get(h_fp.idx(col_f))
+            if lista_f and lista_f.opciones:
+                LISTAS_EXTRA["Gastos"][col_g] = list(lista_f.opciones)
     for nombre, enc in HOJAS_EXTRA.items():
         listas_extra = proveedores.listas() if nombre == "Proveedores" else LISTAS_EXTRA.get(nombre, {})
         hojas.setdefault(norm(nombre), Hoja(
