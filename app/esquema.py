@@ -93,6 +93,27 @@ REGLAS: dict[str, dict] = {
 }
 
 
+# Plantillas que no están en el Excel de la empresa y se definen aquí. Ajustar los encabezados al
+# mapeo de importación guardado en NetSuite (se enlazan por nombre o por posición de columna).
+HOJAS_EXTRA: dict[str, list[str]] = {
+    "Proveedores": [
+        "EXTERNAL ID", "Nombre de la empresa", "Subsidiaria",
+        "Latam - Tipo de Documento de Identidad", "Latam - Número de Documento",
+        "Moneda", "Términos", "Correo electrónico", "Teléfono",
+        "Dirección", "Departamento", "Provincia", "Distrito", "Código postal", "País",
+    ],
+}
+
+REGLAS["Proveedores"] = {
+    "requeridos": ["EXTERNAL ID", "Nombre de la empresa", "Subsidiaria",
+                   "Latam - Tipo de Documento de Identidad", "Latam - Número de Documento", "Moneda"],
+    "documento": {"tipo": "Latam - Tipo de Documento de Identidad", "numero": "Latam - Número de Documento"},
+    "cinco_digitos": ["Código postal"],
+    "unico_id": True,
+    "id_auto": {"prefijo": "VEND", "campos": ["Latam - Número de Documento"]},
+}
+
+
 def norm(txt) -> str:
     return re.sub(r"\s+", " ", str(txt or "")).strip().lower()
 
@@ -214,6 +235,8 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
                 listas=_listas_de_hoja(z.read(rutas[nombre]), wb, nombre),
                 reglas=REGLAS.get(clave, {}),
             )
+    for nombre, enc in HOJAS_EXTRA.items():
+        hojas.setdefault(norm(nombre), Hoja(nombre=nombre, encabezados=enc, listas={}, reglas=REGLAS.get(nombre, {})))
     maestra = {}
     if HOJA_MAESTRA in wb.sheetnames:
         ws = wb[HOJA_MAESTRA]
