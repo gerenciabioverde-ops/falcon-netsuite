@@ -98,7 +98,7 @@ REGLAS: dict[str, dict] = {
 # Plantillas que no están en el Excel de plantillas y se definen en código.
 # Proveedores = hoja «Vendor» del libro Entity - Falcon Coffees - Perú - Legacy (ver app/proveedores.py).
 GASTOS_ENCABEZADOS = [
-    "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
+    "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
     "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja",
 ]
@@ -128,6 +128,8 @@ REGLAS["Gastos"] = {
     "ruc_o_dni": "RUC",
     "cuadre_total": ("Sub-Total", "Igv", "Total"),
     "unico_compuesto": ["RUC", "Serie-Numero"],
+    "unico_id": True,
+    "id_auto": {"prefijo": "GASTO", "campos": ["RUC", "Serie-Numero"]},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
     "pagado_vs_total": ("Monto Pagado", "Total"),
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
