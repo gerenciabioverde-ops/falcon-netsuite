@@ -167,6 +167,18 @@
   const LLAVE_PERIODO = 'falcon-netsuite-periodo';
   const JSON_H = { 'Content-Type': 'application/json' };
   const $id = id => document.getElementById(id);
+  // Como en Excel: las fechas se ven D/M/AAAA (9/10/2026), aunque el reporte las traiga como 2026-10-09
+  const fechaExcel = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim()); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : v; };
+  // Valores fijos de la plantilla (subsidiaria, ubicación): se ven en la grilla apenas la fila tiene datos
+  function aplicarDefectos(clave, tr, salvo) {
+    const p = porClave[clave], ins = tr.querySelectorAll('input');
+    if (!p.por_defecto || ![...ins].some(i => i.value.trim())) return;
+    Object.entries(p.por_defecto).forEach(([col, [valor, si]]) => {
+      const i = p.columnas.findIndex(c => c.nombre === col), k = si ? p.columnas.findIndex(c => c.nombre === si) : -1;
+      if (i < 0 || ins[i] === salvo || ins[i].value.trim() || (k >= 0 && !ins[k].value.trim())) return;
+      ins[i].value = valor;
+    });
+  }
   const SUBSIDIARIA = '{{ subsidiaria }}', UBICACION = '{{ ubicacion }}';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
 
@@ -240,12 +252,13 @@
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
-      inp.value = (valores && valores[i]) || '';
+      inp.value = (valores && valores[i]) ? (c.fecha ? fechaExcel(valores[i]) : valores[i]) : '';
       if (bloqueada) { inp.readOnly = true; inp.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; }
       td.appendChild(inp); tr.appendChild(td);
     });
     if (bloqueada) tr.dataset.bloqueada = '1';
     tb.appendChild(tr);
+    if (valores) aplicarDefectos(clave, tr);
     return tr;
   }
 
@@ -349,14 +362,22 @@
       while (tb.rows.length <= fila0 + r) nuevaFila(clave);
       cols.forEach((v, c) => {
         if (col0 + c >= p.columnas.length || tb.rows[fila0 + r].dataset.bloqueada) return;
-        tb.rows[fila0 + r].querySelectorAll('input')[col0 + c].value = v.trim();
+        tb.rows[fila0 + r].querySelectorAll('input')[col0 + c].value = p.columnas[col0 + c].fecha ? fechaExcel(v.trim()) : v.trim();
       });
+      if (!tb.rows[fila0 + r].dataset.bloqueada) aplicarDefectos(clave, tb.rows[fila0 + r]);
     });
     guardar(); contadores();
   });
 
   document.addEventListener('input', ev => {
     if (ev.target.closest && ev.target.closest('.grilla')) { guardar(); contadores(); }
+  });
+  document.addEventListener('change', ev => {                  // fecha al formato de Excel y valores fijos de la plantilla
+    const i = ev.target;
+    if (!(i instanceof HTMLInputElement) || !i.closest('.grilla')) return;
+    const clave = i.closest('.panel').dataset.hoja, col = porClave[clave].columnas[+i.dataset.col];
+    if (col && col.fecha) i.value = fechaExcel(i.value);
+    aplicarDefectos(clave, i.closest('tr'), i); guardar();
   });
 
   // Enter baja a la celda de abajo (agrega fila si es la última)
