@@ -477,7 +477,7 @@
   const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const GF = 'gastos', FP = 'factura de proveedor';
-  const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación'];     // constantes: solo se completan si están vacías
+  const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación', 'Gastos: Código de impuesto'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
   // Fila de Factura de Proveedor que corresponde a una fila de Gastos (o null si no tiene RUC y Serie-Número)
   function facturaDeGasto(g) {
     const ig = n => porClave[GF].columnas.findIndex(c => c.nombre === n), iF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
@@ -495,7 +495,8 @@
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno
     poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
-    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco
+    poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Código de impuesto', numero(v('Igv')) > 0 ? 'VAT_PE:S-PE' : 'VAT_PE:E-PE'); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
   // modo 'completar': solo celdas vacías (botón de Gastos). modo 'actualizar': también cambia lo que ya no coincide con Gastos.
@@ -544,7 +545,7 @@
     aplicarSincronizacion(r); activar(FP);
     alert(r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' ya existentes completadas con datos de Gastos' : '') +
       (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + (r.sinId ? ' (' + r.sinId + ' sin RUC o Serie-Número)' : '') +
-      '.\nFalta completar: Cuenta (por pagar) y Código de impuesto' + (r.sinCuenta ? ' (y la cuenta de ' + r.sinCuenta + ' gastos sin Cuenta NetSuite)' : '') + '.');
+      '.' + (r.sinCuenta ? '\nFalta la cuenta de ' + r.sinCuenta + ' gastos sin Cuenta NetSuite.' : ''));
   });
   // En Factura de Proveedor: trae de Gastos los datos que cambiaron, de todas las facturas a la vez
   $id('btn-actualizar-factura').addEventListener('click', () => {
