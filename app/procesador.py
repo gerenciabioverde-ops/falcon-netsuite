@@ -234,6 +234,13 @@ def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, li
     return salida
 
 
+def _ruc_valido(ruc: str) -> bool:
+    """Dígito verificador del RUC (módulo 11, pesos de SUNAT)."""
+    pesos = (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
+    resto = 11 - sum(int(d) * p for d, p in zip(ruc[:10], pesos)) % 11
+    return int(ruc[10]) == {10: 0, 11: 1}.get(resto, resto)
+
+
 def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) -> ResultadoHoja:
     res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
     if not filas:
@@ -263,6 +270,7 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
     cuentas = {idx(c) for c in r.get("cuentas", [])}
     mapa_h = homologacion.mapa() if cuentas else {}
     traducidas: dict[tuple, list[int]] = {}
+    ids_vistos: dict[str, int] = {}
 
     for nro, fila in filas[1:]:
         fila = list(fila)
@@ -339,6 +347,26 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
                 dif = [hoja.encabezados[i].strip() for i in range(desde) if previa[i] != cab[i]]
                 res.problemas.append(Problema("aviso", nro, ", ".join(dif[:3]),
                                               f"La cabecera difiere de la primera línea del ID «{salida[col_id]}»"))
+        doc = r.get("documento")
+        if doc and salida[idx(doc["numero"])]:
+            tipo, num = salida[idx(doc["tipo"])].upper(), salida[idx(doc["numero"])]
+            if "RUC" in tipo:
+                if not (num.isdigit() and len(num) == 11):
+                    res.problemas.append(Problema("error", nro, doc["numero"], "El RUC debe tener 11 dígitos"))
+                elif not _ruc_valido(num):
+                    res.problemas.append(Problema("aviso", nro, doc["numero"], f"El RUC {num} no pasa la verificación del dígito final; revíselo"))
+            elif "DNI" in tipo and not (num.isdigit() and len(num) == 8):
+                res.problemas.append(Problema("error", nro, doc["numero"], "El DNI debe tener 8 dígitos"))
+        for c in r.get("cinco_digitos", []):
+            v = salida[idx(c)]
+            if v and not (v.isdigit() and len(v) == 5):
+                res.problemas.append(Problema("aviso", nro, c, "El código postal SERPOST tiene 5 dígitos"))
+        if r.get("unico_id") and salida[col_id]:
+            if salida[col_id] in ids_vistos:
+                res.problemas.append(Problema("error", nro, hoja.encabezados[col_id].strip(),
+                                              f"Repetido: {salida[col_id]} ya está en la fila {ids_vistos[salida[col_id]]}"))
+            else:
+                ids_vistos[salida[col_id]] = nro
         res.filas.append(salida)
         res.numeros_fila.append(nro)
 
