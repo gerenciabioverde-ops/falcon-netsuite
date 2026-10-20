@@ -28,9 +28,17 @@ def _ruta(periodo: str) -> Path:
     return DIRECTORIO / f"{periodo}.json"
 
 
+def _migrar(datos: dict) -> dict:
+    """Gastos guardados antes de existir la columna External ID (18 columnas): se les antepone la celda vacía."""
+    g = (datos.get("hojas") or {}).get("gastos")
+    if g and g.get("filas") and all(len(f) == 18 for f in g["filas"]):
+        g["filas"] = [["", *f] for f in g["filas"]]
+    return datos
+
+
 def leer(periodo: str) -> dict:
     try:
-        return json.loads(_ruta(periodo).read_text(encoding="utf-8"))
+        return _migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8")))
     except (FileNotFoundError, ValueError):
         return {"actualizado": "", "hojas": {}}
 
