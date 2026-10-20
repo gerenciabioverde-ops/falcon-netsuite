@@ -19,6 +19,7 @@
   .grilla td.nro .btn-editar:hover { background: #dbeafe; }
   #modal-fila { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,.55); align-items: center; justify-content: center; padding: 16px; }
   #modal-fila .caja { background: #fff; border-radius: 8px; width: min(1100px, 100%); max-height: 94vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  input.propuesta { background: #fef3c7 !important; }
   #mf-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; padding: 12px 16px; overflow: auto; }
   #mf-campos label { display: block; font-size: 12px; color: #475569; }
   #mf-campos input { display: block; width: 100%; margin-top: 2px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
@@ -81,7 +82,8 @@
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
-          {% if p.clave == 'gastos' %}<button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
+          {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE según el Concepto en los gastos que no tienen cuenta (para que la revises)">💡 Proponer cuentas</button>
+          <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
       </div>
@@ -160,6 +162,7 @@
   const LLAVE_PERIODO = 'falcon-netsuite-periodo';
   const JSON_H = { 'Content-Type': 'application/json' };
   const $id = id => document.getElementById(id);
+  const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
 
   // ---- Períodos: cada mes guarda sus propias grillas en el servidor ----
   let periodo = null, periodoListo = false, pendiente = false, temporizador = null;
@@ -229,6 +232,8 @@
       const td = document.createElement('td'), inp = document.createElement('input');
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
+      if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
       inp.value = (valores && valores[i]) || '';
       if (bloqueada) { inp.readOnly = true; inp.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; }
       td.appendChild(inp); tr.appendChild(td);
@@ -378,7 +383,7 @@
     const G = 'gastos', F = 'factura de proveedor';
     const ig = n => porClave[G].columnas.findIndex(c => c.nombre === n), iF = n => porClave[F].columnas.findIndex(c => c.nombre === n);
     const ya = new Set(leer(F).map(f => f[0]).filter(Boolean));
-    const nuevas = []; let repetidas = 0, sinId = 0;
+    const nuevas = []; let repetidas = 0, sinId = 0, sinCuenta = 0;
     leer(G).forEach(g => {
       const v = n => (g[ig(n)] || '').trim(), ruc = limpiarId(v('RUC')), sn = v('Serie-Numero');
       const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + '_' + limpiarId(sn) : '');
@@ -392,7 +397,8 @@
       poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
       poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
       poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
-      poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+      poner('Gastos: Cuenta', v(COL_NS)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+      if (!v(COL_NS)) sinCuenta++;
       nuevas.push(fila);
     });
     if (!nuevas.length) { alert(repetidas ? 'Los ' + repetidas + ' gastos ya están en Factura de Proveedor.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
@@ -400,7 +406,55 @@
     nuevas.forEach(f => nuevaFila(F, f));
     renumerar(F); contadores(); guardar(); activar(F);
     alert(nuevas.length + ' filas pasadas a Factura de Proveedor' + (repetidas ? ' (' + repetidas + ' ya estaban)' : '') + (sinId ? ' (' + sinId + ' sin RUC o Serie-Número)' : '') +
-      '.\nFalta completar: Cuenta (por pagar), Subsidiaria, Gastos: Cuenta y Código de impuesto.');
+      '.\nFalta completar: Cuenta (por pagar), Subsidiaria y Código de impuesto' + (sinCuenta ? ' (y la cuenta de ' + sinCuenta + ' gastos sin Cuenta NetSuite)' : '') + '.');
+  });
+
+  // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
+  const colG = n => porClave.gastos.columnas.findIndex(c => c.nombre === n);
+  const sinEsp = t => String(t || '').replace(/\s+/g, '');
+  const cuentaNS = cod => { const f = tablaCuentas.find(x => sinEsp(x.falcon) === sinEsp(cod) && sinEsp(cod)); return f ? String(f.netsuite) : ''; };
+  function pintarOpcionesCuentas() {
+    let dl = $id('dl-cuentas-gasto');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-cuentas-gasto'; document.body.appendChild(dl); }
+    dl.innerHTML = '';
+    tablaCuentas.filter(f => String(f.falcon).startsWith('6')).forEach(f => {
+      const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
+    });
+  }
+  function sincronizarNS(tr) { const ins = tr.querySelectorAll('input'); ins[colG(COL_NS)].value = cuentaNS(ins[colG(COL_PCGE)].value); }
+  function ofrecerAplicar(tr, cod) {
+    const iC = colG('Concepto'), iP = colG(COL_PCGE), concepto = tr.querySelectorAll('input')[iC].value.trim();
+    if (!cod || !concepto) return;
+    const otras = [...cuerpo('gastos').rows].filter(r => {
+      const ins = r.querySelectorAll('input');
+      return r !== tr && ins[iC].value.trim().toLowerCase() === concepto.toLowerCase() && ins[iP].value !== cod && (!ins[iP].value.trim() || ins[iP].classList.contains('propuesta'));
+    });
+    if (!otras.length || !confirm('¿Aplicar ' + cod + ' a ' + otras.length + ' gasto(s) más con el concepto «' + concepto + '» que no tienen cuenta o solo tienen una propuesta?')) return;
+    otras.forEach(r => { const ins = r.querySelectorAll('input'); ins[iP].value = cod; ins[iP].classList.remove('propuesta'); sincronizarNS(r); });
+    guardar(); contadores();
+  }
+  $id('panel-gastos').addEventListener('change', ev => {
+    const i = ev.target;
+    if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
+    const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
+  });
+  $id('btn-proponer').addEventListener('click', async () => {
+    const iC = colG('Concepto'), iP = colG(COL_PCGE);
+    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && !ins[iP].value.trim(); });
+    if (!filas.length) { alert('No hay gastos sin cuenta para proponer.'); return; }
+    if (!tablaCuentas.length) { alert('Primero cargue «Cuentas homologadas»: las propuestas salen de esa tabla.'); return; }
+    const conceptos = [...new Set(filas.map(tr => tr.querySelectorAll('input')[iC].value.trim()))];
+    const r = await fetch('/gastos/proponer', { method: 'POST', headers: JSON_H, body: JSON.stringify({ conceptos }) });
+    if (!r.ok) { alert('No se pudo proponer las cuentas (error ' + r.status + ').'); return; }
+    const prop = (await r.json()).propuestas, sin = new Set(); let n = 0;
+    filas.forEach(tr => {
+      const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim(), cod = prop[c];
+      if (!cod) { sin.add(c); return; }
+      ins[iP].value = cod; ins[iP].classList.add('propuesta'); sincronizarNS(tr); n++;
+    });
+    guardar(); contadores();
+    alert(n + ' gastos con cuenta propuesta (en amarillo): revísalos y cámbialos si hace falta.' +
+      (sin.size ? '\n\nSin propuesta (elige la cuenta tú) — ' + sin.size + ' concepto(s):\n• ' + [...sin].join('\n• ') : ''));
   });
 
   function activar(clave) {
@@ -470,6 +524,12 @@
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       lab.appendChild(inp); cont.appendChild(lab);
     });
+    if (clave === 'gastos') {
+      const ms = camposModal(), iP = colG(COL_PCGE), iN = colG(COL_NS);
+      ms[iP].setAttribute('list', 'dl-cuentas-gasto');
+      ms[iN].readOnly = true; ms[iN].style.background = '#f1f5f9';
+      ms[iP].addEventListener('change', () => { ms[iN].value = cuentaNS(ms[iP].value); });
+    }
     document.getElementById('mf-problemas').innerHTML = '';
     document.getElementById('mf-ant').disabled = idx === 0;
     document.getElementById('mf-sig').disabled = idx >= cuerpo(clave).rows.length - 1;
@@ -479,8 +539,11 @@
   function guardarFila() {
     const tr = filaTr(); if (!tr) return;
     const ins = tr.querySelectorAll('input');
+    const iP = mClave === 'gastos' ? colG(COL_PCGE) : -1, antes = iP >= 0 ? ins[iP].value : '';
     camposModal().forEach((m, i) => { ins[i].value = m.value; });
+    if (iP >= 0 && ins[iP].value !== antes) { ins[iP].classList.remove('propuesta'); sincronizarNS(tr); }
     guardar(); contadores();
+    if (iP >= 0 && ins[iP].value.trim() && ins[iP].value !== antes) ofrecerAplicar(tr, ins[iP].value.trim());
   }
   function cerrarFila() { modal.style.display = 'none'; mClave = null; }
   async function consultarFila() {
@@ -547,6 +610,7 @@
     try {
       const d = await (await fetch('/homologacion')).json();
       tablaCuentas = d.filas;
+      pintarOpcionesCuentas();
       const hay = d.cantidad > 0;
       $('estado-cuentas').className = 'text-sm ' + (hay ? 'text-green-700' : 'text-slate-500');
       $('estado-cuentas').textContent = hay ? d.cantidad + ' cuentas cargadas (' + d.archivo + ', ' + d.actualizado + ').' : 'Todavía no hay cuentas cargadas.';

@@ -99,7 +99,7 @@ REGLAS: dict[str, dict] = {
 # Proveedores = hoja «Vendor» del libro Entity - Falcon Coffees - Perú - Legacy (ver app/proveedores.py).
 GASTOS_ENCABEZADOS = [
     "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
-    "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
+    "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja",
 ]
 # Fecha principal de cada documento: se avisa si cae fuera del período seleccionado
@@ -130,10 +130,11 @@ REGLAS["Gastos"] = {
     "unico_compuesto": ["RUC", "Serie-Numero"],
     "unico_id": True,
     "id_auto": {"prefijo": "VENDB", "campos": ["RUC", "Serie-Numero"]},
+    "cuenta_gasto": ("Cuenta PCGE", "Cuenta NetSuite"),
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
     "pagado_vs_total": ("Monto Pagado", "Total"),
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
-             "de Totales. Valida RUC (11 dígitos) o DNI (8), que Sub-Total + IGV = Total y que no se repita RUC + Serie-Número."),
+             "de Totales. Valida RUC (11 dígitos) o DNI (8), que Sub-Total + IGV = Total y que no se repita RUC + Serie-Número. Cuenta PCGE: use «Proponer cuentas» y revise; Cuenta NetSuite se completa sola desde «Cuentas homologadas»."),
 }
 
 
