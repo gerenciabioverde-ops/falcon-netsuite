@@ -97,6 +97,7 @@
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
           {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE y el departamento según el Concepto en los gastos que no los tienen (para que los revises)">💡 Proponer cuenta y departamento</button>
+          {% if p.clave == 'gastos' %}<button type="button" id="btn-constancias" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube las constancias de depósito de detracción (.html de SUNAT): se relacionan por RUC + Serie-Número y llenan Fecha Detr., N° Constancia, N° Operación y Monto Detr.">📎 Subir constancias de detracción (HTML)</button><input type="file" id="archivos-constancias" accept=".html,.htm" multiple class="hidden">{% endif %}
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
@@ -306,6 +307,7 @@
       if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_PAG) inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_PAGNS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
+      if (clave === 'gastos' && c.nombre === 'Monto Pagado') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − Monto Detr.'; }
       if (clave === 'gastos' && c.nombre === 'Neto a Pagar') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − detracción'; }
       if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
       if (c.numero) numeroVisual(inp);
@@ -600,13 +602,14 @@
     // importe neto a pagar al proveedor = importe del comprobante − detracción (solo si está sujeto)
     const tot = String(v[colG('Total')]).trim();
     v[colG(COL_NETO)] = tot ? fmt2(numero(tot) - (si ? numero(v[colG('Monto Detr.')]) : 0)) : '';
+    v[colG('Monto Pagado')] = tot ? fmt2(numero(tot) - numero(v[colG('Monto Detr.')])) : '';       // Sub-Total + IGV = Total; Total − Monto Detr. = Monto Pagado
     return v;
   }
   function completarDetraccion(tr, recalcular) {
     const ins = tr.querySelectorAll('input');
     if (!ins[colG('Total')].value.trim() && !ins[colG(COL_CDET)].value.trim()) return;       // fila vacía
     const v = calcularDetraccion([...ins].map(i => i.value), recalcular);
-    [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP, COL_NETO].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
+    [COL_SUJ, COL_PDET, 'Monto Detr.', 'Monto Pagado', COL_TOP, COL_NETO].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
   }
   // Cuenta por pagar según el tipo de documento: factura 421201, honorarios 424001, boletas y liquidaciones de gastos 469901
   const quitarTildes = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -664,12 +667,46 @@
     if (i instanceof HTMLInputElement && [colG(COL_SUJ), colG(COL_CDET), colG('Total')].includes(+i.dataset.col)) {
       completarDetraccion(i.closest('tr'), +i.dataset.col !== colG('Total')); guardar(); return;
     }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG('Monto Detr.')) { completarDetraccion(i.closest('tr'), false); guardar(); return; }
     if (i instanceof HTMLInputElement && [colG('Departamento'), colG('Clase')].includes(+i.dataset.col)) { i.classList.remove('propuesta'); guardar(); ofrecerAplicarCol(i.closest('tr'), porClave.gastos.columnas[+i.dataset.col].nombre); return; }
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
   // Regla: si el gasto tiene Area/Contrato (va a un contrato o lote), la cuenta es 219901 (costos vinculados) y no la del concepto
   const CUENTA_CONTRATO = '219901';
+  // Constancias de depósito de detracción (HTML de SUNAT): se leen en el navegador y se relacionan con el gasto por RUC + Serie-Número
+  const claveDoc = (ruc, sn) => { const t = String(sn || '').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean); return String(ruc).trim() + '|' + (t[0] || '') + '|' + (t.length > 1 ? String(parseInt(t[1], 10)) : ''); };
+  function leerConstancia(html) {
+    const d = new DOMParser().parseFromString(html, 'text/html'), c = {};
+    d.querySelectorAll('tr').forEach(tr => { const td = tr.querySelectorAll('td'); if (td.length === 2) c[quitarTildes(td[0].textContent).replace(/[:\s]+$/, '')] = td[1].textContent.trim(); });
+    const f = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(c['fecha y hora de pago'] || '');
+    const comp = (c['numero de comprobante'] || '').trim();
+    return { constancia: c['numero de constancia'] || '', operacion: c['numero de operacion'] || '', ruc: c['ruc del proveedor'] || '',
+      comprobante: comp, monto: numero((c['monto del deposito'] || '').replace(/[^0-9.,]/g, '')), fecha: f ? (+f[1]) + '/' + (+f[2]) + '/' + f[3] : '',
+      concepto: ((c['bien o servicio'] || '').split(' ')[0] || '').replace(/^0+/, '') };
+  }
+  $id('btn-constancias').addEventListener('click', () => $id('archivos-constancias').click());
+  $id('archivos-constancias').addEventListener('change', async ev => {
+    const archivos = [...ev.target.files]; ev.target.value = '';
+    if (!archivos.length) return;
+    const filas = [...cuerpo('gastos').rows], ins = tr => tr.querySelectorAll('input'), indice = {};
+    filas.forEach(tr => { const v = ins(tr); indice[claveDoc(v[colG('RUC')].value, v[colG('Serie-Numero')].value)] = tr; });
+    const opcConcepto = porClave.gastos.columnas[colG(COL_CDET)].opciones;
+    let ok = 0; const sin = [];
+    for (const a of archivos) {
+      const c = leerConstancia(await a.text()), tr = indice[claveDoc(c.ruc, c.comprobante)];
+      if (!c.constancia || !tr) { sin.push(a.name + (c.comprobante ? ' (' + c.ruc + ' ' + c.comprobante + ')' : '')); continue; }
+      const v = ins(tr);
+      v[colG('Fecha Detr.')].value = c.fecha; v[colG('N° Constancia')].value = c.constancia; v[colG('N° Operación Detr.')].value = c.operacion;
+      v[colG('Monto Detr.')].value = fmt2(c.monto);
+      if (!v[colG(COL_SUJ)].value.trim()) v[colG(COL_SUJ)].value = 'Sí';
+      if (!v[colG(COL_CDET)].value.trim() && c.concepto) v[colG(COL_CDET)].value = opcConcepto.find(o => o.split(' ')[0] === c.concepto) || '';
+      completarDetraccion(tr, false); ok++;
+    }
+    guardar(); contadores();
+    estadoGrilla(ok + ' constancia(s) asignada(s)' + (sin.length ? ' · sin gasto coincidente (RUC + Serie-Número): ' + sin.join(', ') : '') + '.', sin.length ? '#b45309' : '#15803d');
+  });
+
   $id('btn-proponer').addEventListener('click', async () => {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), iD = colG('Departamento'), iA = colG('Area/Contrato');
     const conContrato = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iA].value.trim() && ins[iP].value.trim() && ins[iP].value.trim() !== CUENTA_CONTRATO; });
@@ -816,7 +853,7 @@
     if (clave === 'gastos') {                 // bloque «Detracción (SUNAT)» bajo el de la cuenta contable
       const etiq = n => cont.querySelector('[data-col="' + colG(n) + '"]').parentElement, bd = document.createElement('div'), gd = document.createElement('div');
       bd.className = 'bloque-cuenta'; bd.innerHTML = '<div class="bloque-cuenta-titulo">Detracción (SUNAT)</div>';
-      [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.', COL_TOP].forEach(n => { const l = etiq(n); gd.appendChild(l); if (n === COL_TOP) l.style.gridColumn = '1 / -1'; });
+      [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.', 'N° Constancia', 'N° Operación Detr.', COL_TOP].forEach(n => { const l = etiq(n); gd.appendChild(l); if (n === COL_TOP) l.style.gridColumn = '1 / -1'; });
       gd.style.gridTemplateColumns = '1fr 2fr 1fr 1fr 1fr';
       bd.appendChild(gd);
       // resumen de importes: comprobante, detracción y neto a pagar
@@ -830,13 +867,14 @@
       cont.insertBefore(bd, cont.children[2]);
       const ms = camposModal(), refrescar = recalcular => {
         const v = calcularDetraccion(ms.map(m => m.value), recalcular);
-        [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP, COL_NETO].forEach(n => { ms[colG(n)].value = v[colG(n)]; });
+        [COL_SUJ, COL_PDET, 'Monto Detr.', 'Monto Pagado', COL_TOP, COL_NETO].forEach(n => { ms[colG(n)].value = v[colG(n)]; });
         pintarImportes();
       };
       ms[colG(COL_PDET)].readOnly = true; ms[colG(COL_PDET)].style.background = '#f1f5f9';
+      ms[colG('Monto Pagado')].readOnly = true; ms[colG('Monto Pagado')].style.background = '#f1f5f9';
       ms[colG(COL_NETO)].readOnly = true; ms[colG(COL_NETO)].style.background = '#f1f5f9'; ms[colG(COL_NETO)].style.fontWeight = '700';
       const pintarImportes = () => { const si = /^s[ií]$/i.test(ms[colG(COL_SUJ)].value.trim()); dTotal.textContent = ms[colG('Total')].value || '—'; dDetr.textContent = si ? (ms[colG('Monto Detr.')].value || '0.00') : '0.00'; };
-      pintarImportes(); ['Total', 'Monto Detr.'].forEach(n => ms[colG(n)].addEventListener('input', () => { const v = calcularDetraccion(ms.map(m => m.value), false); ms[colG(COL_NETO)].value = v[colG(COL_NETO)]; pintarImportes(); }));
+      pintarImportes(); ['Total', 'Monto Detr.'].forEach(n => ms[colG(n)].addEventListener('input', () => { const v = calcularDetraccion(ms.map(m => m.value), false); ms[colG(COL_NETO)].value = v[colG(COL_NETO)]; ms[colG('Monto Pagado')].value = v[colG('Monto Pagado')]; pintarImportes(); }));
       ms[colG(COL_CDET)].setAttribute('list', 'dl-gastos-' + colG(COL_CDET));
       [COL_SUJ, COL_CDET].forEach(n => ms[colG(n)].addEventListener('change', () => refrescar(true)));
     }
