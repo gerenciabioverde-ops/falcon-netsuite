@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, periodos
-from .esquema import RUTA_PLANTILLA, SUBSIDIARIA, cargar_plantilla, norm
+from .esquema import RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
 
 BASE = Path(__file__).parent
@@ -87,6 +87,7 @@ def inicio(request: Request):
         "pestanas": pestanas,
         "formatos": list(FORMATOS_FECHA),
         "subsidiaria": SUBSIDIARIA,
+        "ubicacion": UBICACION,
     })
 
 
