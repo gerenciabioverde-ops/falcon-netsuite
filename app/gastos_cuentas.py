@@ -57,13 +57,13 @@ def metodo_pago(caja: str) -> str:
 
 # (palabras del concepto, departamento propuesto); gana la primera regla que coincida
 REGLAS_DEPARTAMENTO: list[tuple[tuple[str, ...], str]] = [
-    (("senasa", "analisis", "proyecto", "coi/tc", "certific", "area tecnica"), "Gerencia Sostenibilidad"),
-    (("contab", "planilla", "emision de factura", "seguro", "poliza", "robo", "banc", "financ"), "Gerencia Finanzas"),
+    (("senasa", "analisis", "proyecto", "coi/tc", "certific", "area tecnica"), "Sostenibilidad"),
+    (("contab", "planilla", "emision de factura", "seguro", "poliza", "robo", "banc", "financ"), "Finanzas"),
     (("estiba", "logistic", "thc", "balanza", "marcado", "transporte", "puerto", "flete", "carga", "envase", "empaque", "material",
       "suministro", "repuesto", "equipo", "combustible", "trilla", "procesamiento", "operativo", "courier", "courrier", "muestras",
-      "viatico", "pasaje", "boleto"), "Gerencia Operaciones"),
+      "viatico", "pasaje", "boleto"), "Operaciones"),
     (("movilidad", "atencion", "representacion", "funeral", "alquiler", "basico", "limpieza", "vigilancia", "util", "oficina", "legal",
-      "asesor", "consultor"), "Gerencia General"),
+      "asesor", "consultor"), "Administrativos"),
 ]
 
 
