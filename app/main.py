@@ -50,6 +50,7 @@ def _pestanas() -> list[dict]:
     salida = []
     for clave, h in PLANTILLA.hojas.items():
         req = {norm(c) for c in h.reglas.get("requeridos", [])}
+        fechas = {norm(c) for c in h.reglas.get("fechas", [])}
         salida.append({
             "clave": clave,
             "nombre": h.nombre.strip(),
@@ -59,7 +60,9 @@ def _pestanas() -> list[dict]:
                 "auto": i == 0 and bool(h.reglas.get("id_auto")),
                 "requerida": norm(e) in req and not (i == 0 and h.reglas.get("id_auto")),
                 "opciones": h.listas[i].opciones if i in h.listas else [],
+                "fecha": norm(e) in fechas,
             } for i, e in enumerate(h.encabezados)],
+            "por_defecto": {c: list(v) if isinstance(v, tuple) else [v, ""] for c, v in h.reglas.get("por_defecto", {}).items()},
         })
     return salida
 
