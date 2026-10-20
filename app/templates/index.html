@@ -304,6 +304,7 @@
       const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
       (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
       if (p.clave === 'gastos') { [...cuerpo('gastos').rows].forEach(completarIdGasto); resincronizarCuentas(); }
+      if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].filter(tr => /^VENDB_/.test(tr.querySelector('input').value)).forEach(bloquearFila);   // filas que vienen de Gastos
       while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
     });
     contadores();
@@ -445,7 +446,7 @@
   function sincronizarFactura(modo, aplicar) {
     const existentes = new Map([...cuerpo(FP).rows].map(tr => [tr.querySelector('input').value.trim(), tr]).filter(([id]) => id));
     const colsFijas = new Set(FIJOS_FACTURA.map(n => porClave[FP].columnas.findIndex(c => c.nombre === n)));
-    const r = { nuevas: [], cambios: [], sinCambios: 0, sinId: 0, sinCuenta: 0 };
+    const r = { nuevas: [], cambios: [], vinculadas: [], sinCambios: 0, sinId: 0, sinCuenta: 0 };
     leer(GF).forEach(g => {
       const f = facturaDeGasto(g);
       if (!f) { r.sinId++; return; }
@@ -453,6 +454,7 @@
       const tr = existentes.get(f.id);
       if (tr === undefined) { existentes.set(f.id, null); r.nuevas.push(f.fila); return; }
       if (tr === null) return;                                    // gasto repetido dentro del mismo lote
+      r.vinculadas.push(tr);
       const ins = tr.querySelectorAll('input'), dif = [];
       f.fila.forEach((val, k) => {
         const actual = ins[k].value.trim();
@@ -462,15 +464,21 @@
     });
     return r;
   }
+  // Las filas que vienen de Gastos quedan bloqueadas: se modifican solo con «✎ Editar» (o doble clic), nunca por error al escribir
+  function bloquearFila(tr) {
+    tr.dataset.bloqueada = '1';
+    tr.querySelectorAll('input').forEach(i => { i.readOnly = true; i.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; });
+  }
   function aplicarSincronizacion(r) {
+    r.vinculadas.forEach(bloquearFila);
     r.cambios.forEach(({ tr, dif }) => { const ins = tr.querySelectorAll('input'); dif.forEach(([k, val]) => { ins[k].value = val; }); });
     [...cuerpo(FP).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
-    r.nuevas.forEach(f => nuevaFila(FP, f));
+    r.nuevas.forEach(f => nuevaFila(FP, f, true));
     renumerar(FP); contadores(); guardar();
   }
   $id('btn-pasar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('completar');
-    if (!r.nuevas.length && !r.cambios.length) { alert(r.sinCambios ? 'Los ' + r.sinCambios + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
+    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert(r.sinCambios ? 'Los ' + r.sinCambios + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
     aplicarSincronizacion(r); activar(FP);
     alert(r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' ya existentes completadas con datos de Gastos' : '') +
       (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + (r.sinId ? ' (' + r.sinId + ' sin RUC o Serie-Número)' : '') +
@@ -480,7 +488,7 @@
   $id('btn-actualizar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('actualizar');
     const campos = r.cambios.reduce((n, c) => n + c.dif.length, 0);
-    if (!r.nuevas.length && !r.cambios.length) { alert('Factura de Proveedor ya está al día con Gastos.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '')); return; }
+    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert('Factura de Proveedor ya está al día con Gastos.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '')); return; }
     const ejemplos = r.cambios.slice(0, 5).map(({ tr, dif }) => {
       const ins = tr.querySelectorAll('input');
       return '• ' + ins[0].value + ': ' + dif.slice(0, 3).map(([k, val]) => porClave[FP].columnas[k].nombre + ' → ' + val).join('; ');
