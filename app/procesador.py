@@ -149,7 +149,11 @@ def _num(v) -> Decimal | None:
     if v in (None, ""):
         return None
     if isinstance(v, str):
-        v = v.strip().replace(",", ".") if v.count(",") == 1 and "." not in v else v.strip()
+        v = v.strip()
+        if re.fullmatch(r"-?\d{1,3}(,\d{3})+(\.\d+)?", v):          # 1,308.00 -> 1308.00
+            v = v.replace(",", "")
+        elif v.count(",") == 1 and "." not in v:                       # 12,5 -> 12.5
+            v = v.replace(",", ".")
     try:
         return Decimal(str(v))
     except InvalidOperation:
@@ -279,6 +283,7 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
     mapa_h = homologacion.mapa() if cuentas else {}
     traducidas: dict[tuple, list[int]] = {}
     ids_vistos: dict[str, int] = {}
+    claves_vistas: dict[tuple, int] = {}
 
     for nro, fila in filas[1:]:
         fila = list(fila)
@@ -355,6 +360,39 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
                 dif = [hoja.encabezados[i].strip() for i in range(desde) if previa[i] != cab[i]]
                 res.problemas.append(Problema("aviso", nro, ", ".join(dif[:3]),
                                               f"La cabecera difiere de la primera línea del ID «{salida[col_id]}»"))
+        if r.get("ruc_o_dni") and salida[idx(r["ruc_o_dni"])]:
+            c, v = r["ruc_o_dni"], salida[idx(r["ruc_o_dni"])]
+            if v.isdigit() and len(v) == 11:
+                if not _ruc_valido(v):
+                    res.problemas.append(Problema("aviso", nro, c, f"El RUC {v} no pasa la verificación del dígito final; revíselo"))
+            elif not (v.isdigit() and len(v) == 8):
+                res.problemas.append(Problema("error", nro, c, "Debe ser un RUC de 11 dígitos o un DNI de 8"))
+        if r.get("cuadre_total"):
+            try:
+                a, b, t = (_num(salida[idx(n)]) or Decimal(0) for n in r["cuadre_total"])
+                if abs(a + b - t) > Decimal("0.02"):
+                    res.problemas.append(Problema("error", nro, r["cuadre_total"][2],
+                                                  f"{r['cuadre_total'][0]} + {r['cuadre_total'][1]} ({_fmt_num(a + b)}) no es igual a {r['cuadre_total'][2]} ({_fmt_num(t)})"))
+            except (ValueError, InvalidOperation):
+                pass
+        if r.get("pagado_vs_total"):
+            try:
+                pagado, total = (_num(salida[idx(n)]) or Decimal(0) for n in r["pagado_vs_total"])
+                if pagado > total + Decimal("0.01"):
+                    res.problemas.append(Problema("aviso", nro, r["pagado_vs_total"][0], f"{r['pagado_vs_total'][0]} ({_fmt_num(pagado)}) es mayor que el {r['pagado_vs_total'][1]} ({_fmt_num(total)})"))
+            except (ValueError, InvalidOperation):
+                pass
+        for c in r.get("avisar_vacios", []):
+            if not salida[idx(c)]:
+                res.problemas.append(Problema("aviso", nro, c, "Sin dato"))
+        if r.get("unico_compuesto"):
+            clave = tuple(salida[idx(c)].upper() for c in r["unico_compuesto"])
+            if all(clave):
+                if clave in claves_vistas:
+                    res.problemas.append(Problema("error", nro, " + ".join(r["unico_compuesto"]),
+                                                  f"Comprobante repetido: ya está en la fila {claves_vistas[clave]}"))
+                else:
+                    claves_vistas[clave] = nro
         doc = r.get("documento")
         if doc and salida[idx(doc["numero"])]:
             tipo, num = salida[idx(doc["tipo"])], salida[idx(doc["numero"])]

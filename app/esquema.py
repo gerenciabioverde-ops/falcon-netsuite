@@ -97,7 +97,13 @@ REGLAS: dict[str, dict] = {
 
 # Plantillas que no están en el Excel de plantillas y se definen en código.
 # Proveedores = hoja «Vendor» del libro Entity - Falcon Coffees - Perú - Legacy (ver app/proveedores.py).
-HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS}
+GASTOS_ENCABEZADOS = [
+    "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
+    "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
+    "Area/Contrato", "Caja",
+]
+HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS}
+LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"]}}
 
 REGLAS["Proveedores"] = {
     "requeridos": proveedores.REQUERIDOS,
@@ -107,6 +113,20 @@ REGLAS["Proveedores"] = {
     "id_auto": {"prefijo": "VEND", "campos": [proveedores.C_NUMERO]},
     "completar": "proveedores",
     "nota": proveedores.NOTA,
+}
+
+# Reporte de gastos (reporte_gastos_AAAA-MM-DD.xls): una fila por comprobante de gasto.
+REGLAS["Gastos"] = {
+    "requeridos": ["Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto", "Moneda", "Sub-Total", "Total"],
+    "fechas": ["Fecha Factura", "Fecha Pago", "Fecha Detr."],
+    "numericos": ["Sub-Total", "Igv", "Total", "Monto Detr.", "Monto Pagado"],
+    "ruc_o_dni": "RUC",
+    "cuadre_total": ("Sub-Total", "Igv", "Total"),
+    "unico_compuesto": ["RUC", "Serie-Numero"],
+    "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
+    "pagado_vs_total": ("Monto Pagado", "Total"),
+    "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
+             "de Totales. Valida RUC (11 dígitos) o DNI (8), que Sub-Total + IGV = Total y que no se repita RUC + Serie-Número."),
 }
 
 
@@ -232,7 +252,7 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
                 reglas=REGLAS.get(clave, {}),
             )
     for nombre, enc in HOJAS_EXTRA.items():
-        listas_extra = proveedores.listas() if nombre == "Proveedores" else {}
+        listas_extra = proveedores.listas() if nombre == "Proveedores" else LISTAS_EXTRA.get(nombre, {})
         hojas.setdefault(norm(nombre), Hoja(
             nombre=nombre, encabezados=enc, reglas=REGLAS.get(nombre, {}),
             listas={i: Lista(valores={norm(x) for x in listas_extra[c]}, opciones=listas_extra[c])

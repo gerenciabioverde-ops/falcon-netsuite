@@ -8,6 +8,8 @@ from __future__ import annotations
 import csv
 import io
 import warnings
+from html import unescape
+from html.parser import HTMLParser
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -18,7 +20,7 @@ from .esquema import Hoja, Plantilla, norm
 MAX_FILAS = 2000
 ALIAS_HOJAS = {"vendor": "proveedores", "vendors": "proveedores", "proveedor": "proveedores"}
 # Etiquetas de la primera columna de las filas de ayuda del libro de carga (no son datos)
-FILAS_DE_AYUDA = {"campos", "oracle netsuite standard", "tipo de campo", "mandatory", "mandatoriedad", "description",
+FILAS_DE_AYUDA = {"totales", "total", "campos", "oracle netsuite standard", "tipo de campo", "mandatory", "mandatoriedad", "description",
                   "descripcion", "descripcción", "ejemplo", "comentarios", "fields"}
 
 
@@ -82,6 +84,54 @@ def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[li
     return salida
 
 
+class _TablaHtml(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.filas: list[list[str]] = []
+        self._fila: list[str] | None = None
+        self._celda: str | None = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr":
+            self._fila = []
+        elif tag in ("td", "th"):
+            self._celda = ""
+
+    def handle_endtag(self, tag):
+        if tag in ("td", "th") and self._fila is not None and self._celda is not None:
+            self._fila.append(unescape(self._celda).strip())
+            self._celda = None
+        elif tag == "tr" and self._fila is not None:
+            self.filas.append(self._fila)
+            self._fila = None
+
+    def handle_data(self, data):
+        if self._celda is not None:
+            self._celda += data
+
+
+def _leer_tabla_html(contenido: bytes, plantilla: Plantilla, clave_pestana: str, avisos: list[str]) -> dict[str, list[list[str]]]:
+    """Reportes que el sistema exporta como «.xls» pero que en realidad son una tabla HTML."""
+    texto = contenido.decode("utf-8-sig", errors="replace")
+    if "<table" not in texto.lower():
+        raise ValueError("Este .xls es del formato antiguo de Excel. Ábralo en Excel y guárdelo como .xlsx (o como CSV) y vuelva a cargarlo.")
+    parser = _TablaHtml()
+    parser.feed(texto)
+    filas = parser.filas
+    candidatas = ([clave_pestana] if clave_pestana in plantilla.hojas else []) + [k for k in plantilla.hojas if k != clave_pestana]
+    for clave in candidatas:
+        hoja = plantilla.hojas[clave]
+        enc = _encabezados(filas, hoja)
+        if enc is None or len(enc[1]) < max(4, len(hoja.encabezados) // 2):
+            continue
+        datos = _filas_de_datos(filas, hoja, avisos)
+        if datos:
+            if clave != clave_pestana:
+                avisos.append(f"El reporte se cargó en «{hoja.nombre.strip()}» por sus encabezados.")
+            return {clave: datos}
+    raise ValueError("No reconocí los encabezados del reporte con los de ninguna pestaña.")
+
+
 def leer(nombre_archivo: str, contenido: bytes, plantilla: Plantilla, clave_csv: str = "") -> tuple[dict[str, list[list[str]]], list[str]]:
     """Devuelve ({clave de pestaña: filas}, avisos). Lanza ValueError si el archivo no sirve."""
     avisos: list[str] = []
@@ -100,8 +150,10 @@ def leer(nombre_archivo: str, contenido: bytes, plantilla: Plantilla, clave_csv:
             raise ValueError("No reconocí los encabezados del CSV para esta pestaña.")
         return {clave_csv: datos}, avisos
 
+    if nombre.endswith((".xls", ".html", ".htm")):
+        return _leer_tabla_html(contenido, plantilla, clave_csv, avisos), avisos
     if not nombre.endswith((".xlsx", ".xlsm")):
-        raise ValueError("Suba un archivo .xlsx o .csv")
+        raise ValueError("Suba un archivo .xlsx, .xls (reporte) o .csv")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         wb = load_workbook(io.BytesIO(contenido), read_only=True, data_only=True)
