@@ -29,8 +29,9 @@ git fetch origin
 if errorlevel 1 goto :CORTE
 git checkout main
 if errorlevel 1 goto :FALLO
-git pull --ff-only origin main
-if errorlevel 1 goto :CORTE
+REM Con lo que ya se bajo en el fetch (sin volver a conectarse): si la conexion es inestable, un segundo acceso a GitHub fallaba
+git merge --ff-only origin/main
+if errorlevel 1 goto :FALLO
 goto :BAJADO
 
 :CORTE
