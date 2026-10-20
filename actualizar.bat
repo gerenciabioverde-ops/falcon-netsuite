@@ -21,12 +21,26 @@ powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $
 
 echo.
 echo Bajando la ultima version...
+REM La conexion con GitHub a veces se corta sola (schannel / close_notify): se reintenta hasta 4 veces
+set INTENTO=0
+:REINTENTAR
+set /a INTENTO+=1
 git fetch origin
-if errorlevel 1 goto :FALLO
+if errorlevel 1 goto :CORTE
 git checkout main
 if errorlevel 1 goto :FALLO
 git pull --ff-only origin main
-if errorlevel 1 goto :FALLO
+if errorlevel 1 goto :CORTE
+goto :BAJADO
+
+:CORTE
+if %INTENTO% GEQ 4 goto :FALLO
+echo.
+echo La conexion con GitHub se corto. Reintentando (intento %INTENTO% de 4)...
+timeout /t 5 /nobreak >nul
+goto :REINTENTAR
+
+:BAJADO
 
 if not exist ".venv\Scripts\python.exe" goto :LISTO
 echo.
