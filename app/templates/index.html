@@ -217,6 +217,14 @@
   const $id = id => document.getElementById(id);
   // Como en Excel: las fechas se ven D/M/AAAA (9/10/2026), aunque el reporte las traiga como 2026-10-09
   const fechaExcel = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim()); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : v; };
+  // Proveedores: Tipo según el Tax Reg Number (8 dígitos = DNI = Individual, 11 dígitos = RUC = Empresa)
+  function completarTipoProv(tr, recalcular) {
+    const cols = porClave.proveedores.columnas, ins = tr.querySelectorAll('input');
+    const iN = cols.findIndex(c => c.nombre === 'Latam - Tax Reg Number'), iT = cols.findIndex(c => c.nombre === 'Tipo');
+    if (iN < 0 || iT < 0 || (ins[iT].value.trim() && !recalcular)) return;
+    const n = ins[iN].value.trim();
+    ins[iT].value = /^\d{8}$/.test(n) ? 'Individual' : /^\d{11}$/.test(n) ? 'Empresa' : (recalcular ? '' : ins[iT].value);
+  }
   // Valores fijos de la plantilla (subsidiaria, ubicación): se ven en la grilla apenas la fila tiene datos
   function aplicarDefectos(clave, tr, salvo) {
     const p = porClave[clave], ins = tr.querySelectorAll('input');
@@ -332,6 +340,7 @@
     if (bloqueada) tr.dataset.bloqueada = '1';
     tb.appendChild(tr);
     if (valores) aplicarDefectos(clave, tr);
+    if (valores && clave === 'proveedores') completarTipoProv(tr);
     return tr;
   }
 
@@ -459,6 +468,7 @@
     if (!(i instanceof HTMLInputElement) || !i.closest('.grilla')) return;
     const clave = i.closest('.panel').dataset.hoja, col = porClave[clave].columnas[+i.dataset.col];
     if (col && col.fecha) i.value = fechaExcel(i.value);
+    if (clave === 'proveedores' && col && col.nombre === 'Latam - Tax Reg Number') completarTipoProv(i.closest('tr'), true);
     aplicarDefectos(clave, i.closest('tr'), i); guardar();
   });
 

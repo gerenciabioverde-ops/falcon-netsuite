@@ -20,13 +20,14 @@ ENCABEZADOS = [
     "Latam - País de la entidad", "Latam - Tipo de Persona", "Latam - Tipo de doc. de identidad",
     "Latam - Tax Reg Number", "Latam - Dígito Verificador", "Latam - Es buen contribuyente?",
     "Latam - Es agente retención?", "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?",
-    "LATAM PE - CtaCte Detracción",
+    "LATAM PE - CtaCte Detracción", "Tipo", "Subsidiaria",
 ]
 C_ID, C_NOMBRE, C_DIR1 = "External ID", "Nombre de la empresa", "Dirección 1"
 C_CIUDAD, C_ESTADO, C_PAIS, C_ZIP, C_UBIGEO = "Ciudad", "Estado", "País", "Código ZIP", "Latam - PE Ubigeo"
 C_PAIS_SUB, C_PAIS_ENT = "Latam - País de la subsidiaria", "Latam - País de la entidad"
 C_PERSONA, C_TIPO_DOC, C_NUMERO, C_DIGITO = ("Latam - Tipo de Persona", "Latam - Tipo de doc. de identidad",
                                               "Latam - Tax Reg Number", "Latam - Dígito Verificador")
+C_TIPO, C_SUBS = "Tipo", "Subsidiaria"
 C_CHECKS = ["Latam - Es buen contribuyente?", "Latam - Es agente retención?",
             "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?"]
 
@@ -34,12 +35,16 @@ C_CHECKS = ["Latam - Es buen contribuyente?", "Latam - Es agente retención?",
 UBIGEO_DEFECTO = "CAJAMARCA-JAEN-JAEN"
 DIRECCION_DEFECTO = "JAEN - CAJAMARCA"
 
+# Subsidiaria principal del proveedor (ID interno de Falcon Perú en NetSuite, la misma de las demás hojas)
+SUBSIDIARIA = "43"
+
 REQUERIDOS = [C_ID, C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
-              C_PERSONA, C_TIPO_DOC, C_NUMERO]
+              C_PERSONA, C_TIPO_DOC, C_NUMERO, C_SUBS]
 
 NOTA = ("Mínimo por proveedor: Nombre, Dirección 1, Ubigeo, Tipo de doc. de identidad y Número. Se completan solos si "
         "los dejas vacíos: External ID (VEND_ + número), Ciudad y Estado (desde el ubigeo), Código ZIP, País = Peru, "
-        "Tipo de Persona, Dígito Verificador (último dígito del RUC) y las casillas T/F en F.")
+        "Tipo de Persona, Dígito Verificador (último dígito del RUC), las casillas T/F en F, Tipo (8 dígitos = Individual, "
+        "11 dígitos = Empresa) y Subsidiaria (43).")
 
 
 @lru_cache(maxsize=1)
@@ -52,7 +57,7 @@ def listas() -> dict[str, list[str]]:
     d = datos()
     return {
         C_PAIS: d["paises"], C_PAIS_SUB: d["paises"], C_PAIS_ENT: d["paises"],
-        C_PERSONA: d["personas"], C_TIPO_DOC: d["tipos_doc"], C_UBIGEO: d["ubigeos"],
+        C_TIPO: ["Empresa", "Individual"], C_PERSONA: d["personas"], C_TIPO_DOC: d["tipos_doc"], C_UBIGEO: d["ubigeos"],
         **{c: ["T", "F"] for c in C_CHECKS},
     }
 
@@ -73,6 +78,12 @@ def es_ruc(tipo: str) -> bool:
 def es_dni(tipo: str) -> bool:
     t = tipo.upper()
     return "DNI" in t or "NACIONAL DE IDENTIDAD" in t
+
+
+def tipo_entidad(numero: str) -> str:
+    """Tipo de proveedor en NetSuite según el Tax Reg Number: 8 dígitos (DNI) = Individual, 11 dígitos (RUC) = Empresa."""
+    n = _t(numero)
+    return "Individual" if n.isdigit() and len(n) == 8 else "Empresa" if n.isdigit() and len(n) == 11 else ""
 
 
 def completar(fila: list, idx) -> list:
@@ -109,6 +120,8 @@ def completar(fila: list, idx) -> list:
         poner(c, "F")
 
     tipo, numero = g(C_TIPO_DOC), g(C_NUMERO)
+    poner(C_TIPO, tipo_entidad(numero))
+    poner(C_SUBS, SUBSIDIARIA)
     if numero and es_ruc(tipo):
         poner(C_PERSONA, {"20": "Jurídico", "10": "Natural", "15": "Natural", "17": "Natural"}.get(numero[:2], ""))
         if numero.isdigit() and len(numero) == 11:

@@ -159,6 +159,7 @@ REGLAS["Proveedores"] = {
     "unico_id": True,
     "id_auto": {"prefijo": "VEND", "campos": [proveedores.C_NUMERO]},
     "completar": "proveedores",
+    "por_defecto": {proveedores.C_SUBS: SUBSIDIARIA},
     "nota": proveedores.NOTA,
 }
 
