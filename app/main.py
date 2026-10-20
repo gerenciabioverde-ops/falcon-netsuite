@@ -122,7 +122,9 @@ async def proponer_cuentas(request: Request):
 @app.get("/homologacion")
 def ver_homologacion():
     d = homologacion.cargar()
-    return {"archivo": d["archivo"], "actualizado": d["actualizado"], "cantidad": len(d["filas"]), "filas": d["filas"]}
+    es = homologacion.nombres_es()
+    filas = [{**f, "nombre_es": es.get(f["falcon"]) or f.get("nombre_falcon", "")} for f in d["filas"]]
+    return {"archivo": d["archivo"], "actualizado": d["actualizado"], "cantidad": len(d["filas"]), "filas": filas}
 
 
 @app.post("/homologacion")

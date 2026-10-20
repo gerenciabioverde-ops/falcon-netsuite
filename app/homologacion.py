@@ -244,6 +244,17 @@ def cargar() -> dict:
     return _cache["datos"]
 
 
+RUTA_NOMBRES_ES = Path(__file__).resolve().parent.parent / "data" / "nombres_pcge_es.json"
+
+
+def nombres_es() -> dict[str, str]:
+    """Nombre en español de las cuentas PCGE conocidas ({cuenta Falcon/PCGE: nombre}); el resto se muestra como viene en la tabla."""
+    try:
+        return json.loads(RUTA_NOMBRES_ES.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
 def coa_de_nombre(nombre: str) -> str:
     """Número de la cuenta en el COA de NetSuite: primera palabra del nombre si es numérica (p. ej. «9011.06 FCP-Related Costs» -> 9011.06)."""
     primero = (nombre or "").strip().split(" ", 1)[0]
