@@ -240,6 +240,7 @@ def cargar() -> dict:
             _cache["datos"] = {"archivo": "", "actualizado": "", "filas": []}
         _cache["mtime"] = mtime
         _cache["mapa"] = {normalizar(f["falcon"]): f["netsuite"] for f in _cache["datos"]["filas"]}
+        _cache["coa_id"] = {coa_de_nombre(f.get("nombre_netsuite", "")): f["netsuite"] for f in _cache["datos"]["filas"] if coa_de_nombre(f.get("nombre_netsuite", ""))}
         _cache["coa"] = {normalizar(f["falcon"]): coa_de_nombre(f.get("nombre_netsuite", "")) for f in _cache["datos"]["filas"]}
     return _cache["datos"]
 
@@ -259,6 +260,12 @@ def coa_de_nombre(nombre: str) -> str:
     """Número de la cuenta en el COA de NetSuite: primera palabra del nombre si es numérica (p. ej. «9011.06 FCP-Related Costs» -> 9011.06)."""
     primero = (nombre or "").strip().split(" ", 1)[0]
     return primero if re.fullmatch(r"\d+(\.\d+)*", primero) else ""
+
+
+def coa_a_id() -> dict[str, str]:
+    """{número de cuenta del COA de NetSuite (6145.03): ID interno}, para aceptar en los CSV tanto el número del COA como el ID."""
+    cargar()
+    return _cache.get("coa_id", {})
 
 
 def coa() -> dict[str, str]:
