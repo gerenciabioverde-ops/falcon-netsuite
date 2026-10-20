@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import io
 import re
 import warnings
@@ -197,7 +196,7 @@ def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, li
 
     - Facturas/notas/pagos: prefijo + campos clave (p. ej. VENDB_296720_F001_00000012).
     - Asientos: líneas consecutivas sin ID hasta que Débito = Crédito forman un asiento
-      (Asiento_AAAAMMDD_hash del contenido).
+      (FCPAAAAMM_0001: prefijo + año/mes de la fecha + correlativo del mes, que continúa tras los IDs ya escritos).
     """
     spec = hoja.reglas.get("id_auto")
     if not spec:
@@ -210,6 +209,12 @@ def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, li
         i_deb, i_cre, i_fec = hoja.idx("Debit"), hoja.idx("Credit"), hoja.idx("Date")
         grupo: list[int] = []
         saldo = Decimal(0)
+        correlativo: dict[str, int] = {}  # año/mes -> último número usado (parte de los IDs que el usuario ya escribió)
+        patron = re.compile(rf"^{re.escape(spec['prefijo'])}(\d{{6}})_(\d+)$")
+        for _, fila in salida:
+            m = patron.match(str(fila[0] or "").strip())
+            if m:
+                correlativo[m.group(1)] = max(correlativo.get(m.group(1), 0), int(m.group(2)))
         for k, (nro, fila) in enumerate(salida):
             if not vacio(fila[0]):
                 grupo, saldo = [], Decimal(0)
@@ -221,11 +226,12 @@ def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, li
                 grupo, saldo = [], Decimal(0)
                 continue
             if saldo == 0:
-                huella = hashlib.sha1("|".join(str(v) for g in grupo for v in salida[g][1][1:]).encode()).hexdigest()[:8]
-                fecha = _clave(salida[grupo[0]][1][i_fec], True)
-                ident = "_".join(x for x in (spec["prefijo"], fecha, huella) if x)
-                for g in grupo:
-                    salida[g][1][0] = ident
+                mes = _clave(salida[grupo[0]][1][i_fec], True)[:6]
+                if mes:
+                    correlativo[mes] = correlativo.get(mes, 0) + 1
+                    ident = f"{spec['prefijo']}{mes}_{correlativo[mes]:04d}"
+                    for g in grupo:
+                        salida[g][1][0] = ident
                 grupo = []
         return salida
 
