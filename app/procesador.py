@@ -499,7 +499,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
             elif proveedores.es_dni(tipo) and not (num.isdigit() and len(num) == 8):
                 res.problemas.append(Problema("error", nro, doc["numero"], "El DNI debe tener 8 dígitos"))
         for texto_aviso in avisos_completar.get(nro, []):
-            res.problemas.append(Problema("aviso", nro, "Código ZIP", texto_aviso))
+            col_aviso, texto_aviso = texto_aviso if isinstance(texto_aviso, tuple) else ("Código ZIP", texto_aviso)
+            res.problemas.append(Problema("aviso", nro, col_aviso, texto_aviso))
         for c in r.get("cinco_digitos", []):
             v = salida[idx(c)]
             if v and not (v.isdigit() and len(v) == 5):

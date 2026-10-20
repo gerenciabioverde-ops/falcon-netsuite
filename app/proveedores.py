@@ -30,6 +30,10 @@ C_PERSONA, C_TIPO_DOC, C_NUMERO, C_DIGITO = ("Latam - Tipo de Persona", "Latam -
 C_CHECKS = ["Latam - Es buen contribuyente?", "Latam - Es agente retención?",
             "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?"]
 
+# Datos por defecto para los proveedores que no tienen dirección en el reporte de SUNAT (domicilio de Falcon: Jaén, Cajamarca)
+UBIGEO_DEFECTO = "CAJAMARCA-JAEN-JAEN"
+DIRECCION_DEFECTO = "JAEN - CAJAMARCA"
+
 REQUERIDOS = [C_ID, C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
               C_PERSONA, C_TIPO_DOC, C_NUMERO]
 
@@ -71,8 +75,8 @@ def es_dni(tipo: str) -> bool:
     return "DNI" in t or "NACIONAL DE IDENTIDAD" in t
 
 
-def completar(fila: list, idx) -> list[str]:
-    """Rellena (en una copia) lo que se deja vacío; devuelve avisos para quien llama."""
+def completar(fila: list, idx) -> list:
+    """Rellena (en una copia) lo que se deja vacío; devuelve avisos para quien llama (texto, o (columna, texto))."""
     avisos: list[str] = []
     g = lambda n: _t(fila[idx(n)])  # noqa: E731
 
@@ -80,6 +84,12 @@ def completar(fila: list, idx) -> list[str]:
         if valor and not g(n):
             fila[idx(n)] = valor
 
+    if not g(C_UBIGEO):       # sin ubigeo (el reporte de SUNAT no trae dirección): se usa el de Jaén para que el proveedor se pueda cargar
+        fila[idx(C_UBIGEO)] = UBIGEO_DEFECTO
+        avisos.append((C_UBIGEO, f"Sin ubigeo en SUNAT: se usó el de Jaén ({UBIGEO_DEFECTO}); corríjalo si conoce el real"))
+    if not g(C_DIR1):
+        fila[idx(C_DIR1)] = DIRECCION_DEFECTO
+        avisos.append((C_DIR1, f"Sin dirección en SUNAT: se usó «{DIRECCION_DEFECTO}»; corríjala si conoce la real"))
     ubigeo = g(C_UBIGEO)
     dep = prov = dist = ""
     if ubigeo.count("-") >= 2:
