@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
 import subprocess
 import time
@@ -127,7 +128,7 @@ async def proponer_cuentas(request: Request):
 def ver_homologacion():
     d = homologacion.cargar()
     es = homologacion.nombres_es()
-    filas = [{**f, "nombre_es": es.get(f["falcon"]) or f.get("nombre_falcon", "")} for f in d["filas"]]
+    filas = [{**f, "nombre_es": f.get("nombre_es") or es.get(f["falcon"]) or f.get("nombre_falcon", "")} for f in d["filas"]]
     return {"archivo": d["archivo"], "actualizado": d["actualizado"], "cantidad": len(d["filas"]), "filas": filas}
 
 
@@ -148,6 +149,38 @@ async def subir_homologacion(request: Request, archivo: UploadFile = File(...)):
                              "errores": errores[:50], "avisos": avisos[:50]})
     homologacion.guardar(filas, archivo.filename or "")
     return {"ok": True, "mensaje": f"{len(filas)} cuentas cargadas.", "errores": [], "avisos": avisos[:50]}
+
+
+@app.put("/homologacion/cuenta")
+async def guardar_cuenta(request: Request):
+    """Crea o modifica una cuenta: {falcon, nombre_es, coa, nombre_ns, netsuite (ID interno), destino, contrapartida, original}."""
+    _solo_local(request)
+    c = await request.json()
+    falcon, idn = str(c.get("falcon", "")).strip(), str(c.get("netsuite", "")).strip()
+    if not falcon or not idn:
+        raise HTTPException(400, "Falta la cuenta PCGE o el ID interno de NetSuite.")
+    if not re.fullmatch(r"\d+", idn):
+        raise HTTPException(400, "El ID interno de NetSuite debe ser un número.")
+    coa = str(c.get("coa", "")).strip()
+    nombre = str(c.get("nombre_es", "")).strip()
+    otra = next((f for f in homologacion.cargar()["filas"] if homologacion.normalizar(f["falcon"]) == homologacion.normalizar(falcon)
+                 and homologacion.normalizar(f["falcon"]) != homologacion.normalizar(str(c.get("original", "")))), None)
+    if otra:
+        raise HTTPException(400, f"La cuenta {falcon} ya existe: edítela en lugar de crearla.")
+    homologacion.guardar_cuenta({
+        "falcon": falcon, "netsuite": idn, "nombre_falcon": nombre, "nombre_es": nombre,
+        "nombre_netsuite": (coa + " " + str(c.get("nombre_ns", "")).strip()).strip(),
+        "destino": str(c.get("destino", "")).strip(), "contrapartida": str(c.get("contrapartida", "")).strip(),
+    }, str(c.get("original", "")))
+    return {"ok": True}
+
+
+@app.delete("/homologacion/cuenta/{falcon}")
+def eliminar_cuenta(falcon: str, request: Request):
+    _solo_local(request)
+    if not homologacion.eliminar_cuenta(falcon):
+        raise HTTPException(404, "Esa cuenta no está en la tabla.")
+    return {"ok": True}
 
 
 @app.delete("/homologacion")

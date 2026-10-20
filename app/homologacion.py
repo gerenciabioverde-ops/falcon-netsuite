@@ -108,7 +108,7 @@ def _desde_coa_pcge(nombre: str, contenido: bytes) -> tuple[list[dict], list[str
     for filas in hojas.values():
         if coa is None and (e := _encabezado(filas, ("id interno", "numero"))):
             coa = (filas, *e)
-        if pcge is None and (e := _encabezado(filas, ("coa - netsuite", "peru tax code"))):
+        if pcge is None and (e := (_encabezado(filas, ("coa - netsuite", "peru tax code")) or _encabezado(filas, ("cuenta netsuite", "cuenta pcge")))):
             pcge = (filas, *e)
     if not (coa and pcge):
         return None
@@ -127,8 +127,14 @@ def _desde_coa_pcge(nombre: str, contenido: bytes) -> tuple[list[dict], list[str
             plan[_num_cuenta(f[i_num])] = f
 
     f_pe, e_pe, h_pe = pcge
-    i_ns, i_pe = col(h_pe, contiene="coa - netsuite"), col(h_pe, contiene="peru tax code")
-    i_desc = col(h_pe, igual="summary description")
+    # encabezados de las dos versiones del libro: «COA - NetSuite / Peru Tax Code» (inglés) y «Cuenta NetSuite / Cuenta PCGE» (español)
+    i_ns = col(h_pe, contiene="coa - netsuite") if col(h_pe, contiene="coa - netsuite") is not None else col(h_pe, igual="cuenta netsuite")
+    i_pe = col(h_pe, contiene="peru tax code") if col(h_pe, contiene="peru tax code") is not None else col(h_pe, igual="cuenta pcge")
+    if i_ns is None or i_pe is None:
+        return None
+    i_desc = col(h_pe, igual="summary description") if col(h_pe, igual="summary description") is not None else col(h_pe, igual="descripcion pcge")
+    i_desc_ns = col(h_pe, igual="descripcion netsuite")        # versión en español: nombre de la cuenta de NetSuite en la misma hoja
+    es_español = col(h_pe, igual="descripcion pcge") is not None
     i_dest = col(h_pe, contiene="cuentas destino")  # la contrapartida va en la columna siguiente (sin encabezado)
     i_contra = i_dest + 1 if i_dest is not None else None
     cuentas: dict[str, dict] = {}
@@ -161,7 +167,8 @@ def _desde_coa_pcge(nombre: str, contenido: bytes) -> tuple[list[dict], list[str
             "falcon": pe,
             "netsuite": id_interno,
             "nombre_falcon": _texto(f[i_desc]) if i_desc is not None else "",
-            "nombre_netsuite": (ns + " " + _texto(fila_plan[i_cta])).strip() if i_cta is not None else ns,
+            "nombre_netsuite": (ns + " " + (_texto(f[i_desc_ns]) if i_desc_ns is not None and _texto(f[i_desc_ns]) else (_texto(fila_plan[i_cta]) if i_cta is not None else ""))).strip(),
+            **({"nombre_es": _texto(f[i_desc])} if es_español and i_desc is not None else {}),
             # asiento de destino del PCGE: solo informativo (se hace en Falcon Contable, no en NetSuite)
             "destino": _texto(f[i_dest]) if i_dest is not None else "",
             "contrapartida": _texto(f[i_contra]) if i_contra is not None else "",
@@ -217,6 +224,25 @@ def guardar(filas: list[dict], archivo: str) -> None:
     RUTA.write_text(json.dumps({"archivo": archivo, "actualizado": time.strftime("%d/%m/%Y %H:%M"), "filas": filas},
                                ensure_ascii=False), encoding="utf-8")
     _cache.clear()
+
+
+def guardar_cuenta(cuenta: dict, original: str = "") -> None:
+    """Crea o modifica una cuenta de la tabla; `original` es el código PCGE que tenía si se está cambiando."""
+    d = cargar()
+    clave, previa = normalizar(cuenta["falcon"]), normalizar(original or cuenta["falcon"])
+    filas = [f for f in d["filas"] if normalizar(f["falcon"]) not in (clave, previa)]
+    filas.append(cuenta)
+    filas.sort(key=lambda f: normalizar(f["falcon"]))
+    guardar(filas, d.get("archivo") or "Edición manual")
+
+
+def eliminar_cuenta(falcon: str) -> bool:
+    d = cargar()
+    filas = [f for f in d["filas"] if normalizar(f["falcon"]) != normalizar(falcon)]
+    if len(filas) == len(d["filas"]):
+        return False
+    guardar(filas, d.get("archivo") or "Edición manual")
+    return True
 
 
 def borrar() -> None:
