@@ -526,6 +526,43 @@ def procesar(datos: dict[str, list], plantilla: Plantilla, formato_fecha: str, p
     return [validar_hoja(plantilla.hojas[k], filas, formato_fecha, periodo) for k, filas in datos.items()]
 
 
+def reporte_errores_xlsx(resultados: list[ResultadoHoja], periodo_etiqueta: str = "") -> bytes:
+    """Excel con todos los errores y avisos de la validación: una fila por problema, con el número de fila de la pestaña
+    (el «#» de la grilla), el identificador (primera columna), la columna, el valor que tiene y el mensaje."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    ws_r = wb.active
+    ws_r.title = "Resumen"
+    ws_r.append(["Plantilla", "Filas", "Errores", "Avisos", "¿Se generó el CSV?"])
+    ws_d = wb.create_sheet("Errores y avisos")
+    ws_d.append(["Plantilla", "Fila (#)", "Identificador", "Columna", "Valor actual", "Nivel", "Mensaje"])
+    for r in resultados:
+        ws_r.append([r.nombre.strip(), len(r.filas), r.errores, r.avisos, "Sí" if r.exportable else ("No: tiene errores" if r.errores else "No")])
+        por_fila = dict(zip(r.numeros_fila, r.filas))
+        for p in sorted(r.problemas, key=lambda p: (p.nivel != "error", p.fila or 0, p.columna)):
+            fila = por_fila.get(p.fila or -1)
+            col = r.encabezados.index(p.columna) if p.columna in r.encabezados else -1
+            ws_d.append([r.nombre.strip(), p.fila, (fila[0] if fila else "") or "", p.columna,
+                         (fila[col] if fila and col >= 0 else "") or "", "Error" if p.nivel == "error" else "Aviso", p.mensaje])
+    if periodo_etiqueta:
+        ws_r.append([]); ws_r.append([f"Período {periodo_etiqueta}"])
+    for ws, anchos in ((ws_r, (28, 10, 10, 10, 24)), (ws_d, (24, 10, 40, 34, 30, 9, 90))):
+        for c in ws[1]:
+            c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="1E40AF"); c.alignment = Alignment(vertical="center")
+        for i, w in enumerate(anchos):
+            ws.column_dimensions[chr(65 + i)].width = w
+        ws.freeze_panes = "A2"
+    ws_d.auto_filter.ref = ws_d.dimensions
+    for fila in ws_d.iter_rows(min_row=2):
+        if fila[5].value == "Error":
+            fila[5].font = Font(bold=True, color="B91C1C")
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def empaquetar_zip(resultados: list[ResultadoHoja]) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:

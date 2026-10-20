@@ -797,6 +797,13 @@
       estadoGrilla(
         (zip ? 'Descargado: ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún CSV.')) +
         (sinCsv.length ? ' Sin CSV por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !zip ? '#b45309' : '#15803d');
+      const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
+      const token = doc.querySelector('table').dataset.token;
+      if (conProblemas && token) {       // reporte en Excel con cada error y aviso (fila, columna, valor y mensaje)
+        const e = document.getElementById('estado-grilla'), l = document.createElement('a');
+        l.href = '/descargar/' + token + '/errores.xlsx'; l.textContent = '📄 Descargar reporte de errores (Excel)';
+        l.style.cssText = 'margin-left:10px;color:#1d4ed8;text-decoration:underline;font-weight:600'; e.appendChild(l);
+      }
     } catch (e) {
       estado.textContent = 'No se pudo conectar con el servidor.';
     }
