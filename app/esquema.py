@@ -129,7 +129,7 @@ REGLAS["Gastos"] = {
     "cuadre_total": ("Sub-Total", "Igv", "Total"),
     "unico_compuesto": ["RUC", "Serie-Numero"],
     "unico_id": True,
-    "id_auto": {"prefijo": "GASTO", "campos": ["RUC", "Serie-Numero"]},
+    "id_auto": {"prefijo": "VENDB", "campos": ["RUC", "Serie-Numero"]},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
     "pagado_vs_total": ("Monto Pagado", "Total"),
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
