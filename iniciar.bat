@@ -42,7 +42,6 @@ if not defined PUERTO (
 echo.
 echo Servidor en http://localhost:%PUERTO%  (cierre esta ventana o pulse Ctrl+C para detenerlo)
 start "" /b cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:%PUERTO%"
-set FALCON_REINICIAR=1
 :servidor
 ".venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port %PUERTO%
 rem Codigo 75 = el boton Actualizar pidio reiniciar: reinstala dependencias y vuelve a arrancar

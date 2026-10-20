@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import secrets
 import subprocess
-import threading
 import time
 from pathlib import Path
 
@@ -77,36 +76,6 @@ def _version() -> str:
         return r.stdout.strip().replace("|", " - ") if r.returncode == 0 else ""
     except Exception:
         return ""
-
-
-@app.post("/actualizar")
-def actualizar(request: Request):
-    """Trae la última versión de `main` desde GitHub. Solo desde el propio equipo."""
-    if not request.client or request.client.host not in ("127.0.0.1", "::1"):
-        raise HTTPException(403, "Solo se puede actualizar desde el equipo donde corre la app.")
-    if not (RAIZ / ".git").exists():
-        return JSONResponse({"ok": False, "mensaje": "Esta copia no es un repositorio git; descargue de nuevo desde GitHub."})
-    try:
-        antes = _git("rev-parse", "HEAD").stdout.strip()
-        rama = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-        if rama != "main":
-            r = _git("checkout", "main")
-            if r.returncode != 0:
-                return JSONResponse({"ok": False, "mensaje": "No se pudo cambiar a main: " + (r.stderr or r.stdout).strip()[:300]})
-        r = _git("pull", "--ff-only", "origin", "main")
-        if r.returncode != 0:
-            return JSONResponse({"ok": False, "mensaje": "No se pudo actualizar: " + (r.stderr or r.stdout).strip()[:300]})
-        despues = _git("rev-parse", "HEAD").stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        return JSONResponse({"ok": False, "mensaje": "No se pudo ejecutar git (¿está instalado y hay internet?): " + str(e)[:120]})
-    if antes == despues and rama == "main":
-        return JSONResponse({"ok": True, "cambios": False, "mensaje": "Ya tiene la última versión."})
-    # iniciar.bat vuelve a lanzar el servidor cuando termina con código 75
-    reinicia = os.environ.get("FALCON_REINICIAR") == "1"
-    if reinicia:
-        threading.Timer(1.5, lambda: os._exit(75)).start()
-    return JSONResponse({"ok": True, "cambios": True, "reiniciando": reinicia, "mensaje":
-                         "Actualizado. Reiniciando…" if reinicia else "Actualizado. Cierre y vuelva a abrir iniciar.bat para aplicar los cambios."})
 
 
 @app.get("/", response_class=HTMLResponse)
