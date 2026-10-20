@@ -81,6 +81,7 @@
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
+          {% if p.clave == 'gastos' %}<button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
       </div>
@@ -367,6 +368,40 @@
     for (let i = 0; i < FILAS_INICIALES; i++) nuevaFila(clave);
     guardar(); contadores();
   }));
+
+
+  // Gastos -> Factura de Proveedor: una fila por gasto con el mismo External ID (VENDB_RUC_Serie-Número)
+  const MONEDA_NS = { PEN: 'SOL', USD: 'USD' };
+  const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
+  const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  $id('btn-pasar-factura').addEventListener('click', () => {
+    const G = 'gastos', F = 'factura de proveedor';
+    const ig = n => porClave[G].columnas.findIndex(c => c.nombre === n), iF = n => porClave[F].columnas.findIndex(c => c.nombre === n);
+    const ya = new Set(leer(F).map(f => f[0]).filter(Boolean));
+    const nuevas = []; let repetidas = 0, sinId = 0;
+    leer(G).forEach(g => {
+      const v = n => (g[ig(n)] || '').trim(), ruc = limpiarId(v('RUC')), sn = v('Serie-Numero');
+      const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + '_' + limpiarId(sn) : '');
+      if (!id) { sinId++; return; }
+      if (ya.has(id)) { repetidas++; return; }
+      ya.add(id);
+      const cortar = sn.indexOf('-'), fila = new Array(porClave[F].columnas.length).fill('');
+      const poner = (n, val) => { fila[iF(n)] = val; };
+      poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
+      poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', v('Fecha Factura'));
+      poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
+      poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
+      poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
+      poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+      nuevas.push(fila);
+    });
+    if (!nuevas.length) { alert(repetidas ? 'Los ' + repetidas + ' gastos ya están en Factura de Proveedor.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
+    [...cuerpo(F).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
+    nuevas.forEach(f => nuevaFila(F, f));
+    renumerar(F); contadores(); guardar(); activar(F);
+    alert(nuevas.length + ' filas pasadas a Factura de Proveedor' + (repetidas ? ' (' + repetidas + ' ya estaban)' : '') + (sinId ? ' (' + sinId + ' sin RUC o Serie-Número)' : '') +
+      '.\nFalta completar: Cuenta (por pagar), Subsidiaria, Gastos: Cuenta y Código de impuesto.');
+  });
 
   function activar(clave) {
     document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + clave));
