@@ -786,17 +786,19 @@
       const r = await fetch('/procesar_grilla?formato_fecha=' + fmt + '&periodo=' + (periodo || ''), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
       });
-      // Sin reporte en pantalla: se descarga el .zip y la línea de estado resume lo que pasó
+      // Sin reporte en pantalla: se descargan los CSV sueltos (NetSuite no acepta .zip) y la línea de estado resume lo que pasó
       if (!r.ok) { estadoGrilla('Error ' + r.status + ' al procesar.', '#b91c1c'); return; }
       const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
       const zip = doc.querySelector('a[href$="todos.zip"]');
       const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
-      if (zip) { const a = document.createElement('a'); a.href = zip.getAttribute('href'); a.click(); }
-      const ok = resumen.filter(f => f[4] === 'CSV').map(f => f[0]);
+      // un CSV por plantilla de NetSuite; «Gastos» es solo de trabajo y no se descarga
+      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector('a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos');
+      csvs.forEach((x, i) => setTimeout(() => { const l = document.createElement('a'); l.href = x.a.getAttribute('href'); l.download = ''; document.body.appendChild(l); l.click(); l.remove(); }, i * 600));
+      const ok = csvs.map(x => x.nombre);
       estadoGrilla(
-        (zip ? 'Descargado: ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún CSV.')) +
-        (sinCsv.length ? ' Sin CSV por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !zip ? '#b45309' : '#15803d');
+        (ok.length ? 'Descargado (CSV para NetSuite): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún CSV.')) +
+        (sinCsv.length ? ' Sin CSV por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
       const token = doc.querySelector('table').dataset.token;
       if (conProblemas && token) {       // reporte en Excel con cada error y aviso (fila, columna, valor y mensaje)
