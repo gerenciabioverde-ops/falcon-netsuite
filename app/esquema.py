@@ -7,6 +7,7 @@ están en REGLAS y se ajustan aquí si NetSuite pide otros campos.
 from __future__ import annotations
 
 import re
+import unicodedata
 import warnings
 import zipfile
 import xml.etree.ElementTree as ET
@@ -103,6 +104,7 @@ GASTOS_ENCABEZADOS = [
     "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
     "Sujeto a Detracción", "Concepto Detracción", "% Detracción",
     "Clasificación Bienes y Servicios", "Tipo Operación SUNAT", "Neto a Pagar",
+    "Cuenta por Pagar PCGE", "Cuenta por Pagar NetSuite",
 ]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
@@ -111,6 +113,16 @@ UBICACION = "FCP SOLES"
 # Cuenta por pagar (ID interno en NetSuite): 111 es la de las filas de ejemplo de la plantilla; los recibos por honorarios van a 424001 (500)
 CUENTA_POR_PAGAR = "111"
 CUENTA_POR_PAGAR_RHE = "500"
+# Cuenta PCGE por pagar según el tipo de documento (el comprobante va al pasivo con el proveedor); lo no listado va a «otras cuentas por pagar»
+PAGAR_POR_TIPO = {"factura": "421201", "nota de debito": "421201", "liquidacion compra": "421201", "liquidacion de compra": "421201",
+                  "recibo por honorarios": "424001", "boleta": "469901", "liquidacion de gastos": "469901", "_otros": "469901"}
+
+
+def cuenta_pagar_por_tipo(tipo: str) -> str:
+    t = "".join(c for c in unicodedata.normalize("NFD", str(tipo or "").lower().strip()) if unicodedata.category(c) != "Mn")
+    if not t:
+        return ""
+    return next((v for k, v in PAGAR_POR_TIPO.items() if k != "_otros" and t.startswith(k)), PAGAR_POR_TIPO["_otros"])
 _POR_DEFECTO = {
     "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION,
                              "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe")},
@@ -160,6 +172,7 @@ REGLAS["Gastos"] = {
     "id_auto": {"prefijo": "VENDB", "campos": ["RUC", "Serie-Numero"]},
     "cuenta_gasto": ("Cuenta PCGE", "Cuenta NetSuite"),
     "metodo_pago": ("Caja", "Met. Pago"),
+    "cuenta_pagar": {"pcge": "Cuenta por Pagar PCGE", "ns": "Cuenta por Pagar NetSuite", "tipo": "Tipo Doc"},
     "detraccion": {"sujeto": "Sujeto a Detracción", "concepto": "Concepto Detracción", "porcentaje": "% Detracción",
                    "monto": "Monto Detr.", "total": "Total", "igv": "Igv", "tipo": "Tipo Operación SUNAT", "neto": "Neto a Pagar"},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],

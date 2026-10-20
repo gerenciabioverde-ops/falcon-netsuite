@@ -186,6 +186,8 @@
     });
   }
   const SUBSIDIARIA = '{{ subsidiaria }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
+  const PAGAR_TIPO = {{ pagar_por_tipo | tojson }};
+  const COL_PAG = 'Cuenta por Pagar PCGE', COL_PAGNS = 'Cuenta por Pagar NetSuite';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
 
   // ---- Períodos: cada mes guarda sus propias grillas en el servidor ----
@@ -257,6 +259,8 @@
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'gastos' && c.nombre === COL_PAG) inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'gastos' && c.nombre === COL_PAGNS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
       if (clave === 'gastos' && c.nombre === 'Neto a Pagar') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − detracción'; }
       if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
       inp.value = (valores && valores[i]) ? (c.fecha ? fechaExcel(valores[i]) : valores[i]) : '';
@@ -434,7 +438,7 @@
     const cortar = sn.indexOf('-'), fila = new Array(porClave[FP].columnas.length).fill('');
     const poner = (n, val) => { fila[iF(n)] = val; };
     poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
-    poner('Cuenta', /honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR);       // cuenta por pagar
+    poner('Cuenta', cuentaID(v(COL_PAG)) || (/honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR));       // cuenta por pagar (ID interno; si la cuenta no está homologada, la de la plantilla)
     poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
     poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
@@ -462,7 +466,7 @@
       f.fila.forEach((val, k) => {
         const actual = ins[k].value.trim();
         // la cuenta por pagar por defecto (111) se puede cambiar a la que corresponde al tipo de documento (honorarios = 500); una cuenta puesta a mano no se toca
-        const defectoCambiable = k === iCuentaFP && actual === CUENTA_POR_PAGAR && val !== actual;
+        const defectoCambiable = k === iCuentaFP && (actual === CUENTA_POR_PAGAR || actual === CUENTA_POR_PAGAR_RHE) && val !== actual;
         if (val && (!actual || defectoCambiable || (modo === 'actualizar' && !colsFijas.has(k) && actual !== val))) dif.push([k, val, actual]);
       });
       if (dif.length) r.cambios.push({ tr, dif }); else r.sinCambios++;
@@ -516,7 +520,7 @@
     let dl = $id('dl-cuentas-gasto');
     if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-cuentas-gasto'; document.body.appendChild(dl); }
     dl.innerHTML = '';
-    tablaCuentas.filter(f => String(f.falcon).startsWith('6') || String(f.falcon) === CUENTA_CONTRATO).forEach(f => {
+    tablaCuentas.filter(f => /^(6|42|46)/.test(String(f.falcon)) || String(f.falcon) === CUENTA_CONTRATO).forEach(f => {
       const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_es || f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
     });
   }
@@ -553,8 +557,18 @@
     const v = calcularDetraccion([...ins].map(i => i.value), recalcular);
     [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP, COL_NETO].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
   }
+  // Cuenta por pagar según el tipo de documento: factura 421201, honorarios 424001, boletas y liquidaciones de gastos 469901
+  const quitarTildes = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const pagarPorTipo = tipo => { const t = quitarTildes(tipo); if (!t) return ''; const k = Object.keys(PAGAR_TIPO).find(x => x !== '_otros' && t.startsWith(x)); return k ? PAGAR_TIPO[k] : PAGAR_TIPO._otros; };
+  function completarCuentaPagar(tr, recalcular) {
+    const ins = tr.querySelectorAll('input'), tipo = ins[colG('Tipo Doc')].value;
+    if (!tipo.trim()) return;
+    if (recalcular || !ins[colG(COL_PAG)].value.trim()) ins[colG(COL_PAG)].value = pagarPorTipo(tipo);
+    ins[colG(COL_PAGNS)].value = cuentaNS(ins[colG(COL_PAG)].value) || ins[colG(COL_PAGNS)].value;
+  }
   function completarIdGasto(tr) {
     const ins = tr.querySelectorAll('input'), iM = colG('Met. Pago');
+    completarCuentaPagar(tr, false);
     if (!ins[0].value.trim()) ins[0].value = idGasto([...ins].map(i => i.value));
     if (!ins[iM].value.trim()) ins[iM].value = metodoPago(ins[colG('Caja')].value);
     completarDetraccion(tr, false);
@@ -574,8 +588,9 @@
     if (!tablaCuentas.length) return;
     let cambio = false;
     [...cuerpo('gastos').rows].forEach(tr => {
-      const ins = tr.querySelectorAll('input'), nuevo = cuentaNS(ins[colG(COL_PCGE)].value);
+      const ins = tr.querySelectorAll('input'), nuevo = cuentaNS(ins[colG(COL_PCGE)].value), nuevoP = cuentaNS(ins[colG(COL_PAG)].value);
       if (ins[colG(COL_PCGE)].value.trim() && nuevo && ins[colG(COL_NS)].value !== nuevo) { ins[colG(COL_NS)].value = nuevo; cambio = true; }
+      if (ins[colG(COL_PAG)].value.trim() && nuevoP && ins[colG(COL_PAGNS)].value !== nuevoP) { ins[colG(COL_PAGNS)].value = nuevoP; cambio = true; }
     });
     if (cambio) guardar();
   }
@@ -593,6 +608,8 @@
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
     if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero'), colG('Caja')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG('Tipo Doc')) { completarCuentaPagar(i.closest('tr'), true); guardar(); return; }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG(COL_PAG)) { const ins = i.closest('tr').querySelectorAll('input'); ins[colG(COL_PAGNS)].value = cuentaNS(i.value); guardar(); return; }
     if (i instanceof HTMLInputElement && [colG(COL_SUJ), colG(COL_CDET), colG('Total')].includes(+i.dataset.col)) {
       completarDetraccion(i.closest('tr'), +i.dataset.col !== colG('Total')); guardar(); return;
     }
@@ -718,7 +735,7 @@
       lab.appendChild(inp); cont.appendChild(lab);
     });
     if (clave === 'gastos') {      // la cuenta contable va en un bloque aparte, justo debajo del External ID
-      const etiq = cont.querySelectorAll('label'), lP = etiq[colG(COL_PCGE)], lN = etiq[colG(COL_NS)];
+      const etiq = cont.querySelectorAll('label'), lP = etiq[colG(COL_PCGE)], lN = etiq[colG(COL_NS)], lPP = etiq[colG(COL_PAG)], lPN = etiq[colG(COL_PAGNS)];
       const bloque = document.createElement('div'), rejilla = document.createElement('div'), lD = document.createElement('label'), dest = document.createElement('div');
       bloque.className = 'bloque-cuenta';
       bloque.innerHTML = '<div class="bloque-cuenta-titulo">Cuenta contable (NetSuite)</div>';
@@ -726,6 +743,11 @@
       lN.firstChild.textContent = 'Cuenta NetSuite (automático, homologada) ';
       lD.append('Cuenta destino (solo consulta) '); dest.className = 'cuenta-destino'; lD.appendChild(dest);
       rejilla.append(lP, lN, lD); bloque.appendChild(rejilla);
+      // cuenta por pagar (pasivo con el proveedor), según el tipo de documento
+      const rejilla2 = document.createElement('div');
+      lPP.firstChild.textContent = 'Cuenta por pagar PCGE (según el tipo de documento) '; lPN.firstChild.textContent = 'Cuenta por pagar NetSuite (automático) ';
+      rejilla2.style.cssText = 'display:grid;grid-template-columns:2fr 1fr;gap:10px 16px;margin-top:10px;padding-top:10px;border-top:1px dashed #bfdbfe';
+      rejilla2.append(lPP, lPN); bloque.appendChild(rejilla2);
       const info = document.createElement('div'); info.className = 'bloque-cuenta-nota'; info.style.fontWeight = '600'; info.style.marginTop = '8px'; bloque.appendChild(info);
       const nota = document.createElement('div'); nota.className = 'bloque-cuenta-nota';
       nota.textContent = 'Se elige por Concepto («💡 Proponer cuentas» sugiere una) y se traduce con la tabla de «Cuentas homologadas». Va a la columna Gastos: Cuenta de Factura de Proveedor.';
@@ -773,6 +795,12 @@
       rellenarId(); [colG('RUC'), colG('Serie-Numero')].forEach(k => ms[k].addEventListener('change', rellenarId));
       ms[iN].readOnly = true; ms[iN].style.background = '#f1f5f9';
       ms[iP].addEventListener('change', () => { ms[iN].value = cuentaNS(ms[iP].value); });
+      const iPP = colG(COL_PAG), iPN = colG(COL_PAGNS), iTD = colG('Tipo Doc');
+      ms[iPP].setAttribute('list', 'dl-cuentas-gasto'); ms[iPN].readOnly = true; ms[iPN].style.background = '#f1f5f9';
+      if (!ms[iPP].value.trim() && ms[iTD].value.trim()) ms[iPP].value = pagarPorTipo(ms[iTD].value);
+      ms[iPN].value = cuentaNS(ms[iPP].value) || ms[iPN].value;
+      ms[iTD].addEventListener('change', () => { ms[iPP].value = pagarPorTipo(ms[iTD].value); ms[iPN].value = cuentaNS(ms[iPP].value); });
+      ms[iPP].addEventListener('change', () => { ms[iPN].value = cuentaNS(ms[iPP].value); });
     }
     document.getElementById('mf-problemas').innerHTML = '';
     document.getElementById('mf-ant').disabled = idx === 0;
