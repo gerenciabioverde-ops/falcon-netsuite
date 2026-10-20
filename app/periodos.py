@@ -40,11 +40,19 @@ def _fila_gastos(f: list) -> list:
     return (f + [""] * 24)[:24]
 
 
+# Nombres anteriores de los departamentos de Gastos -> nombres actuales
+_DEPARTAMENTOS_ANTES = {"gerencia general": "Administrativos", "gerencia finanzas": "Finanzas",
+                        "gerencia sostenibilidad": "Sostenibilidad", "gerencia operaciones": "Operaciones"}
+
+
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if len(f) in (18, 19, 21, 22) else f for f in g["filas"]]
+        for f in g["filas"]:
+            if len(f) == 24 and str(f[22]).strip().lower() in _DEPARTAMENTOS_ANTES:
+                f[22] = _DEPARTAMENTOS_ANTES[str(f[22]).strip().lower()]
     return datos
 
 
