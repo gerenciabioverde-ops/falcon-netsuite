@@ -336,6 +336,7 @@
       const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
       (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
       if (p.clave === 'gastos') { [...cuerpo('gastos').rows].forEach(completarIdGasto); resincronizarCuentas(); }
+      if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].forEach(tr => { const k = p.columnas.findIndex(c => c.nombre === 'Latam - Concepto Detracción'), i = tr.querySelectorAll('input')[k]; if (i && i.value.trim() === 'SIN DETRACCIÓN') i.value = ''; });
       if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].filter(tr => /^VENDB_/.test(tr.querySelector('input').value)).forEach(bloquearFila);   // filas que vienen de Gastos
       while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
     });
@@ -472,7 +473,7 @@
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
-    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : 'SIN DETRACCIÓN'); poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
   // modo 'completar': solo celdas vacías (botón de Gastos). modo 'actualizar': también cambia lo que ya no coincide con Gastos.
@@ -496,6 +497,8 @@
         const defectoCambiable = k === iCuentaFP && (actual === CUENTA_POR_PAGAR || actual === CUENTA_POR_PAGAR_RHE) && val !== actual;
         if (val && (!actual || defectoCambiable || (modo === 'actualizar' && !colsFijas.has(k) && actual !== val))) dif.push([k, val, actual]);
       });
+      const kCD = porClave[FP].columnas.findIndex(c => c.nombre === 'Latam - Concepto Detracción');       // sin detracción: se deja en blanco (antes se escribía «SIN DETRACCIÓN»)
+      if (!f.fila[kCD] && ins[kCD].value.trim() === 'SIN DETRACCIÓN') dif.push([kCD, '', ins[kCD].value]);
       if (dif.length) r.cambios.push({ tr, dif }); else r.sinCambios++;
     });
     return r;
