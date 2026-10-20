@@ -32,8 +32,8 @@
   .cuenta-destino { margin-top: 4px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; min-height: 38px; }
   #mf-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; padding: 12px 16px; overflow: auto; }
   #mf-campos label { display: block; font-size: 12px; color: #475569; }
-  #mf-campos input { display: block; width: 100%; margin-top: 2px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
-  #mf-campos input:focus { outline: 2px solid #1d4ed8; outline-offset: -1px; }
+  #mf-campos input, #mf-campos select { display: block; width: 100%; margin-top: 2px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
+  #mf-campos input:focus, #mf-campos select:focus { outline: 2px solid #1d4ed8; outline-offset: -1px; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -676,7 +676,7 @@
   const modal = document.getElementById('modal-fila');
   let mClave = null, mIdx = 0;
   const filaTr = () => cuerpo(mClave).rows[mIdx];
-  const camposModal = () => [...document.querySelectorAll('#mf-campos input')].sort((a, b) => a.dataset.col - b.dataset.col);  // en orden de columna, aunque se muestren en otro lugar
+  const camposModal = () => [...document.querySelectorAll('#mf-campos input, #mf-campos select')].sort((a, b) => a.dataset.col - b.dataset.col);  // en orden de columna, aunque se muestren en otro lugar
 
   function abrirFila(clave, idx) {
     const p = porClave[clave], tr = cuerpo(clave).rows[idx];
@@ -686,10 +686,17 @@
     const cont = document.getElementById('mf-campos'), valores = [...tr.querySelectorAll('input')].map(i => i.value);
     cont.innerHTML = '';
     p.columnas.forEach((c, i) => {
-      const lab = document.createElement('label'), inp = document.createElement('input');
+      const lab = document.createElement('label'), actual = valores[i] || '';
       lab.append((c.nombre + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
-      inp.type = 'text'; inp.autocomplete = 'off'; inp.value = valores[i] || ''; inp.dataset.col = i;
-      if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
+      let inp;
+      if (c.opciones.length) {       // columnas con tabla/lista: desplegable con TODAS las opciones (no filtrado por lo que ya está escrito)
+        inp = document.createElement('select');
+        [''].concat(c.opciones.includes(actual) || !actual ? [] : [actual], c.opciones).forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o; inp.appendChild(op); });
+        inp.value = actual;
+      } else {
+        inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.value = actual;
+      }
+      inp.dataset.col = i;
       lab.appendChild(inp); cont.appendChild(lab);
     });
     if (clave === 'gastos') {      // la cuenta contable va en un bloque aparte, justo debajo del External ID
@@ -715,10 +722,10 @@
       ms[colG(COL_PCGE)].addEventListener('change', pintarDestino); pintarDestino();
     }
     if (clave === 'gastos') {                 // bloque «Detracción (SUNAT)» bajo el de la cuenta contable
-      const etiq = n => cont.querySelector('input[data-col="' + colG(n) + '"]').parentElement, bd = document.createElement('div'), gd = document.createElement('div');
+      const etiq = n => cont.querySelector('[data-col="' + colG(n) + '"]').parentElement, bd = document.createElement('div'), gd = document.createElement('div');
       bd.className = 'bloque-cuenta'; bd.innerHTML = '<div class="bloque-cuenta-titulo">Detracción (SUNAT)</div>';
-      [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.', COL_TOP].forEach(n => gd.appendChild(etiq(n)));
-      gd.style.gridTemplateColumns = '1fr 2fr 1fr 1fr 1fr'; etiq(COL_TOP).style.gridColumn = '1 / -1';
+      [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.', COL_TOP].forEach(n => { const l = etiq(n); gd.appendChild(l); if (n === COL_TOP) l.style.gridColumn = '1 / -1'; });
+      gd.style.gridTemplateColumns = '1fr 2fr 1fr 1fr 1fr';
       bd.appendChild(gd);
       const nd = document.createElement('div'); nd.className = 'bloque-cuenta-nota';
       nd.textContent = 'Marca «Sí» o elige el concepto: el % sale de la tabla de detracciones de la plantilla y el Monto Detr. = Total × %. Pasa a «Latam - Concepto Detracción» de Factura de Proveedor (si es «No», va «SIN DETRACCIÓN»).';
@@ -783,7 +790,11 @@
   document.getElementById('mf-auto').addEventListener('click', async () => {
     const d = await consultarFila(); if (!d) return;
     const ins = camposModal();
-    d.fila.forEach((v, i) => { if (ins[i] && !ins[i].value.trim() && v) ins[i].value = v; });  // solo campos vacíos
+    d.fila.forEach((v, i) => {       // solo campos vacíos
+      if (!ins[i] || ins[i].value.trim() || !v) return;
+      if (ins[i].tagName === 'SELECT' && ![...ins[i].options].some(o => o.value === v)) ins[i].add(new Option(v, v));
+      ins[i].value = v;
+    });
     mostrarProblemas(d.problemas);
   });
   document.getElementById('mf-validar').addEventListener('click', async () => { const d = await consultarFila(); if (d) mostrarProblemas(d.problemas); });
