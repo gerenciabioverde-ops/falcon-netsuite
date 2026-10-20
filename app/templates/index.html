@@ -301,7 +301,7 @@
     if (periodo && pendiente) await enviarGuardado();           // guarda el período que se deja
     periodoListo = false; periodo = nuevo;
     try { localStorage.setItem(LLAVE_PERIODO, nuevo); } catch (e) {}
-    $id('per-mes').value = nuevo; $id('resultado').innerHTML = '';
+    $id('per-mes').value = nuevo; $id('resultado').innerHTML = ''; estadoGrilla('');
     estadoPeriodo('Cargando ' + etiquetaPeriodo(nuevo) + '…');
     try {
       const r = await fetch('/periodo/' + nuevo); if (!r.ok) throw new Error('http ' + r.status);
@@ -486,26 +486,33 @@
   }
   window.addEventListener('resize', ajustarAlto);
   window.addEventListener('load', ajustarAlto);
-  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => activar(b.dataset.tab)));
+  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { activar(b.dataset.tab); estadoGrilla(''); }));
   let inicial = esquema[0].clave;
   try { inicial = sessionStorage.getItem('falcon-netsuite-tab') || inicial; } catch (e) {}
   activar(document.getElementById('panel-' + inicial) ? inicial : esquema[0].clave);
 
+  const estadoGrilla = (txt, color) => { const e = document.getElementById('estado-grilla'); e.textContent = txt; e.style.color = color || ''; };
   document.getElementById('btn-grilla').addEventListener('click', async () => {
     const datos = {};
     esquema.forEach(p => { datos[p.clave] = leer(p.clave, true); });
     const estado = document.getElementById('estado-grilla');
-    estado.textContent = 'Procesando…';
+    estadoGrilla('Procesando…');
     try {
       const fmt = encodeURIComponent(document.getElementById('formato-grilla').value);
       const r = await fetch('/procesar_grilla?formato_fecha=' + fmt + '&periodo=' + (periodo || ''), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
       });
-      const destino = document.getElementById('resultado');
-      destino.innerHTML = r.ok ? await r.text()
-        : '<div class="bg-red-50 border border-red-300 text-red-800 rounded p-4">Error ' + r.status + ' al procesar.</div>';
-      destino.scrollIntoView({ behavior: 'smooth' });
-      estado.textContent = '';
+      // Sin reporte en pantalla: se descarga el .zip y la línea de estado resume lo que pasó
+      if (!r.ok) { estadoGrilla('Error ' + r.status + ' al procesar.', '#b91c1c'); return; }
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      const zip = doc.querySelector('a[href$="todos.zip"]');
+      const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
+      const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
+      if (zip) { const a = document.createElement('a'); a.href = zip.getAttribute('href'); a.click(); }
+      const ok = resumen.filter(f => f[4] === 'CSV').map(f => f[0]);
+      estadoGrilla(
+        (zip ? 'Descargado: ' + ok.join(', ') + '.' : (doc.body.textContent.trim().slice(0, 120) || 'No se generó ningún CSV.')) +
+        (sinCsv.length ? ' Sin CSV por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !zip ? '#b45309' : '#15803d');
     } catch (e) {
       estado.textContent = 'No se pudo conectar con el servidor.';
     }
