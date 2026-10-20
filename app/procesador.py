@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
-from . import homologacion, periodos, proveedores
+from . import gastos_cuentas, homologacion, periodos, proveedores
 from .esquema import Hoja, Plantilla, norm
 
 FORMATOS_FECHA = {
@@ -398,6 +398,12 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                     res.problemas.append(Problema("aviso", nro, r["pagado_vs_total"][0], f"{r['pagado_vs_total'][0]} ({_fmt_num(pagado)}) es mayor que el {r['pagado_vs_total'][1]} ({_fmt_num(total)})"))
             except (ValueError, InvalidOperation):
                 pass
+        if r.get("metodo_pago"):  # Met. Pago vacío = según la Caja (cuenta bancaria -> transferencia; Caja Chica -> efectivo)
+            c_caja, c_met = r["metodo_pago"]
+            if not salida[idx(c_met)]:
+                salida[idx(c_met)] = gastos_cuentas.metodo_pago(salida[idx(c_caja)])
+                if not salida[idx(c_met)] and salida[idx(c_caja)]:
+                    res.problemas.append(Problema("aviso", nro, c_met, f"No se pudo deducir el método de pago de la caja «{salida[idx(c_caja)][:40]}»"))
         if r.get("cuenta_gasto"):  # Cuenta NetSuite = ID interno de la cuenta PCGE elegida (según «Cuentas homologadas»)
             c_pcge, c_ns = r["cuenta_gasto"]
             pcge = homologacion.normalizar(salida[idx(c_pcge)])

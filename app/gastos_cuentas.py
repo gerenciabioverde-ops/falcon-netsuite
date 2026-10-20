@@ -42,3 +42,13 @@ def proponer(concepto: str) -> str:
         if any(p in c for p in palabras):
             return cuenta if cuenta in existentes else ""
     return ""
+
+
+def metodo_pago(caja: str) -> str:
+    """Método de pago según la columna Caja: con número de cuenta = transferencia; «Caja Chica» = efectivo; si no, ''."""
+    c = _plano(caja)
+    if not c:
+        return ""
+    if "caja chica" in c:
+        return "Efectivo"
+    return "Transferencia de Fondos" if any(ch.isdigit() for ch in c) else ""
