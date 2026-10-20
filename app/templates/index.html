@@ -806,14 +806,15 @@
     est.textContent = total ? total + ' proveedores · ' + sinErr + ' sin errores · ' + malas.size + ' con errores (' + d.errores + ' errores)' : 'No hay proveedores en este período.';
     est.style.color = malas.size ? '#b45309' : '#15803d';
     const tb = document.createElement('table'); tb.className = 'text-xs'; tb.style.borderCollapse = 'collapse';
-    const th = document.createElement('tr'); ['Fila', ...d.encabezados, 'Observaciones'].forEach((h, i) => { const c = document.createElement('th'); c.textContent = h; c.style.cssText = 'position:sticky;top:0;background:#f1f5f9;border:1px solid #e2e8f0;padding:4px 8px;white-space:nowrap;text-align:left'; th.appendChild(c); });
+    const th = document.createElement('tr'); ['Fila', ...d.encabezados].forEach((h, i) => { const c = document.createElement('th'); c.textContent = h; c.style.cssText = 'position:sticky;top:0;background:#f1f5f9;border:1px solid #e2e8f0;padding:4px 8px;white-space:nowrap;text-align:left'; th.appendChild(c); });
     tb.appendChild(th);
     d.filas.forEach((f, i) => {
       const n = d.numeros[i], mala = malas.has(n);
       if (solo && !mala) return;
       const tr = document.createElement('tr'); if (mala) tr.style.background = '#fef2f2';
       const msgs = (d.problemas[n] || []).map(p => (p.nivel === 'error' ? '✖ ' : '⚠ ') + p.columna + ': ' + p.mensaje).join(' · ');
-      [n, ...f, msgs].forEach((v, k) => { const c = document.createElement('td'); c.textContent = v == null ? '' : v; c.style.cssText = 'border:1px solid #e2e8f0;padding:3px 8px;white-space:nowrap' + (k === f.length + 1 && msgs ? ';color:#b91c1c' : ''); tr.appendChild(c); });
+      if (msgs) tr.title = msgs;       // el detalle se ve al pasar el cursor por la fila (y en el reporte de errores en Excel)
+      [n, ...f].forEach(v => { const c = document.createElement('td'); c.textContent = v == null ? '' : v; c.style.cssText = 'border:1px solid #e2e8f0;padding:3px 8px;white-space:nowrap'; tr.appendChild(c); });
       tb.appendChild(tr);
     });
     $id('cp-tabla').replaceChildren(tb);
