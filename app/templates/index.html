@@ -89,6 +89,7 @@
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
           {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE según el Concepto en los gastos que no tienen cuenta (para que la revises)">💡 Proponer cuentas</button>
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
+          {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
       </div>
@@ -408,40 +409,75 @@
   const METODO_NS = { 'Transferencia de Fondos': 'PE - TRANSFERENCIA DE FONDOS', 'Efectivo': 'PE - EFECTIVO, EN LOS DEMÁS CASOS' };
   const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  $id('btn-pasar-factura').addEventListener('click', () => {
-    const G = 'gastos', F = 'factura de proveedor';
-    const ig = n => porClave[G].columnas.findIndex(c => c.nombre === n), iF = n => porClave[F].columnas.findIndex(c => c.nombre === n);
-    const existentes = new Map([...cuerpo(F).rows].map(tr => [tr.querySelector('input').value.trim(), tr]).filter(([id]) => id));
-    const nuevas = []; let repetidas = 0, actualizadas = 0, sinId = 0, sinCuenta = 0;
-    leer(G).forEach(g => {
-      const v = n => (g[ig(n)] || '').trim(), ruc = limpiarId(v('RUC')), sn = v('Serie-Numero');
-      const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + '_' + limpiarId(sn) : '');
-      if (!id) { sinId++; return; }
-      const cortar = sn.indexOf('-'), fila = new Array(porClave[F].columnas.length).fill('');
-      const poner = (n, val) => { fila[iF(n)] = val; };
-      poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
-      poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION); poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', v('Fecha Factura'));
-      poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
-      poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
-      poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
-      poner('Gastos: Cuenta', v(COL_NS));       poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || ''); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
-      if (!v(COL_NS)) sinCuenta++;
-      const previa = existentes.get(id);
-      if (previa) {        // ya está en Factura de Proveedor (mismo External ID): se completan solo sus celdas vacías con lo de Gastos
-        const ins = previa.querySelectorAll('input'); let cambio = false;
-        fila.forEach((val, k) => { if (val && !ins[k].value.trim()) { ins[k].value = val; cambio = true; } });
-        if (cambio) actualizadas++; else repetidas++;
-        return;
-      }
-      existentes.set(id, null);
-      nuevas.push(fila);
+  const GF = 'gastos', FP = 'factura de proveedor';
+  const FIJOS_FACTURA = ['Subsidiaria', 'Ubicación', 'Gastos: Ubicación'];     // constantes: solo se completan si están vacías
+  // Fila de Factura de Proveedor que corresponde a una fila de Gastos (o null si no tiene RUC y Serie-Número)
+  function facturaDeGasto(g) {
+    const ig = n => porClave[GF].columnas.findIndex(c => c.nombre === n), iF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
+    const v = n => (g[ig(n)] || '').trim(), ruc = limpiarId(v('RUC')), sn = v('Serie-Numero');
+    const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + '_' + limpiarId(sn) : '');
+    if (!id) return null;
+    const cortar = sn.indexOf('-'), fila = new Array(porClave[FP].columnas.length).fill('');
+    const poner = (n, val) => { fila[iF(n)] = val; };
+    poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
+    poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
+    poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
+    poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
+    poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
+    poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
+    poner('Gastos: Cuenta', v(COL_NS)); poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
+    poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+    return { id, fila, sinCuenta: !v(COL_NS) };
+  }
+  // modo 'completar': solo celdas vacías (botón de Gastos). modo 'actualizar': también cambia lo que ya no coincide con Gastos.
+  function sincronizarFactura(modo, aplicar) {
+    const existentes = new Map([...cuerpo(FP).rows].map(tr => [tr.querySelector('input').value.trim(), tr]).filter(([id]) => id));
+    const colsFijas = new Set(FIJOS_FACTURA.map(n => porClave[FP].columnas.findIndex(c => c.nombre === n)));
+    const r = { nuevas: [], cambios: [], sinCambios: 0, sinId: 0, sinCuenta: 0 };
+    leer(GF).forEach(g => {
+      const f = facturaDeGasto(g);
+      if (!f) { r.sinId++; return; }
+      if (f.sinCuenta) r.sinCuenta++;
+      const tr = existentes.get(f.id);
+      if (tr === undefined) { existentes.set(f.id, null); r.nuevas.push(f.fila); return; }
+      if (tr === null) return;                                    // gasto repetido dentro del mismo lote
+      const ins = tr.querySelectorAll('input'), dif = [];
+      f.fila.forEach((val, k) => {
+        const actual = ins[k].value.trim();
+        if (val && (!actual || (modo === 'actualizar' && !colsFijas.has(k) && actual !== val))) dif.push([k, val, actual]);
+      });
+      if (dif.length) r.cambios.push({ tr, dif }); else r.sinCambios++;
     });
-    if (!nuevas.length && !actualizadas) { alert(repetidas ? 'Los ' + repetidas + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
-    [...cuerpo(F).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
-    nuevas.forEach(f => nuevaFila(F, f));
-    renumerar(F); contadores(); guardar(); activar(F);
-    alert(nuevas.length + ' filas nuevas en Factura de Proveedor' + (actualizadas ? ', ' + actualizadas + ' ya existentes completadas con datos de Gastos (método de pago, cuenta, ubicación…)' : '') + (repetidas ? ' (' + repetidas + ' sin cambios)' : '') + (sinId ? ' (' + sinId + ' sin RUC o Serie-Número)' : '') +
-      '.\nFalta completar: Cuenta (por pagar) y Código de impuesto' + (sinCuenta ? ' (y la cuenta de ' + sinCuenta + ' gastos sin Cuenta NetSuite)' : '') + '.');
+    return r;
+  }
+  function aplicarSincronizacion(r) {
+    r.cambios.forEach(({ tr, dif }) => { const ins = tr.querySelectorAll('input'); dif.forEach(([k, val]) => { ins[k].value = val; }); });
+    [...cuerpo(FP).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
+    r.nuevas.forEach(f => nuevaFila(FP, f));
+    renumerar(FP); contadores(); guardar();
+  }
+  $id('btn-pasar-factura').addEventListener('click', () => {
+    const r = sincronizarFactura('completar');
+    if (!r.nuevas.length && !r.cambios.length) { alert(r.sinCambios ? 'Los ' + r.sinCambios + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
+    aplicarSincronizacion(r); activar(FP);
+    alert(r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' ya existentes completadas con datos de Gastos' : '') +
+      (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + (r.sinId ? ' (' + r.sinId + ' sin RUC o Serie-Número)' : '') +
+      '.\nFalta completar: Cuenta (por pagar) y Código de impuesto' + (r.sinCuenta ? ' (y la cuenta de ' + r.sinCuenta + ' gastos sin Cuenta NetSuite)' : '') + '.');
+  });
+  // En Factura de Proveedor: trae de Gastos los datos que cambiaron, de todas las facturas a la vez
+  $id('btn-actualizar-factura').addEventListener('click', () => {
+    const r = sincronizarFactura('actualizar');
+    const campos = r.cambios.reduce((n, c) => n + c.dif.length, 0);
+    if (!r.nuevas.length && !r.cambios.length) { alert('Factura de Proveedor ya está al día con Gastos.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '')); return; }
+    const ejemplos = r.cambios.slice(0, 5).map(({ tr, dif }) => {
+      const ins = tr.querySelectorAll('input');
+      return '• ' + ins[0].value + ': ' + dif.slice(0, 3).map(([k, val]) => porClave[FP].columnas[k].nombre + ' → ' + val).join('; ');
+    });
+    if (!confirm('Se actualizará Factura de Proveedor con los datos de Gastos:\n• ' + r.nuevas.length + ' facturas nuevas\n• ' + r.cambios.length + ' facturas existentes con cambios (' + campos + ' campos)\n' +
+        (ejemplos.length ? '\nEjemplos:\n' + ejemplos.join('\n') + '\n' : '') +
+        '\nLo que cambió en Gastos reemplaza lo que haya en esos campos de la factura. Lo demás (cuenta por pagar, impuestos, departamento…) no se toca.\n\n¿Continuar?')) return;
+    aplicarSincronizacion(r);
+    alert('Listo: ' + r.nuevas.length + ' nuevas y ' + r.cambios.length + ' actualizadas.');
   });
 
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
