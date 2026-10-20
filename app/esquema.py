@@ -102,6 +102,12 @@ GASTOS_ENCABEZADOS = [
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja",
 ]
+# Subsidiaria de Falcon en NetSuite (ID interno): se completa sola si la celda queda vacía
+SUBSIDIARIA = "43"
+for _hoja, _col in {"Factura de Proveedor": "Subsidiaria", "Factura de Cliente": "Subsidiaria",
+                    "Nota de credito Cliente": "Subsidiaria", "Asiento": "Subsidiary"}.items():
+    REGLAS[_hoja]["por_defecto"] = {_col: SUBSIDIARIA}
+
 # Fecha principal de cada documento: se avisa si cae fuera del período seleccionado
 for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "Asiento": "Date", "Factura de Cliente": "Fecha",
                     "Nota de credito Cliente": "Fecha", "Pago de factura de cliente": "DATE"}.items():
