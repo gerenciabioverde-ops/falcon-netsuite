@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 
 from . import homologacion
+from .esquema import DEPARTAMENTOS
 
 # (palabras que aparecen en el concepto, cuenta propuesta); gana la primera regla que coincida
 REGLAS: list[tuple[tuple[str, ...], str]] = [
@@ -52,3 +53,24 @@ def metodo_pago(caja: str) -> str:
     if "caja chica" in c:
         return "Efectivo"
     return "Transferencia de Fondos" if any(ch.isdigit() for ch in c) else ""
+
+
+# (palabras del concepto, departamento propuesto); gana la primera regla que coincida
+REGLAS_DEPARTAMENTO: list[tuple[tuple[str, ...], str]] = [
+    (("senasa", "analisis", "proyecto", "coi/tc", "certific", "area tecnica"), "Gerencia Sostenibilidad"),
+    (("contab", "planilla", "emision de factura", "seguro", "poliza", "robo", "banc", "financ"), "Gerencia Finanzas"),
+    (("estiba", "logistic", "thc", "balanza", "marcado", "transporte", "puerto", "flete", "carga", "envase", "empaque", "material",
+      "suministro", "repuesto", "equipo", "combustible", "trilla", "procesamiento", "operativo", "courier", "courrier", "muestras",
+      "viatico", "pasaje", "boleto"), "Gerencia Operaciones"),
+    (("movilidad", "atencion", "representacion", "funeral", "alquiler", "basico", "limpieza", "vigilancia", "util", "oficina", "legal",
+      "asesor", "consultor"), "Gerencia General"),
+]
+
+
+def proponer_departamento(concepto: str) -> str:
+    """Departamento sugerido para el concepto, o '' si no hay sugerencia."""
+    c = _plano(concepto)
+    for palabras, depto in REGLAS_DEPARTAMENTO:
+        if any(p in c for p in palabras):
+            return depto if depto in DEPARTAMENTOS else ""
+    return ""

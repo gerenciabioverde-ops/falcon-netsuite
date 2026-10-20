@@ -106,10 +106,11 @@ def _solo_local(request: Request) -> None:
 
 @app.post("/gastos/proponer")
 async def proponer_cuentas(request: Request):
-    """{'conceptos': [...]} -> {'propuestas': {concepto: código de cuenta o ''}}."""
+    """{'conceptos': [...]} -> {'propuestas': {concepto: código de cuenta o ''}, 'departamentos': {concepto: departamento o ''}}."""
     cuerpo = await request.json()
     conceptos = [str(c) for c in (cuerpo.get("conceptos") or [])][:500]
-    return {"propuestas": {c: gastos_cuentas.proponer(c) for c in conceptos}}
+    return {"propuestas": {c: gastos_cuentas.proponer(c) for c in conceptos},
+            "departamentos": {c: gastos_cuentas.proponer_departamento(c) for c in conceptos}}
 
 
 @app.get("/homologacion")

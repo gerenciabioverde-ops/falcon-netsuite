@@ -87,7 +87,7 @@
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
-          {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE según el Concepto en los gastos que no tienen cuenta (para que la revises)">💡 Proponer cuentas</button>
+          {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE y el departamento según el Concepto en los gastos que no los tienen (para que los revises)">💡 Proponer cuenta y departamento</button>
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
@@ -525,27 +525,31 @@
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
     if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero'), colG('Caja')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
-    if (i instanceof HTMLInputElement && [colG('Departamento'), colG('Clase')].includes(+i.dataset.col)) { guardar(); ofrecerAplicarCol(i.closest('tr'), porClave.gastos.columnas[+i.dataset.col].nombre); return; }
+    if (i instanceof HTMLInputElement && [colG('Departamento'), colG('Clase')].includes(+i.dataset.col)) { i.classList.remove('propuesta'); guardar(); ofrecerAplicarCol(i.closest('tr'), porClave.gastos.columnas[+i.dataset.col].nombre); return; }
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
   $id('btn-proponer').addEventListener('click', async () => {
-    const iC = colG('Concepto'), iP = colG(COL_PCGE);
-    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && !ins[iP].value.trim(); });
-    if (!filas.length) { alert('No hay gastos sin cuenta para proponer.'); return; }
-    if (!tablaCuentas.length) { alert('Primero cargue «Cuentas homologadas»: las propuestas salen de esa tabla.'); return; }
+    const iC = colG('Concepto'), iP = colG(COL_PCGE), iD = colG('Departamento');
+    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && (!ins[iP].value.trim() || !ins[iD].value.trim()); });
+    if (!filas.length) { alert('No hay gastos sin cuenta ni departamento para proponer.'); return; }
     const conceptos = [...new Set(filas.map(tr => tr.querySelectorAll('input')[iC].value.trim()))];
     const r = await fetch('/gastos/proponer', { method: 'POST', headers: JSON_H, body: JSON.stringify({ conceptos }) });
-    if (!r.ok) { alert('No se pudo proponer las cuentas (error ' + r.status + ').'); return; }
-    const prop = (await r.json()).propuestas, sin = new Set(); let n = 0;
+    if (!r.ok) { alert('No se pudo proponer (error ' + r.status + ').'); return; }
+    const resp = await r.json(), cuentas = resp.propuestas, deptos = resp.departamentos || {}, sinC = new Set(), sinD = new Set(); let nc = 0, nd = 0;
     filas.forEach(tr => {
-      const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim(), cod = prop[c];
-      if (!cod) { sin.add(c); return; }
-      ins[iP].value = cod; ins[iP].classList.add('propuesta'); sincronizarNS(tr); n++;
+      const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim();
+      if (!ins[iP].value.trim()) {
+        if (cuentas[c]) { ins[iP].value = cuentas[c]; ins[iP].classList.add('propuesta'); sincronizarNS(tr); nc++; } else sinC.add(c);
+      }
+      if (!ins[iD].value.trim()) {
+        if (deptos[c]) { ins[iD].value = deptos[c]; ins[iD].classList.add('propuesta'); nd++; } else sinD.add(c);
+      }
     });
     guardar(); contadores();
-    alert(n + ' gastos con cuenta propuesta (en amarillo): revísalos y cámbialos si hace falta.' +
-      (sin.size ? '\n\nSin propuesta (elige la cuenta tú) — ' + sin.size + ' concepto(s):\n• ' + [...sin].join('\n• ') : ''));
+    const lista = (t, s) => s.size ? '\n\nSin propuesta de ' + t + ' (elígelo tú) — ' + s.size + ' concepto(s):\n• ' + [...s].join('\n• ') : '';
+    alert(nc + ' cuentas y ' + nd + ' departamentos propuestos (en amarillo): revísalos y cámbialos si hace falta.' + lista('cuenta', sinC) + lista('departamento', sinD) +
+      (tablaCuentas.length ? '' : '\n\nNota: no hay «Cuentas homologadas» cargadas, por eso no hay cuentas propuestas.'));
   });
 
   function activar(clave) {
@@ -596,7 +600,7 @@
       if (zip) { const a = document.createElement('a'); a.href = zip.getAttribute('href'); a.click(); }
       const ok = resumen.filter(f => f[4] === 'CSV').map(f => f[0]);
       estadoGrilla(
-        (zip ? 'Descargado: ' + ok.join(', ') + '.' : (doc.body.textContent.trim().slice(0, 120) || 'No se generó ningún CSV.')) +
+        (zip ? 'Descargado: ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún CSV.')) +
         (sinCsv.length ? ' Sin CSV por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !zip ? '#b45309' : '#15803d');
     } catch (e) {
       estado.textContent = 'No se pudo conectar con el servidor.';

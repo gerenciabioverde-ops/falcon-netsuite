@@ -124,7 +124,9 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
     REGLAS[_hoja]["fecha_periodo"] = _col
 
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS}
-LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"]}}
+# Departamentos de NetSuite para los gastos (nombres como en la lista de departamentos de Falcon)
+DEPARTAMENTOS = ["Gerencia General", "Gerencia Finanzas", "Gerencia Sostenibilidad", "Gerencia Operaciones"]
+LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS}}
 
 REGLAS["Proveedores"] = {
     "requeridos": proveedores.REQUERIDOS,
