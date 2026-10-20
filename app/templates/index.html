@@ -596,10 +596,18 @@
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
+  // Regla: si el gasto tiene Area/Contrato (va a un contrato o lote), la cuenta es 609219 (costos vinculados) y no la del concepto
+  const CUENTA_CONTRATO = '609219';
   $id('btn-proponer').addEventListener('click', async () => {
-    const iC = colG('Concepto'), iP = colG(COL_PCGE), iD = colG('Departamento');
+    const iC = colG('Concepto'), iP = colG(COL_PCGE), iD = colG('Departamento'), iA = colG('Area/Contrato');
+    const conContrato = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iA].value.trim() && ins[iP].value.trim() && ins[iP].value.trim() !== CUENTA_CONTRATO; });
+    let cambiadas = 0;
+    if (conContrato.length && confirm(conContrato.length + ' gasto(s) tienen Area/Contrato pero otra cuenta PCGE. Con Area/Contrato la cuenta es ' + CUENTA_CONTRATO + ' (costos vinculados).\n\n¿Cambiarlas a ' + CUENTA_CONTRATO + '? (quedan en amarillo para revisar)')) {
+      conContrato.forEach(tr => { const ins = tr.querySelectorAll('input'); ins[iP].value = CUENTA_CONTRATO; ins[iP].classList.add('propuesta'); sincronizarNS(tr); });
+      cambiadas = conContrato.length; guardar(); contadores();
+    }
     const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && (!ins[iP].value.trim() || !ins[iD].value.trim() || !ins[colG(COL_CLAS)].value.trim() || (/^s[ií]$/i.test(ins[colG(COL_SUJ)].value.trim()) && !ins[colG(COL_CDET)].value.trim())); });
-    if (!filas.length) { alert('No hay gastos sin cuenta ni departamento para proponer.'); return; }
+    if (!filas.length) { alert(cambiadas ? cambiadas + ' gastos cambiados a la cuenta ' + CUENTA_CONTRATO + ' (en amarillo).' : 'No hay gastos sin cuenta ni departamento para proponer.'); return; }
     const conceptos = [...new Set(filas.map(tr => tr.querySelectorAll('input')[iC].value.trim()))];
     const r = await fetch('/gastos/proponer', { method: 'POST', headers: JSON_H, body: JSON.stringify({ conceptos }) });
     if (!r.ok) { alert('No se pudo proponer (error ' + r.status + ').'); return; }
@@ -607,7 +615,8 @@
     filas.forEach(tr => {
       const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim();
       if (!ins[iP].value.trim()) {
-        if (cuentas[c]) { ins[iP].value = cuentas[c]; ins[iP].classList.add('propuesta'); sincronizarNS(tr); nc++; } else sinC.add(c);
+        const cod = ins[iA].value.trim() ? CUENTA_CONTRATO : cuentas[c];       // con Area/Contrato = 609219
+        if (cod) { ins[iP].value = cod; ins[iP].classList.add('propuesta'); sincronizarNS(tr); nc++; } else sinC.add(c);
       }
       const iK = colG(COL_CLAS);
       if (!ins[iK].value.trim() && clasifs[c]) { ins[iK].value = clasifs[c]; ins[iK].classList.add('propuesta'); }
