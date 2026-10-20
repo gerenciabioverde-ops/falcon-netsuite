@@ -257,6 +257,7 @@
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'gastos' && c.nombre === 'Neto a Pagar') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − detracción'; }
       if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
       inp.value = (valores && valores[i]) ? (c.fecha ? fechaExcel(valores[i]) : valores[i]) : '';
       if (bloqueada) { inp.readOnly = true; inp.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; }
@@ -520,9 +521,10 @@
   // Met. Pago según la Caja: con número de cuenta = Transferencia de Fondos; Caja Chica = Efectivo
   const metodoPago = caja => { const c = String(caja || '').trim().toLowerCase(); return !c ? '' : c.includes('caja chica') ? 'Efectivo' : /\d/.test(c) ? 'Transferencia de Fondos' : ''; };
   // Detracción SUNAT: Sujeto (Sí/No) + Concepto -> % de la tabla de la plantilla -> Monto Detr. = Total × %
-  const COL_SUJ = 'Sujeto a Detracción', COL_CDET = 'Concepto Detracción', COL_PDET = '% Detracción', COL_TOP = 'Tipo Operación SUNAT', COL_CLAS = 'Clasificación Bienes y Servicios';
+  const COL_SUJ = 'Sujeto a Detracción', COL_CDET = 'Concepto Detracción', COL_PDET = '% Detracción', COL_TOP = 'Tipo Operación SUNAT', COL_NETO = 'Neto a Pagar', COL_CLAS = 'Clasificación Bienes y Servicios';
   const CODIGOS_SERVICIO = new Set(['12', '19', '20', '21', '22', '24', '25', '26', '27', '30', '37']);
   const numero = t => { const n = parseFloat(String(t || '').replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+  const fmt2 = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // 1,371.54 como en el reporte
   const porcentajeTxt = pct => pct ? (+(pct * 100).toFixed(2)) + '%' : '';
   // v: valores en orden de columna (de la fila o del formulario); recalcular = el usuario acaba de cambiar Sujeto/Concepto
   function calcularDetraccion(v, recalcular) {
@@ -530,19 +532,22 @@
     if (!String(v[colG(COL_SUJ)]).trim()) v[colG(COL_SUJ)] = v[colG(COL_CDET)].trim() || numero(v[colG('Monto Detr.')]) > 0 ? 'Sí' : 'No';
     v[colG(COL_PDET)] = porcentajeTxt(pct);
     const si = /^(s[ií]|t|1)$/i.test(String(v[colG(COL_SUJ)]).trim());
-    if (si && pct && (recalcular || !numero(v[colG('Monto Detr.')]))) v[colG('Monto Detr.')] = (numero(v[colG('Total')]) * pct).toFixed(2);
+    if (si && pct && (recalcular || !numero(v[colG('Monto Detr.')]))) v[colG('Monto Detr.')] = fmt2(numero(v[colG('Total')]) * pct);
     if (!si && recalcular) v[colG('Monto Detr.')] = '0.00';
     // servicios: el tipo de operación de la tabla de SUNAT es «prestación de servicios…» (para bienes lo eliges tú)
     if (si && !String(v[colG(COL_TOP)]).trim() && CODIGOS_SERVICIO.has(String(v[colG(COL_CDET)]).split(' ')[0])) {
       v[colG(COL_TOP)] = (porClave.gastos.columnas[colG(COL_TOP)].opciones.find(o => o.startsWith('Venta de bienes muebles')) || '');
     }
+    // importe neto a pagar al proveedor = importe del comprobante − detracción (solo si está sujeto)
+    const tot = String(v[colG('Total')]).trim();
+    v[colG(COL_NETO)] = tot ? fmt2(numero(tot) - (si ? numero(v[colG('Monto Detr.')]) : 0)) : '';
     return v;
   }
   function completarDetraccion(tr, recalcular) {
     const ins = tr.querySelectorAll('input');
     if (!ins[colG('Total')].value.trim() && !ins[colG(COL_CDET)].value.trim()) return;       // fila vacía
     const v = calcularDetraccion([...ins].map(i => i.value), recalcular);
-    [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
+    [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP, COL_NETO].forEach(n => { ins[colG(n)].value = v[colG(n)]; });
   }
   function completarIdGasto(tr) {
     const ins = tr.querySelectorAll('input'), iM = colG('Met. Pago');
@@ -727,15 +732,24 @@
       [COL_SUJ, COL_CDET, COL_PDET, 'Monto Detr.', 'Fecha Detr.', COL_TOP].forEach(n => { const l = etiq(n); gd.appendChild(l); if (n === COL_TOP) l.style.gridColumn = '1 / -1'; });
       gd.style.gridTemplateColumns = '1fr 2fr 1fr 1fr 1fr';
       bd.appendChild(gd);
+      // resumen de importes: comprobante, detracción y neto a pagar
+      const gr = document.createElement('div'), lNeto = etiq(COL_NETO), caja = t => { const l = document.createElement('label'), d = document.createElement('div'); l.append(t + ' '); d.className = 'cuenta-destino'; l.appendChild(d); gr.appendChild(l); return d; };
+      gr.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px;margin-top:10px;padding-top:10px;border-top:1px dashed #bfdbfe';
+      const dTotal = caja('Importe del comprobante'), dDetr = caja('Importe detracción (se paga al Banco de la Nación)');
+      lNeto.firstChild.textContent = 'Importe neto a pagar al proveedor '; gr.appendChild(lNeto); bd.appendChild(gr);
       const nd = document.createElement('div'); nd.className = 'bloque-cuenta-nota';
       nd.textContent = 'Marca «Sí» o elige el concepto: el % sale de la tabla de detracciones de la plantilla y el Monto Detr. = Total × %. Pasa a «Latam - Concepto Detracción» de Factura de Proveedor (si es «No», va «SIN DETRACCIÓN»).';
       bd.appendChild(nd);
       cont.insertBefore(bd, cont.children[2]);
       const ms = camposModal(), refrescar = recalcular => {
         const v = calcularDetraccion(ms.map(m => m.value), recalcular);
-        [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP].forEach(n => { ms[colG(n)].value = v[colG(n)]; });
+        [COL_SUJ, COL_PDET, 'Monto Detr.', COL_TOP, COL_NETO].forEach(n => { ms[colG(n)].value = v[colG(n)]; });
+        pintarImportes();
       };
       ms[colG(COL_PDET)].readOnly = true; ms[colG(COL_PDET)].style.background = '#f1f5f9';
+      ms[colG(COL_NETO)].readOnly = true; ms[colG(COL_NETO)].style.background = '#f1f5f9'; ms[colG(COL_NETO)].style.fontWeight = '700';
+      const pintarImportes = () => { const si = /^s[ií]$/i.test(ms[colG(COL_SUJ)].value.trim()); dTotal.textContent = ms[colG('Total')].value || '—'; dDetr.textContent = si ? (ms[colG('Monto Detr.')].value || '0.00') : '0.00'; };
+      pintarImportes(); ['Total', 'Monto Detr.'].forEach(n => ms[colG(n)].addEventListener('input', () => { const v = calcularDetraccion(ms.map(m => m.value), false); ms[colG(COL_NETO)].value = v[colG(COL_NETO)]; pintarImportes(); }));
       ms[colG(COL_CDET)].setAttribute('list', 'dl-gastos-' + colG(COL_CDET));
       [COL_SUJ, COL_CDET].forEach(n => ms[colG(n)].addEventListener('change', () => refrescar(true)));
     }

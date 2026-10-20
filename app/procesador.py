@@ -427,6 +427,14 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                         res.problemas.append(Problema("aviso", nro, dd["sujeto"], "Tiene Monto Detr. pero no está marcado como sujeto a detracción"))
                 except (ValueError, InvalidOperation):
                     pass
+        if r.get("detraccion"):  # importe neto a pagar al proveedor = Total − detracción (si el comprobante está sujeto)
+            dd = r["detraccion"]
+            try:
+                total_n = _num(salida[idx(dd["total"])])
+                monto_n = (_num(salida[idx(dd["monto"])]) or Decimal(0)) if norm(salida[idx(dd["sujeto"])]) in ("sí", "si", "s", "1", "true", "t") else Decimal(0)
+                salida[idx(dd["neto"])] = _fmt_num(total_n - monto_n) if total_n is not None else ""
+            except (ValueError, InvalidOperation):
+                salida[idx(dd["neto"])] = ""
         if r.get("metodo_pago"):  # Met. Pago vacío = según la Caja (cuenta bancaria -> transferencia; Caja Chica -> efectivo)
             c_caja, c_met = r["metodo_pago"]
             if not salida[idx(c_met)]:
