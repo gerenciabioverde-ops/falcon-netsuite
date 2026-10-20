@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.concurrency import run_in_threadpool
 
-from . import carga, homologacion
+from . import carga, homologacion, periodos
 from .esquema import RUTA_PLANTILLA, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
 
@@ -31,12 +31,12 @@ _MAX_BYTES = 10 * 1024 * 1024
 _MAX_CARGA = 40 * 1024 * 1024  # el libro de carga completo (con la tabla de códigos postales) pesa ~8 MB
 
 
-def _guardar(resultados: list[ResultadoHoja]) -> str:
+def _guardar(resultados: list[ResultadoHoja], periodo: str = "") -> str:
     ahora = time.time()
-    for k in [k for k, (t, _) in _RESULTADOS.items() if ahora - t > _TTL]:
+    for k in [k for k, v in _RESULTADOS.items() if ahora - v[0] > _TTL]:
         del _RESULTADOS[k]
     token = secrets.token_urlsafe(12)
-    _RESULTADOS[token] = (ahora, resultados)
+    _RESULTADOS[token] = (ahora, resultados, periodo)
     return token
 
 
@@ -169,6 +169,50 @@ def plantilla_homologacion():
                     headers={"Content-Disposition": 'attachment; filename="cuentas_homologadas_plantilla.xlsx"'})
 
 
+@app.get("/periodos")
+def ver_periodos():
+    return {"periodos": periodos.listar(), "nombres": {k: h.nombre.strip() for k, h in PLANTILLA.hojas.items()}}
+
+
+def _periodo_o_400(periodo: str) -> str:
+    if not periodos.es_valido(periodo):
+        raise HTTPException(400, "Período no válido (use AAAA-MM)")
+    return periodo
+
+
+@app.get("/periodo/{periodo}")
+def ver_periodo(periodo: str):
+    return periodos.leer(_periodo_o_400(periodo))
+
+
+@app.put("/periodo/{periodo}")
+def guardar_periodo(periodo: str, request: Request, datos: dict = Body(...)):
+    """Guarda las grillas de un período: {hojas: {clave: {filas: [[...]], bloqueadas: [i, ...]}}}."""
+    _solo_local(request)
+    _periodo_o_400(periodo)
+    hojas = datos.get("hojas")
+    if not isinstance(hojas, dict):
+        raise HTTPException(400, "Datos no válidos")
+    limpias: dict = {}
+    total = 0
+    for clave, h in hojas.items():
+        if clave not in PLANTILLA.hojas or not isinstance(h, dict):
+            continue
+        filas = [[str(c) for c in f] for f in (h.get("filas") or []) if isinstance(f, list)]
+        total += len(filas)
+        limpias[clave] = {"filas": filas, "bloqueadas": [int(i) for i in (h.get("bloqueadas") or []) if isinstance(i, int)]}
+    if total > 50000:
+        raise HTTPException(413, "Demasiadas filas")
+    return {"ok": True, "actualizado": periodos.guardar(periodo, limpias)}
+
+
+@app.delete("/periodo/{periodo}")
+def borrar_periodo(periodo: str, request: Request):
+    _solo_local(request)
+    periodos.borrar(_periodo_o_400(periodo))
+    return {"ok": True}
+
+
 @app.post("/fila")
 def validar_una_fila(datos: dict = Body(...)):
     """Valida y completa una sola fila (para el formulario de edición): {hoja, fila, formato_fecha}."""
@@ -179,7 +223,8 @@ def validar_una_fila(datos: dict = Body(...)):
         raise HTTPException(400, "Datos no válidos")
     n = len(hoja.encabezados)
     celdas = [(c.strip() if isinstance(c, str) and c.strip() else None) for c in (list(fila) + [""] * n)[:n]]
-    res = validar_hoja(hoja, [(1, list(hoja.encabezados)), (2, celdas)], fmt)
+    periodo = datos.get("periodo") if periodos.es_valido(datos.get("periodo") or "") else None
+    res = validar_hoja(hoja, [(1, list(hoja.encabezados)), (2, celdas)], fmt, periodo)
     return {"fila": res.filas[0] if res.filas else [],
             "problemas": [{"nivel": p.nivel, "columna": p.columna, "mensaje": p.mensaje} for p in res.problemas]}
 
@@ -234,7 +279,7 @@ async def procesar_archivo(request: Request, archivo: UploadFile = File(...),
 
 
 @app.post("/procesar_grilla", response_class=HTMLResponse)
-def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY",
+def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo: str = "",
                     datos: dict[str, list[list[str]]] = Body(...)):
     """Recibe las filas escritas en las pestañas: {clave_hoja: [[celda, ...], ...]}."""
     if formato_fecha not in FORMATOS_FECHA:
@@ -257,9 +302,12 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY",
     armados = {k: v for k, v in armados.items() if len(v) > 1}
     if not armados:
         return templates.TemplateResponse(request, "_resultado.html", {"error": "No hay filas con datos en las pestañas."})
-    resultados = procesar(armados, PLANTILLA, formato_fecha)
+    if periodo and not periodos.es_valido(periodo):
+        raise HTTPException(400, "Período no válido (use AAAA-MM)")
+    resultados = procesar(armados, PLANTILLA, formato_fecha, periodo or None)
     return templates.TemplateResponse(request, "_resultado.html", {
-        "token": _guardar(resultados), "resultados": resultados, "avisos": [], "error": None,
+        "token": _guardar(resultados, periodo), "resultados": resultados, "avisos": [], "error": None,
+        "periodo_etiqueta": periodos.etiqueta(periodo) if periodo else "",
     })
 
 
@@ -269,8 +317,10 @@ def descargar(token: str, archivo: str):
     if archivo == "todos.zip":
         if not any(r.exportable for r in resultados):
             raise HTTPException(409, "No hay hojas sin errores para exportar.")
+        periodo = _RESULTADOS[token][2]
+        nombre_zip = f"netsuite_csv_{periodo}.zip" if periodo else "netsuite_csv.zip"
         return Response(empaquetar_zip(resultados), media_type="application/zip",
-                        headers={"Content-Disposition": 'attachment; filename="netsuite_csv.zip"'})
+                        headers={"Content-Disposition": f'attachment; filename="{nombre_zip}"'})
     for r in resultados:
         if r.archivo == archivo:
             if not r.exportable:

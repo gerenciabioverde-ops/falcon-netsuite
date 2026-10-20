@@ -9,7 +9,7 @@
 
   <div class="bg-white rounded-lg shadow p-5">
     <div class="flex items-center justify-between mb-3">
-      <h2 class="font-semibold">Resultado</h2>
+      <h2 class="font-semibold">Resultado{% if periodo_etiqueta %} · Período {{ periodo_etiqueta }}{% endif %}</h2>
       <div class="flex items-center gap-2">
         {% if resultados|selectattr('exportable')|list %}
         <a href="/descargar/{{ token }}/todos.zip" class="bg-green-700 text-white text-sm px-3 py-1.5 rounded">Descargar todo (.zip)</a>

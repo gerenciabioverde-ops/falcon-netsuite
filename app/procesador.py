@@ -13,7 +13,7 @@ from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
-from . import homologacion, proveedores
+from . import homologacion, periodos, proveedores
 from .esquema import Hoja, Plantilla, norm
 
 FORMATOS_FECHA = {
@@ -245,7 +245,7 @@ def _ruc_valido(ruc: str) -> bool:
     return int(ruc[10]) == {10: 0, 11: 1}.get(resto, resto)
 
 
-def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) -> ResultadoHoja:
+def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, periodo: str | None = None) -> ResultadoHoja:
     res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
     if not filas:
         return res
@@ -267,6 +267,10 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
             avisos_completar[nro] = proveedores.completar(fila, idx)
             completadas.append((nro, fila))
         filas = [filas[0], *completadas]
+    etiq_periodo = periodos.etiqueta(periodo) if periodo and periodos.es_valido(periodo) else ""
+    if etiq_periodo and r.get("periodo"):  # POSTING PERIOD vacío = período seleccionado
+        i_per = idx(r["periodo"])
+        filas = [filas[0], *[(n, [etiq_periodo if k == i_per and f[k] in (None, "") else f[k] for k in range(len(f))]) for n, f in filas[1:]]]
     filas = [filas[0], *generar_ids(hoja, filas[1:])]
     fmt_out = FORMATOS_FECHA[formato_fecha]
     requeridos = [idx(c) for c in r.get("requeridos", [])]
@@ -393,6 +397,16 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
                                                   f"Comprobante repetido: ya está en la fila {claves_vistas[clave]}"))
                 else:
                     claves_vistas[clave] = nro
+        if etiq_periodo:
+            if r.get("periodo") and salida[idx(r["periodo"])] and norm(salida[idx(r["periodo"])]) != norm(etiq_periodo):
+                res.problemas.append(Problema("aviso", nro, r["periodo"], f"El período contable ({salida[idx(r['periodo'])]}) no coincide con el período seleccionado ({etiq_periodo})"))
+            if r.get("fecha_periodo") and fila[idx(r["fecha_periodo"])] not in (None, ""):
+                try:
+                    f_doc = _fecha(fila[idx(r["fecha_periodo"])])
+                    if f"{f_doc.year:04d}-{f_doc.month:02d}" != periodo:
+                        res.problemas.append(Problema("aviso", nro, r["fecha_periodo"], f"La fecha {f_doc.strftime('%d/%m/%Y')} no pertenece al período {etiq_periodo}"))
+                except ValueError:
+                    pass  # ya se informa como error de fecha
         doc = r.get("documento")
         if doc and salida[idx(doc["numero"])]:
             tipo, num = salida[idx(doc["tipo"])], salida[idx(doc["numero"])]
@@ -427,8 +441,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
     return res
 
 
-def procesar(datos: dict[str, list], plantilla: Plantilla, formato_fecha: str) -> list[ResultadoHoja]:
-    return [validar_hoja(plantilla.hojas[k], filas, formato_fecha) for k, filas in datos.items()]
+def procesar(datos: dict[str, list], plantilla: Plantilla, formato_fecha: str, periodo: str | None = None) -> list[ResultadoHoja]:
+    return [validar_hoja(plantilla.hojas[k], filas, formato_fecha, periodo) for k, filas in datos.items()]
 
 
 def empaquetar_zip(resultados: list[ResultadoHoja]) -> bytes:
