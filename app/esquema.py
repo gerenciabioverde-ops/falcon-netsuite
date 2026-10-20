@@ -108,12 +108,15 @@ GASTOS_ENCABEZADOS = [
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
 UBICACION = "FCP SOLES"
+# Cuenta por pagar (ID interno en NetSuite): 111 es la de las filas de ejemplo de la plantilla; los recibos por honorarios van a 424001 (500)
+CUENTA_POR_PAGAR = "111"
+CUENTA_POR_PAGAR_RHE = "500"
 _POR_DEFECTO = {
-    "Factura de Proveedor": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION,
+    "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION,
                              "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe")},
     "Factura de Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Nota de credito Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
-    "Pago Proveedor": {"SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
+    "Pago Proveedor": {"A/P ACCOUNT": CUENTA_POR_PAGAR, "SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
     "Pago de factura de cliente": {"SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
     "Asiento": {"Subsidiary": SUBSIDIARIA},
 }
