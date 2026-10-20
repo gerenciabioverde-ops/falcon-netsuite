@@ -20,6 +20,11 @@
   #modal-fila { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,.55); align-items: center; justify-content: center; padding: 16px; }
   #modal-fila .caja { background: #fff; border-radius: 8px; width: min(1100px, 100%); max-height: 94vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
   input.propuesta { background: #fef3c7 !important; }
+  .bloque-cuenta { grid-column: 1 / -1; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 8px; padding: 12px; }
+  .bloque-cuenta-titulo { font-weight: 600; color: #1e3a8a; margin-bottom: 8px; }
+  .bloque-cuenta > div:nth-child(2) { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px 16px; }
+  .bloque-cuenta-nota { font-size: 12px; color: #475569; margin-top: 8px; }
+  .cuenta-destino { margin-top: 4px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; min-height: 38px; }
   #mf-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; padding: 12px 16px; overflow: auto; }
   #mf-campos label { display: block; font-size: 12px; color: #475569; }
   #mf-campos input { display: block; width: 100%; margin-top: 2px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
@@ -521,7 +526,7 @@
   const modal = document.getElementById('modal-fila');
   let mClave = null, mIdx = 0;
   const filaTr = () => cuerpo(mClave).rows[mIdx];
-  const camposModal = () => [...document.querySelectorAll('#mf-campos input')];
+  const camposModal = () => [...document.querySelectorAll('#mf-campos input')].sort((a, b) => a.dataset.col - b.dataset.col);  // en orden de columna, aunque se muestren en otro lugar
 
   function abrirFila(clave, idx) {
     const p = porClave[clave], tr = cuerpo(clave).rows[idx];
@@ -533,10 +538,30 @@
     p.columnas.forEach((c, i) => {
       const lab = document.createElement('label'), inp = document.createElement('input');
       lab.append((c.nombre + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
-      inp.type = 'text'; inp.autocomplete = 'off'; inp.value = valores[i] || '';
+      inp.type = 'text'; inp.autocomplete = 'off'; inp.value = valores[i] || ''; inp.dataset.col = i;
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       lab.appendChild(inp); cont.appendChild(lab);
     });
+    if (clave === 'gastos') {      // la cuenta contable va en un bloque aparte, justo debajo del External ID
+      const etiq = cont.querySelectorAll('label'), lP = etiq[colG(COL_PCGE)], lN = etiq[colG(COL_NS)];
+      const bloque = document.createElement('div'), rejilla = document.createElement('div'), lD = document.createElement('label'), dest = document.createElement('div');
+      bloque.className = 'bloque-cuenta';
+      bloque.innerHTML = '<div class="bloque-cuenta-titulo">Cuenta contable (NetSuite)</div>';
+      lP.firstChild.textContent = 'Cuenta PCGE del gasto ';
+      lN.firstChild.textContent = 'Cuenta NetSuite (automático, homologada) ';
+      lD.append('Cuenta destino (solo consulta) '); dest.className = 'cuenta-destino'; lD.appendChild(dest);
+      rejilla.append(lP, lN, lD); bloque.appendChild(rejilla);
+      const nota = document.createElement('div'); nota.className = 'bloque-cuenta-nota';
+      nota.textContent = 'Se elige por Concepto («💡 Proponer cuentas» sugiere una) y se traduce con la tabla de «Cuentas homologadas». Va a la columna Gastos: Cuenta de Factura de Proveedor.';
+      bloque.appendChild(nota);
+      cont.insertBefore(bloque, cont.children[1]);
+      const ms = camposModal(), pintarDestino = () => {
+        const f = tablaCuentas.find(x => sinEsp(x.falcon) === sinEsp(ms[colG(COL_PCGE)].value) && sinEsp(x.falcon));
+        dest.textContent = f && (f.destino || f.contrapartida) ? [f.destino, f.contrapartida].filter(Boolean).join(' / ') : '—';
+        dest.title = f ? (f.nombre_falcon || '') : '';
+      };
+      ms[colG(COL_PCGE)].addEventListener('change', pintarDestino); pintarDestino();
+    }
     if (clave === 'gastos') {
       const ms = camposModal(), iP = colG(COL_PCGE), iN = colG(COL_NS);
       ms[iP].setAttribute('list', 'dl-cuentas-gasto');
