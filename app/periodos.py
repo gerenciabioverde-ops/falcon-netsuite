@@ -29,7 +29,7 @@ def _ruta(periodo: str) -> Path:
 
 
 def _fila_gastos(f: list) -> list:
-    """Lleva una fila de Gastos al diseño actual (21 columnas). Se reconoce el diseño por el contenido: en el diseño
+    """Lleva una fila de Gastos al diseño actual (22 columnas). Se reconoce el diseño por el contenido: en el diseño
     de 19 columnas la columna 10 es la Moneda (PEN/USD); en el actual es la Cuenta NetSuite (un número). Así también se
     arreglan filas de 19 columnas que se guardaron rellenadas con celdas vacías hasta 21."""
     f = list(f)
@@ -37,7 +37,7 @@ def _fila_gastos(f: list) -> list:
         f = ["", *f]
     if len(f) >= 19 and str(f[10]).strip().upper() in ("PEN", "USD", "SOL"):
         f = [*f[:9], "", "", *f[9:19]]
-    return (f + [""] * 21)[:21]
+    return (f + [""] * 22)[:22]
 
 
 def _migrar(datos: dict) -> dict:

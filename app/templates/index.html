@@ -405,6 +405,7 @@
 
   // Gastos -> Factura de Proveedor: una fila por gasto con el mismo External ID (VENDB_RUC_Serie-Número)
   const MONEDA_NS = { PEN: 'SOL', USD: 'USD' };
+  const METODO_NS = { 'Transferencia de Fondos': 'PE - TRANSFERENCIA DE FONDOS', 'Efectivo': 'PE - EFECTIVO, EN LOS DEMÁS CASOS' };
   const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   $id('btn-pasar-factura').addEventListener('click', () => {
@@ -425,7 +426,7 @@
       poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
       poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
       poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
-      poner('Gastos: Cuenta', v(COL_NS)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
+      poner('Gastos: Cuenta', v(COL_NS));       poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || ''); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
       if (!v(COL_NS)) sinCuenta++;
       nuevas.push(fila);
     });
@@ -451,7 +452,13 @@
   }
   // External ID de Gastos (VENDB_RUC_Serie-Número): se muestra ya completo apenas hay RUC y Serie-Número
   const idGasto = vals => { const ruc = limpiarId(vals[colG('RUC')]), sn = limpiarId(vals[colG('Serie-Numero')]); return ruc && sn ? 'VENDB_' + ruc + '_' + sn : ''; };
-  function completarIdGasto(tr) { const ins = tr.querySelectorAll('input'); if (!ins[0].value.trim()) ins[0].value = idGasto([...ins].map(i => i.value)); }
+  // Met. Pago según la Caja: con número de cuenta = Transferencia de Fondos; Caja Chica = Efectivo
+  const metodoPago = caja => { const c = String(caja || '').trim().toLowerCase(); return !c ? '' : c.includes('caja chica') ? 'Efectivo' : /\d/.test(c) ? 'Transferencia de Fondos' : ''; };
+  function completarIdGasto(tr) {
+    const ins = tr.querySelectorAll('input'), iM = colG('Met. Pago');
+    if (!ins[0].value.trim()) ins[0].value = idGasto([...ins].map(i => i.value));
+    if (!ins[iM].value.trim()) ins[iM].value = metodoPago(ins[colG('Caja')].value);
+  }
   function sincronizarNS(tr) { const ins = tr.querySelectorAll('input'); ins[colG(COL_NS)].value = cuentaNS(ins[colG(COL_PCGE)].value); }
   function ofrecerAplicar(tr, cod) {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), concepto = tr.querySelectorAll('input')[iC].value.trim();
@@ -466,7 +473,7 @@
   }
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
-    if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
+    if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero'), colG('Caja')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
