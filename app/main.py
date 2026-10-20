@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.concurrency import run_in_threadpool
 
-from . import carga, homologacion, periodos
+from . import carga, gastos_cuentas, homologacion, periodos
 from .esquema import RUTA_PLANTILLA, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
 
@@ -97,6 +97,14 @@ def descargar_plantilla():
 def _solo_local(request: Request) -> None:
     if not request.client or request.client.host not in ("127.0.0.1", "::1"):
         raise HTTPException(403, "Solo desde el equipo donde corre la app.")
+
+
+@app.post("/gastos/proponer")
+async def proponer_cuentas(request: Request):
+    """{'conceptos': [...]} -> {'propuestas': {concepto: código de cuenta o ''}}."""
+    cuerpo = await request.json()
+    conceptos = [str(c) for c in (cuerpo.get("conceptos") or [])][:500]
+    return {"propuestas": {c: gastos_cuentas.proponer(c) for c in conceptos}}
 
 
 @app.get("/homologacion")

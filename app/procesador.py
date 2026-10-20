@@ -386,6 +386,17 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                     res.problemas.append(Problema("aviso", nro, r["pagado_vs_total"][0], f"{r['pagado_vs_total'][0]} ({_fmt_num(pagado)}) es mayor que el {r['pagado_vs_total'][1]} ({_fmt_num(total)})"))
             except (ValueError, InvalidOperation):
                 pass
+        if r.get("cuenta_gasto"):  # Cuenta NetSuite = ID interno de la cuenta PCGE elegida (según «Cuentas homologadas»)
+            c_pcge, c_ns = r["cuenta_gasto"]
+            pcge = homologacion.normalizar(salida[idx(c_pcge)])
+            if not pcge:
+                res.problemas.append(Problema("aviso", nro, c_pcge, "Sin cuenta: use «Proponer cuentas» o elíjala"))
+                salida[idx(c_ns)] = ""
+            elif homologacion.mapa().get(pcge) is None:
+                res.problemas.append(Problema("aviso", nro, c_pcge, f"La cuenta {pcge} no está en «Cuentas homologadas»"))
+                salida[idx(c_ns)] = ""
+            else:
+                salida[idx(c_ns)] = str(homologacion.mapa()[pcge])
         for c in r.get("avisar_vacios", []):
             if not salida[idx(c)]:
                 res.problemas.append(Problema("aviso", nro, c, "Sin dato"))

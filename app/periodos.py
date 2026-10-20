@@ -29,10 +29,10 @@ def _ruta(periodo: str) -> Path:
 
 
 def _migrar(datos: dict) -> dict:
-    """Gastos guardados antes de existir la columna External ID (18 columnas): se les antepone la celda vacía."""
+    """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     g = (datos.get("hojas") or {}).get("gastos")
-    if g and g.get("filas") and all(len(f) == 18 for f in g["filas"]):
-        g["filas"] = [["", *f] for f in g["filas"]]
+    if g and g.get("filas"):
+        g["filas"] = [["", *f] if len(f) == 18 else [*f[:9], "", "", *f[9:]] if len(f) == 19 else f for f in g["filas"]]
     return datos
 
 
