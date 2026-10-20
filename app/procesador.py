@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
-from . import gastos_cuentas, homologacion, periodos, proveedores
+from . import esquema, gastos_cuentas, homologacion, periodos, proveedores
 from .esquema import Hoja, Plantilla, norm
 
 FORMATOS_FECHA = {
@@ -398,6 +398,33 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                     res.problemas.append(Problema("aviso", nro, r["pagado_vs_total"][0], f"{r['pagado_vs_total'][0]} ({_fmt_num(pagado)}) es mayor que el {r['pagado_vs_total'][1]} ({_fmt_num(total)})"))
             except (ValueError, InvalidOperation):
                 pass
+        if r.get("detraccion"):  # detracción SUNAT: porcentaje según el concepto y Monto Detr. = Total × porcentaje
+            dd = r["detraccion"]
+            sujeto = norm(salida[idx(dd["sujeto"])]) in ("sí", "si", "s", "1", "true", "t")
+            concepto = salida[idx(dd["concepto"])]
+            pct = esquema.DETRACCIONES.get(concepto)
+            salida[idx(dd["porcentaje"])] = f"{pct * 100:g}%" if pct else ""
+            if sujeto:
+                try:
+                    monto, total, igv = (_num(salida[idx(dd[k])]) or Decimal(0) for k in ("monto", "total", "igv"))
+                except (ValueError, InvalidOperation):
+                    monto = total = igv = Decimal(0)
+                if not concepto or not pct:
+                    res.problemas.append(Problema("error", nro, dd["concepto"], "Sujeto a detracción: indique el concepto de detracción"))
+                else:
+                    esperado = (total * Decimal(str(pct))).quantize(Decimal("0.01"))
+                    if monto == 0:
+                        salida[idx(dd["monto"])] = _fmt_num(esperado)
+                    elif abs(monto - esperado) > Decimal("0.01"):
+                        res.problemas.append(Problema("aviso", nro, dd["monto"], f"Monto Detr. ({_fmt_num(monto)}) difiere del cálculo {pct * 100:g}% × {_fmt_num(total)} = {_fmt_num(esperado)}"))
+                if igv == 0:
+                    res.problemas.append(Problema("aviso", nro, dd["sujeto"], "La detracción aplica a operaciones afectas al IGV, y este comprobante tiene IGV 0"))
+            else:
+                try:
+                    if (_num(salida[idx(dd["monto"])]) or 0) > 0:
+                        res.problemas.append(Problema("aviso", nro, dd["sujeto"], "Tiene Monto Detr. pero no está marcado como sujeto a detracción"))
+                except (ValueError, InvalidOperation):
+                    pass
         if r.get("metodo_pago"):  # Met. Pago vacío = según la Caja (cuenta bancaria -> transferencia; Caja Chica -> efectivo)
             c_caja, c_met = r["metodo_pago"]
             if not salida[idx(c_met)]:

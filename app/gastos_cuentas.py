@@ -67,6 +67,28 @@ REGLAS_DEPARTAMENTO: list[tuple[tuple[str, ...], str]] = [
 ]
 
 
+# (palabras del concepto, código del concepto de detracción); las reglas se contrastaron con los Monto Detr. que ya trae el reporte
+REGLAS_DETRACCION: list[tuple[tuple[str, ...], str]] = [
+    (("pasaje", "boleto"), "26"),
+    (("transporte", "puerto", "flete"), "27"),
+    (("estiba", "thc", "movimiento de carga"), "21"),
+    (("alquiler",), "19"),
+    (("mantenimiento", "reparacion"), "20"),
+    (("asesor", "legal", "contab", "planilla", "analisis", "coi/tc", "consultor", "logistic", "operativo", "marcado", "trilla",
+      "procesamiento", "senasa", "courier", "courrier", "limpieza", "vigilancia", "emision de factura"), "22"),
+]
+
+
+def proponer_detraccion(concepto: str) -> str:
+    """Nombre del concepto de detracción (tabla de la plantilla) para el concepto del gasto, o '' si no aplica."""
+    from . import esquema
+    c = _plano(concepto)
+    for palabras, codigo in REGLAS_DETRACCION:
+        if any(p in c for p in palabras):
+            return next((n for n in esquema.DETRACCIONES if n.split(" ", 1)[0] == codigo), "")
+    return ""
+
+
 def proponer_departamento(concepto: str) -> str:
     """Departamento sugerido para el concepto, o '' si no hay sugerencia."""
     c = _plano(concepto)

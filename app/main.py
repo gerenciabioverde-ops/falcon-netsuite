@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, periodos
-from .esquema import RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
+from .esquema import DETRACCIONES, RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
 
 BASE = Path(__file__).parent
@@ -45,6 +45,10 @@ def _obtener(token: str) -> list[ResultadoHoja]:
     return _RESULTADOS[token][1]
 
 
+def esquema_detracciones() -> dict[str, float]:
+    return dict(DETRACCIONES)
+
+
 def _pestanas() -> list[dict]:
     """Descripción de cada plantilla para dibujar su pestaña con grilla."""
     salida = []
@@ -62,6 +66,7 @@ def _pestanas() -> list[dict]:
                 "opciones": h.listas[i].opciones if i in h.listas else [],
                 "fecha": norm(e) in fechas,
             } for i, e in enumerate(h.encabezados)],
+            "detracciones": esquema_detracciones() if clave == "gastos" else {},
             "por_defecto": {c: list(v) if isinstance(v, tuple) else [v, ""] for c, v in h.reglas.get("por_defecto", {}).items()},
         })
     return salida
@@ -110,7 +115,8 @@ async def proponer_cuentas(request: Request):
     cuerpo = await request.json()
     conceptos = [str(c) for c in (cuerpo.get("conceptos") or [])][:500]
     return {"propuestas": {c: gastos_cuentas.proponer(c) for c in conceptos},
-            "departamentos": {c: gastos_cuentas.proponer_departamento(c) for c in conceptos}}
+            "departamentos": {c: gastos_cuentas.proponer_departamento(c) for c in conceptos},
+            "detracciones": {c: gastos_cuentas.proponer_detraccion(c) for c in conceptos}}
 
 
 @app.get("/homologacion")
