@@ -490,7 +490,7 @@
     poner('Cuenta', v(COL_PAGNS) || (/honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR));       // cuenta por pagar: número del COA de Gastos (42100); si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
     poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
-    poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || 'Boleta de Venta') : '');       // liquidaciones, planillas de movilidad, recibos…: «Boleta de Venta»
+    poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || (/^liquidaci/i.test(v('Tipo Doc')) ? 'Liquidaciones Varias' : 'Boleta de Venta')) : '');       // liquidaciones: «Liquidaciones Varias»; planillas de movilidad, recibos, declaraciones juradas: «Boleta de Venta»
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : (sn ? '0000' : '')); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);       // sin serie (planilla de movilidad, declaración jurada): serie 0000
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno
