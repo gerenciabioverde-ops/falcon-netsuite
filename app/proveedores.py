@@ -129,3 +129,45 @@ def completar(fila: list, idx) -> list:
     elif numero and es_dni(tipo):
         poner(C_PERSONA, "Natural")
     return avisos
+
+
+# ---------- CSV para NetSuite (formulario «Falcon Vendor Form - Latam Peru») ----------
+# Columnas del CSV de Proveedores, en el orden del formulario de NetSuite: información principal, subsidiaria,
+# sublista Dirección y sección LatamReady. Salen de las columnas de la pestaña Proveedores.
+SALIDA = [
+    "External ID", "Nombre de la empresa", "Tipo", "Dirección web", "Subsidiaria principal",
+    "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
+    "Dirección: Dirección 1", "Dirección: Ciudad", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Latam - PE Ubigeo",
+    "Latam Entidad - SUNAT País", "Latam Entidad - Código SUNAT del País",
+    "Latam - Tipo de documento de identidad", "Latam - Código del tipo de documento de identidad",
+    "Latam - Nro de registro de contribuyente", "Latam - ¿Es buen contribuyente?", "Latam - ¿Agente de retención?",
+    "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción", "Latam - Vínculo contrib. y res. extranj.",
+    "Latam - Vínculo contributivo y código de residencia extranjera", "Legacy NS ID",
+]
+CODIGO_SUNAT_PERU = "9589"
+# Catálogo SUNAT N.° 6 (tipo de documento de identidad)
+CODIGO_TIPO_DOC = {"DOCUMENTO NACIONAL DE IDENTIDAD (DNI)": "1", "CARNET DE EXTRANJERIA": "4", "REGISTRO ÚNICO DE CONTRIBUYENTES": "6",
+                   "PASAPORTE": "7", "CÉDULA DIPLOMÁTICA DE IDENTIDAD": "A", "OTROS TIPOS DE DOCUMENTOS": "0"}
+
+
+def _si_no(v: str) -> str:
+    return "Sí" if _t(v).upper() in ("T", "TRUE", "SI", "SÍ", "S", "1") else "No"
+
+
+def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
+    """Convierte filas (ya completadas, con las columnas de la pestaña Proveedores) a las columnas del CSV para NetSuite."""
+    pos = {c: i for i, c in enumerate(encabezados)}
+    salida = []
+    for f in filas:
+        g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
+        pais = g(C_PAIS)
+        salida.append([
+            g(C_ID), g(C_NOMBRE), g(C_TIPO), "", g(C_SUBS),
+            "Sí", "Sí", g(C_CIUDAD), pais,
+            g(C_DIR1), g(C_CIUDAD), g(C_ESTADO), g(C_ZIP), g(C_UBIGEO),
+            "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
+            g(C_TIPO_DOC), CODIGO_TIPO_DOC.get(g(C_TIPO_DOC).upper(), ""),
+            g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
+            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", "",
+        ])
+    return salida

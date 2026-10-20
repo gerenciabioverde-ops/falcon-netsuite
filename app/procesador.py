@@ -39,6 +39,7 @@ class ResultadoHoja:
     filas: list[list[str]] = field(default_factory=list)  # ya formateadas para CSV
     numeros_fila: list[int] = field(default_factory=list)
     problemas: list[Problema] = field(default_factory=list)
+    encabezados_origen: list[str] | None = None  # columnas de la pestaña, cuando el CSV sale con otras (Proveedores)
 
     @property
     def errores(self) -> int:
@@ -524,7 +525,15 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
 
 
 def procesar(datos: dict[str, list], plantilla: Plantilla, formato_fecha: str, periodo: str | None = None) -> list[ResultadoHoja]:
-    return [validar_hoja(plantilla.hojas[k], filas, formato_fecha, periodo) for k, filas in datos.items()]
+    resultados = []
+    for k, filas in datos.items():
+        res = validar_hoja(plantilla.hojas[k], filas, formato_fecha, periodo)
+        if plantilla.hojas[k].reglas.get("completar") == "proveedores" and res.filas:
+            # el CSV de proveedores sale con las columnas del formulario de NetSuite (las validaciones siguen sobre las de la pestaña)
+            res.filas = proveedores.a_salida(res.encabezados, res.filas)
+            res.encabezados_origen, res.encabezados = res.encabezados, list(proveedores.SALIDA)
+        resultados.append(res)
+    return resultados
 
 
 def reporte_errores_xlsx(resultados: list[ResultadoHoja], periodo_etiqueta: str = "") -> bytes:
