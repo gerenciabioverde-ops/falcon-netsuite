@@ -70,3 +70,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - **Pestaña «CSV Proveedor»:** vista previa de solo lectura del CSV de Proveedores tal como se envía a NetSuite (ya completado y validado), con las filas con errores marcadas y su observación. Permite «Solo con errores», descargar el CSV completo (si no hay errores), descargar **solo los proveedores sin errores** (para subir ya los que están completos) y el reporte de errores en Excel.
 
 - **Proveedores sin dirección en SUNAT:** si faltan Dirección 1 y/o Ubigeo, el CSV usa los de Jaén (`CAJAMARCA-JAEN-JAEN`, dirección «JAEN - CAJAMARCA», con su Ciudad, Estado y ZIP) y deja un aviso en cada uno para que lo corrijas si conoces el dato real. Los valores se definen en `app/proveedores.py` (`UBIGEO_DEFECTO`, `DIRECCION_DEFECTO`).
+
+- **Proveedores: Tipo y Subsidiaria:** columnas nuevas al final de la pestaña y del CSV. **Tipo** según el Latam - Tax Reg Number (8 dígitos = Individual, 11 dígitos = Empresa) y **Subsidiaria** = 43; se completan solas y Tipo se recalcula al cambiar el número.
