@@ -100,7 +100,7 @@ REGLAS: dict[str, dict] = {
 GASTOS_ENCABEZADOS = [
     "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
-    "Area/Contrato", "Caja", "Met. Pago",
+    "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
 ]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
