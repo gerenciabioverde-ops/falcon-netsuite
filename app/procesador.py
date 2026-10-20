@@ -392,11 +392,11 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                                                   f"{r['cuadre_total'][0]} + {r['cuadre_total'][1]} ({_fmt_num(a + b)}) no es igual a {r['cuadre_total'][2]} ({_fmt_num(t)})"))
             except (ValueError, InvalidOperation):
                 pass
-        if r.get("pagado_vs_total"):
+        if r.get("pagado"):  # Monto Pagado = Total − Monto Detr. (Sub-Total + IGV = Total, menos lo depositado en detracciones)
             try:
-                pagado, total = (_num(salida[idx(n)]) or Decimal(0) for n in r["pagado_vs_total"])
-                if pagado > total + Decimal("0.01"):
-                    res.problemas.append(Problema("aviso", nro, r["pagado_vs_total"][0], f"{r['pagado_vs_total'][0]} ({_fmt_num(pagado)}) es mayor que el {r['pagado_vs_total'][1]} ({_fmt_num(total)})"))
+                pag, tot, det = r["pagado"]
+                total_p = _num(salida[idx(tot)])
+                salida[idx(pag)] = _fmt_num(total_p - (_num(salida[idx(det)]) or Decimal(0))) if total_p is not None else ""
             except (ValueError, InvalidOperation):
                 pass
         if r.get("detraccion"):  # detracción SUNAT: porcentaje según el concepto y Monto Detr. = Total × porcentaje

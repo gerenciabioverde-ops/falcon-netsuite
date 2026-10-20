@@ -100,7 +100,7 @@ REGLAS: dict[str, dict] = {
 # Proveedores = hoja «Vendor» del libro Entity - Falcon Coffees - Perú - Legacy (ver app/proveedores.py).
 GASTOS_ENCABEZADOS = [
     "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
-    "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
+    "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "N° Constancia", "N° Operación Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
     "Sujeto a Detracción", "Concepto Detracción", "% Detracción",
     "Clasificación Bienes y Servicios", "Tipo Operación SUNAT", "Neto a Pagar",
@@ -178,7 +178,7 @@ REGLAS["Gastos"] = {
     "detraccion": {"sujeto": "Sujeto a Detracción", "concepto": "Concepto Detracción", "porcentaje": "% Detracción",
                    "monto": "Monto Detr.", "total": "Total", "igv": "Igv", "tipo": "Tipo Operación SUNAT", "neto": "Neto a Pagar"},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
-    "pagado_vs_total": ("Monto Pagado", "Total"),
+    "pagado": ("Monto Pagado", "Total", "Monto Detr."),   # Monto Pagado = Total − Monto Detr.
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
              "de Totales. Valida RUC (11 dígitos) o DNI (8), que Sub-Total + IGV = Total y que no se repita RUC + Serie-Número. Cuenta PCGE: use «Proponer cuentas» y revise; Cuenta NetSuite se completa sola desde «Cuentas homologadas»."),
 }
