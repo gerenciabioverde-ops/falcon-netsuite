@@ -115,6 +115,22 @@ def leer(nombre_archivo: str, contenido: bytes, plantilla: Plantilla, clave_csv:
             avisos.append(f"La hoja «{hoja_xl.strip()}» no tiene los encabezados esperados; se omitió.")
         elif datos:
             resultado[clave] = datos
+    if not resultado:  # ninguna hoja con nombre conocido: se identifican por sus encabezados
+        for hoja_xl in wb.sheetnames:
+            ws = wb[hoja_xl]
+            if getattr(ws, "sheet_state", "visible") != "visible":
+                continue
+            muestra = [list(f) for f in ws.iter_rows(min_row=1, max_row=25, values_only=True)]
+            for clave, hoja in plantilla.hojas.items():
+                enc = _encabezados(muestra, hoja)
+                if clave in resultado or enc is None or len(enc[1]) < max(4, len(hoja.encabezados) // 2):
+                    continue
+                datos = _filas_de_datos([list(f) for f in ws.iter_rows(values_only=True)], hoja, avisos)
+                if datos:
+                    resultado[clave] = datos
+                    avisos.append(f"La hoja «{hoja_xl.strip()}» se cargó en «{hoja.nombre.strip()}» por sus encabezados.")
+                    break
     if not resultado:
-        raise ValueError("No encontré datos en ninguna hoja conocida (por ejemplo «Vendor» o las hojas de la plantilla).")
+        raise ValueError("No encontré datos con los encabezados de ninguna pestaña. Revise que la fila de encabezados "
+                         "tenga los nombres de las columnas (por ejemplo «Nombre de la empresa», «Latam - Tax Reg Number»).")
     return resultado, avisos
