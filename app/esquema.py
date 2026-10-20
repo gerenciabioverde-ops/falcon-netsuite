@@ -102,6 +102,11 @@ GASTOS_ENCABEZADOS = [
     "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja",
 ]
+# Fecha principal de cada documento: se avisa si cae fuera del período seleccionado
+for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "Asiento": "Date", "Factura de Cliente": "Fecha",
+                    "Nota de credito Cliente": "Fecha", "Pago de factura de cliente": "DATE"}.items():
+    REGLAS[_hoja]["fecha_periodo"] = _col
+
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS}
 LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"]}}
 

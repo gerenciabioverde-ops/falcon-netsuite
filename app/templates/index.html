@@ -39,6 +39,19 @@
     </div>
   </header>
 
+  <section id="barra-periodo" class="bg-white rounded-lg shadow px-3 py-2 flex flex-wrap items-center gap-2 text-sm">
+    <strong>Período</strong>
+    <button type="button" id="per-ant" class="border rounded px-2 py-1 hover:bg-slate-50" title="Mes anterior">◀</button>
+    <input type="month" id="per-mes" class="border rounded px-2 py-1 bg-white" title="Elija el mes de trabajo">
+    <button type="button" id="per-sig" class="border rounded px-2 py-1 hover:bg-slate-50" title="Mes siguiente">▶</button>
+    <select id="per-lista" class="border rounded px-2 py-1 bg-white max-w-sm" title="Períodos que ya tienen datos">
+      <option value="">Períodos con datos…</option>
+    </select>
+    <span id="per-estado" class="text-xs text-slate-500"></span>
+    <span style="flex:1"></span>
+    <button type="button" id="per-vaciar" class="border rounded px-3 py-1 text-red-700 hover:bg-red-50" title="Borra todos los datos de este período">Vaciar período</button>
+  </section>
+
   <section class="bg-white rounded-lg shadow">
     <nav id="tabs" class="flex flex-wrap border-b text-sm" role="tablist">
       {% for p in pestanas %}
@@ -144,21 +157,60 @@
   const esquema = JSON.parse(document.getElementById('esquema').textContent);
   const porClave = Object.fromEntries(esquema.map(p => [p.clave, p]));
   const FILAS_INICIALES = 15;
-  const LLAVE = 'falcon-netsuite-borrador-v1';
+  const LLAVE_VIEJA = 'falcon-netsuite-borrador-v1';      // borrador anterior (antes de los períodos): se migra una vez
+  const LLAVE_PERIODO = 'falcon-netsuite-periodo';
+  const JSON_H = { 'Content-Type': 'application/json' };
+  const $id = id => document.getElementById(id);
 
-  function guardar() {
-    try {
-      const d = {};
-      d.__bloqueadas = {};
-      for (const p of esquema) {
-        d[p.clave] = leer(p.clave, true);
-        d.__bloqueadas[p.clave] = [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0);
-      }
-      localStorage.setItem(LLAVE, JSON.stringify(d));
-    } catch (e) {}
+  // ---- Períodos: cada mes guarda sus propias grillas en el servidor ----
+  let periodo = null, periodoListo = false, pendiente = false, temporizador = null;
+  const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+  const etiquetaPeriodo = p => MESES[+p.slice(5) - 1] + ' ' + p.slice(0, 4);
+  const hoyPeriodo = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  const sumarMes = (p, n) => { const d = new Date(+p.slice(0, 4), +p.slice(5) - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  const estadoPeriodo = (txt, color) => { const e = $id('per-estado'); e.textContent = txt; e.style.color = color || '#64748b'; };
+
+  function datosActuales() {
+    const hojas = {};
+    for (const p of esquema) {
+      hojas[p.clave] = {
+        filas: leer(p.clave, true),
+        bloqueadas: [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0),
+      };
+    }
+    return { hojas };
   }
-  function cargarBorrador() {
-    try { return JSON.parse(localStorage.getItem(LLAVE) || '{}'); } catch (e) { return {}; }
+  // guardar(): lo llaman las pantallas tras cada cambio; se envía al servidor con una pequeña espera
+  function guardar() {
+    if (!periodo || !periodoListo) return;
+    pendiente = true; estadoPeriodo('Cambios sin guardar…', '#b45309');
+    clearTimeout(temporizador); temporizador = setTimeout(enviarGuardado, 700);
+  }
+  async function enviarGuardado() {
+    clearTimeout(temporizador);
+    if (!pendiente || !periodo || !periodoListo) return;
+    const per = periodo; pendiente = false;
+    try {
+      const r = await fetch('/periodo/' + per, { method: 'PUT', headers: JSON_H, body: JSON.stringify(datosActuales()) });
+      if (!r.ok) throw new Error('http ' + r.status);
+      estadoPeriodo('Guardado ' + new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }), '#15803d');
+      refrescarLista();
+    } catch (e) {
+      pendiente = true; estadoPeriodo('⚠ No se pudo guardar; se reintenta…', '#b91c1c');
+      clearTimeout(temporizador); temporizador = setTimeout(enviarGuardado, 5000);
+    }
+  }
+  window.addEventListener('beforeunload', ev => { if (pendiente) { ev.preventDefault(); ev.returnValue = ''; } });
+  async function refrescarLista() {
+    try {
+      const d = await (await fetch('/periodos')).json(), sel = $id('per-lista');
+      sel.innerHTML = '<option value="">Períodos con datos…</option>';
+      d.periodos.forEach(p => {
+        const o = document.createElement('option'); o.value = p.periodo;
+        o.textContent = etiquetaPeriodo(p.periodo) + ' — ' + Object.entries(p.filas).map(([k, n]) => (d.nombres[k] || k) + ' ' + n).join(', ');
+        sel.appendChild(o);
+      });
+    } catch (e) {}
   }
 
   function panel(clave) { return document.getElementById('panel-' + clave); }
@@ -217,14 +269,59 @@
     });
   });
 
-  const borrador = cargarBorrador();
-  esquema.forEach(p => {
-    const filas = Array.isArray(borrador[p.clave]) ? borrador[p.clave] : [];
-    const bloq = (borrador.__bloqueadas && borrador.__bloqueadas[p.clave]) || [];
-    filas.forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
-    while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
-  });
+  function llenarDesde(datos) {
+    esquema.forEach(p => {
+      cuerpo(p.clave).innerHTML = '';
+      const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
+      (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
+      while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
+    });
+    contadores();
+  }
+  const hayFilas = d => Object.values(d.hojas || {}).some(h => (h.filas || []).some(f => f.some(c => String(c).trim() !== '')));
+  function borradorViejo() {          // formato anterior: {clave: filas, __bloqueadas: {clave: [i]}}
+    try {
+      const v = JSON.parse(localStorage.getItem(LLAVE_VIEJA) || 'null');
+      if (!v) return null;
+      const hojas = {};
+      esquema.forEach(p => { hojas[p.clave] = { filas: Array.isArray(v[p.clave]) ? v[p.clave] : [], bloqueadas: (v.__bloqueadas && v.__bloqueadas[p.clave]) || [] }; });
+      return hayFilas({ hojas }) ? { hojas } : null;
+    } catch (e) { return null; }
+  }
+
+  async function abrirPeriodo(nuevo, primera) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(nuevo)) return;
+    if (!primera && nuevo === periodo) return;
+    if (periodo && pendiente) await enviarGuardado();           // guarda el período que se deja
+    periodoListo = false; periodo = nuevo;
+    try { localStorage.setItem(LLAVE_PERIODO, nuevo); } catch (e) {}
+    $id('per-mes').value = nuevo; $id('resultado').innerHTML = '';
+    estadoPeriodo('Cargando ' + etiquetaPeriodo(nuevo) + '…');
+    try {
+      const r = await fetch('/periodo/' + nuevo); if (!r.ok) throw new Error('http ' + r.status);
+      let d = await r.json(), migrado = false;
+      if (primera && !hayFilas(d)) { const v = borradorViejo(); if (v) { d = v; migrado = true; } }
+      llenarDesde(d); periodoListo = true;
+      if (migrado) { try { localStorage.removeItem(LLAVE_VIEJA); } catch (e) {} pendiente = true; await enviarGuardado(); estadoPeriodo('Tu borrador anterior se pasó a ' + etiquetaPeriodo(nuevo), '#15803d'); }
+      else estadoPeriodo(hayFilas(d) ? etiquetaPeriodo(nuevo) + ' · datos cargados' + (d.actualizado ? ' (guardado ' + d.actualizado + ')' : '') : etiquetaPeriodo(nuevo) + ' · período vacío', '#475569');
+    } catch (e) {
+      llenarDesde({ hojas: {} }); estadoPeriodo('⚠ No se pudo cargar el período; no se guardará nada hasta recargar', '#b91c1c');
+    }
+    refrescarLista();
+  }
+  esquema.forEach(p => { while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave); });
   contadores();
+  $id('per-ant').addEventListener('click', () => abrirPeriodo(sumarMes(periodo, -1)));
+  $id('per-sig').addEventListener('click', () => abrirPeriodo(sumarMes(periodo, 1)));
+  $id('per-mes').addEventListener('change', ev => { if (ev.target.value) abrirPeriodo(ev.target.value); else ev.target.value = periodo; });
+  $id('per-lista').addEventListener('change', ev => { const v = ev.target.value; ev.target.value = ''; if (v) abrirPeriodo(v); });
+  $id('per-vaciar').addEventListener('click', async () => {
+    if (!periodo || !confirm('¿Vaciar TODOS los datos del período ' + etiquetaPeriodo(periodo) + '? Esta acción no se puede deshacer.')) return;
+    clearTimeout(temporizador); pendiente = false;
+    llenarDesde({ hojas: {} }); $id('resultado').innerHTML = '';
+    try { await fetch('/periodo/' + periodo, { method: 'DELETE' }); estadoPeriodo(etiquetaPeriodo(periodo) + ' · período vaciado', '#475569'); } catch (e) { estadoPeriodo('⚠ No se pudo vaciar', '#b91c1c'); }
+    refrescarLista();
+  });
 
   // Pegar desde Excel: TSV a partir de la celda activa; agrega filas si hacen falta
   document.addEventListener('paste', ev => {
@@ -308,7 +405,7 @@
     estado.textContent = 'Procesando…';
     try {
       const fmt = encodeURIComponent(document.getElementById('formato-grilla').value);
-      const r = await fetch('/procesar_grilla?formato_fecha=' + fmt, {
+      const r = await fetch('/procesar_grilla?formato_fecha=' + fmt + '&periodo=' + (periodo || ''), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
       });
       const destino = document.getElementById('resultado');
@@ -355,7 +452,7 @@
   function cerrarFila() { modal.style.display = 'none'; mClave = null; }
   async function consultarFila() {
     const r = await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hoja: mClave, fila: camposModal().map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value }) });
+      body: JSON.stringify({ hoja: mClave, fila: camposModal().map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value, periodo }) });
     return r.ok ? r.json() : null;
   }
   function mostrarProblemas(ps) {
@@ -507,6 +604,11 @@
     }
     btn.disabled = false;
   });
+
+  // Arranque: el último período usado (o el mes actual)
+  let periodoInicial = null;
+  try { periodoInicial = localStorage.getItem(LLAVE_PERIODO); } catch (e) {}
+  abrirPeriodo(periodoInicial && /^\d{4}-(0[1-9]|1[0-2])$/.test(periodoInicial) ? periodoInicial : hoyPeriodo(), true);
 })();
 </script>
 </body>
