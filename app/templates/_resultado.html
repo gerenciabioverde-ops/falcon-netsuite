@@ -1,5 +1,8 @@
 {% if error %}
-<div class="bg-red-50 border border-red-300 text-red-800 rounded p-4">{{ error }}</div>
+<div class="bg-red-50 border border-red-300 text-red-800 rounded p-4 flex items-center justify-between gap-3">
+  <span>{{ error }}</span>
+  <button type="button" data-cerrar-resultado class="border rounded px-3 py-1.5 text-sm text-slate-700 bg-white hover:bg-slate-100" title="Quita este reporte de la pantalla (no borra tus datos)">✕ Cerrar reporte</button>
+</div>
 {% else %}
 <div class="space-y-4">
   {% for a in avisos %}<div class="bg-amber-50 border border-amber-300 text-amber-800 rounded p-3 text-sm">{{ a }}</div>{% endfor %}
@@ -7,9 +10,12 @@
   <div class="bg-white rounded-lg shadow p-5">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold">Resultado</h2>
-      {% if resultados|selectattr('exportable')|list %}
-      <a href="/descargar/{{ token }}/todos.zip" class="bg-green-700 text-white text-sm px-3 py-1.5 rounded">Descargar todo (.zip)</a>
-      {% endif %}
+      <div class="flex items-center gap-2">
+        {% if resultados|selectattr('exportable')|list %}
+        <a href="/descargar/{{ token }}/todos.zip" class="bg-green-700 text-white text-sm px-3 py-1.5 rounded">Descargar todo (.zip)</a>
+        {% endif %}
+        <button type="button" data-cerrar-resultado class="border rounded px-3 py-1.5 text-sm text-slate-700 bg-white hover:bg-slate-100" title="Quita este reporte de la pantalla (no borra tus datos)">✕ Cerrar reporte</button>
+      </div>
     </div>
     <table class="w-full text-sm">
       <thead><tr class="text-left text-slate-500 border-b">
@@ -47,5 +53,6 @@
     {% if r.problemas|length > 200 %}<p class="text-xs text-slate-500 mt-2">Se muestran los primeros 200.</p>{% endif %}
   </details>
   {% endfor %}
+  <div class="text-right"><button type="button" data-cerrar-resultado class="border rounded px-3 py-1.5 text-sm text-slate-700 bg-white hover:bg-slate-100" title="Quita este reporte de la pantalla (no borra tus datos)">✕ Cerrar reporte</button></div>
 </div>
 {% endif %}
