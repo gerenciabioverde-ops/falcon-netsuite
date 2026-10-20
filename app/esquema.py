@@ -56,7 +56,7 @@ REGLAS: dict[str, dict] = {
         "lineas_desde": "Account",
         "cuadre": ("Debit", "Credit"),
         "cuentas": ["Account"],
-        "id_auto": {"prefijo": "Asiento", "modo": "asiento"},
+        "id_auto": {"prefijo": "FCP", "modo": "asiento"},
     },
     "Factura de Cliente": {
         "requeridos": ["EXTERNAL ID", "Cliente", "Cuenta", "Moneda", "Fecha", "Subsidiaria",

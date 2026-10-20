@@ -25,7 +25,7 @@ El **EXTERNAL ID se genera solo** si se deja vacío, y es siempre el mismo para 
 | Factura de Cliente | `FACT_VENTA_{Cliente}_{Serie}_{Número}` | |
 | Nota de crédito Cliente | `NotaCredito_{Cliente}_{Serie}_{Número}` | |
 | Pago de factura de cliente | `Pago_FCliente_{Beneficiario}_{Aplica}_{AAAAMMDD}` | |
-| Asiento | `Asiento_{AAAAMMDD}_{huella}`: líneas consecutivas sin ID hasta que Débito = Crédito | `Asiento_20261013_17b853ed` |
+| Asiento | `FCP{AAAAMM}_{0001}`: líneas consecutivas sin ID hasta que Débito = Crédito forman un asiento; el correlativo es por mes de la fecha y continúa tras los IDs ya escritos | `FCP202610_0001` |
 
 Si se escribe un EXTERNAL ID a mano, se respeta tal cual.
 
