@@ -56,6 +56,7 @@ def _pestanas() -> list[dict]:
     for clave, h in PLANTILLA.hojas.items():
         req = {norm(c) for c in h.reglas.get("requeridos", [])}
         fechas = {norm(c) for c in h.reglas.get("fechas", [])}
+        numeros = {norm(c) for c in h.reglas.get("numericos", [])} | ({norm("Neto a Pagar")} if clave == "gastos" else set())
         salida.append({
             "clave": clave,
             "nombre": h.nombre.strip(),
@@ -66,6 +67,7 @@ def _pestanas() -> list[dict]:
                 "requerida": norm(e) in req and not (i == 0 and h.reglas.get("id_auto")),
                 "opciones": h.listas[i].opciones if i in h.listas else [],
                 "fecha": norm(e) in fechas,
+                "numero": norm(e) in numeros,
             } for i, e in enumerate(h.encabezados)],
             "detracciones": esquema_detracciones() if clave == "gastos" else {},
             "por_defecto": {c: list(v) if isinstance(v, tuple) else [v, ""] for c, v in h.reglas.get("por_defecto", {}).items()},
