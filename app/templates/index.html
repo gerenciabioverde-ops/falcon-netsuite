@@ -475,6 +475,9 @@
   const MONEDA_NS = { PEN: 'SOL', USD: 'USD' };
   const METODO_NS = { 'Transferencia de Fondos': 'PE - TRANSFERENCIA DE FONDOS', 'Efectivo': 'PE - EFECTIVO, EN LOS DEMÁS CASOS' };
   const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
+  // Tipos que no están en la lista de NetSuite: liquidación de gastos, planilla de movilidad y recibo -> «Otros Gastos»; liquidación de compra -> «Liquidaciones Varias»; el resto -> «Boleta de Venta»
+  const TIPO_OTROS = { 'liquidacion de gastos': 'Otros Gastos', 'planilla de movilidad': 'Otros Gastos', 'recibo': 'Otros Gastos' };
+  const tipoTransaccionOtros = t => { const k = quitarTildes(t); return TIPO_OTROS[k] || (k.startsWith('liquidaci') ? 'Liquidaciones Varias' : 'Boleta de Venta'); };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const GF = 'gastos', FP = 'factura de proveedor';
   const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación', 'Gastos: Código de impuesto'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
@@ -490,7 +493,7 @@
     poner('Cuenta', v(COL_PAGNS) || (/honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR));       // cuenta por pagar: número del COA de Gastos (42100); si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
     poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
-    poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || (/^liquidaci/i.test(v('Tipo Doc')) ? 'Liquidaciones Varias' : 'Boleta de Venta')) : '');       // liquidaciones: «Liquidaciones Varias»; planillas de movilidad, recibos, declaraciones juradas: «Boleta de Venta»
+    poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || tipoTransaccionOtros(v('Tipo Doc'))) : '');       
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : (sn ? '0000' : '')); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);       // sin serie (planilla de movilidad, declaración jurada): serie 0000
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno

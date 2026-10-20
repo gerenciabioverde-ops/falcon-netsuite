@@ -326,11 +326,12 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
             lista_f = h_fp.listas.get(h_fp.idx(col_f))
             if lista_f and lista_f.opciones:
                 LISTAS_EXTRA["Gastos"][col_g] = list(lista_f.opciones)
-    if h_fp:        # «Liquidaciones Varias»: tipo de transacción para las liquidaciones de gastos y de compra (no viene en la lista de la plantilla)
+    if h_fp:        # «Liquidaciones Varias» y «Otros Gastos»: tipos de transacción que no vienen en la lista de la plantilla
         lt = h_fp.listas.get(h_fp.idx("Latam - Tipo de Transacción"))
-        if lt and "liquidaciones varias" not in lt.valores:
-            lt.valores.add("liquidaciones varias")
-            lt.opciones.append("Liquidaciones Varias")
+        for extra in ("Liquidaciones Varias", "Otros Gastos"):
+            if lt and norm(extra) not in lt.valores:
+                lt.valores.add(norm(extra))
+                lt.opciones.append(extra)
     for nombre, enc in HOJAS_EXTRA.items():
         listas_extra = proveedores.listas() if nombre == "Proveedores" else LISTAS_EXTRA.get(nombre, {})
         hojas.setdefault(norm(nombre), Hoja(
