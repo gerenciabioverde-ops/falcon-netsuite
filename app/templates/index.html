@@ -298,7 +298,7 @@
       cuerpo(p.clave).innerHTML = '';
       const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
       (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
-      if (p.clave === 'gastos') [...cuerpo('gastos').rows].forEach(completarIdGasto);
+      if (p.clave === 'gastos') { [...cuerpo('gastos').rows].forEach(completarIdGasto); resincronizarCuentas(); }
       while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
     });
     contadores();
@@ -425,7 +425,7 @@
     poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
-    poner('Gastos: Cuenta', v(COL_NS)); poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
+    poner('Gastos: Cuenta', cuentaID(v(COL_PCGE))); poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
     poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : 'SIN DETRACCIÓN'); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
@@ -483,7 +483,10 @@
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
   const colG = n => porClave.gastos.columnas.findIndex(c => c.nombre === n);
   const sinEsp = t => String(t || '').replace(/\s+/g, '');
-  const cuentaNS = cod => { const f = tablaCuentas.find(x => sinEsp(x.falcon) === sinEsp(cod) && sinEsp(cod)); return f ? String(f.netsuite) : ''; };
+  const filaCuenta = cod => tablaCuentas.find(x => sinEsp(x.falcon) === sinEsp(cod) && sinEsp(cod));
+  const cuentaID = cod => { const f = filaCuenta(cod); return f ? String(f.netsuite) : ''; };            // ID interno (lo que va al CSV)
+  const coaDe = f => { const m = /^(\d+(?:\.\d+)*)(?:\s|$)/.exec(String((f && f.nombre_netsuite) || '').trim()); return m ? m[1] : ''; };
+  const cuentaNS = cod => { const f = filaCuenta(cod); return f ? (coaDe(f) || String(f.netsuite)) : ''; };   // número del COA de NetSuite (9011.06)
   function pintarOpcionesCuentas() {
     let dl = $id('dl-cuentas-gasto');
     if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-cuentas-gasto'; document.body.appendChild(dl); }
@@ -532,6 +535,16 @@
     guardar(); contadores();
   }
   function sincronizarNS(tr) { const ins = tr.querySelectorAll('input'); ins[colG(COL_NS)].value = cuentaNS(ins[colG(COL_PCGE)].value); }
+  // Al cargar la tabla de cuentas homologadas: deja la Cuenta NetSuite de cada gasto con el número del COA (los datos guardados antes traían el ID interno)
+  function resincronizarCuentas() {
+    if (!tablaCuentas.length) return;
+    let cambio = false;
+    [...cuerpo('gastos').rows].forEach(tr => {
+      const ins = tr.querySelectorAll('input'), nuevo = cuentaNS(ins[colG(COL_PCGE)].value);
+      if (ins[colG(COL_PCGE)].value.trim() && nuevo && ins[colG(COL_NS)].value !== nuevo) { ins[colG(COL_NS)].value = nuevo; cambio = true; }
+    });
+    if (cambio) guardar();
+  }
   function ofrecerAplicar(tr, cod) {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), concepto = tr.querySelectorAll('input')[iC].value.trim();
     if (!cod || !concepto) return;
@@ -661,6 +674,7 @@
       lN.firstChild.textContent = 'Cuenta NetSuite (automático, homologada) ';
       lD.append('Cuenta destino (solo consulta) '); dest.className = 'cuenta-destino'; lD.appendChild(dest);
       rejilla.append(lP, lN, lD); bloque.appendChild(rejilla);
+      const info = document.createElement('div'); info.className = 'bloque-cuenta-nota'; info.style.fontWeight = '600'; info.style.marginTop = '8px'; bloque.appendChild(info);
       const nota = document.createElement('div'); nota.className = 'bloque-cuenta-nota';
       nota.textContent = 'Se elige por Concepto («💡 Proponer cuentas» sugiere una) y se traduce con la tabla de «Cuentas homologadas». Va a la columna Gastos: Cuenta de Factura de Proveedor.';
       bloque.appendChild(nota);
@@ -669,6 +683,7 @@
         const f = tablaCuentas.find(x => sinEsp(x.falcon) === sinEsp(ms[colG(COL_PCGE)].value) && sinEsp(x.falcon));
         dest.textContent = f && (f.destino || f.contrapartida) ? [f.destino, f.contrapartida].filter(Boolean).join(' / ') : '—';
         dest.title = f ? (f.nombre_falcon || '') : '';
+        info.textContent = f ? 'PCGE ' + f.falcon + ' (' + (f.nombre_falcon || '') + ')  →  NetSuite ' + (f.nombre_netsuite || '') + ' · ID interno ' + f.netsuite + ' (el ID interno es el que va al CSV)' : '';
       };
       ms[colG(COL_PCGE)].addEventListener('change', pintarDestino); pintarDestino();
     }
@@ -780,7 +795,7 @@
     try {
       const d = await (await fetch('/homologacion')).json();
       tablaCuentas = d.filas;
-      pintarOpcionesCuentas();
+      pintarOpcionesCuentas(); resincronizarCuentas();
       const hay = d.cantidad > 0;
       $('estado-cuentas').className = 'text-sm ' + (hay ? 'text-green-700' : 'text-slate-500');
       $('estado-cuentas').textContent = hay ? d.cantidad + ' cuentas cargadas (' + d.archivo + ', ' + d.actualizado + ').' : 'Todavía no hay cuentas cargadas.';

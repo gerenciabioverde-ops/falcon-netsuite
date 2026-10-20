@@ -240,7 +240,20 @@ def cargar() -> dict:
             _cache["datos"] = {"archivo": "", "actualizado": "", "filas": []}
         _cache["mtime"] = mtime
         _cache["mapa"] = {normalizar(f["falcon"]): f["netsuite"] for f in _cache["datos"]["filas"]}
+        _cache["coa"] = {normalizar(f["falcon"]): coa_de_nombre(f.get("nombre_netsuite", "")) for f in _cache["datos"]["filas"]}
     return _cache["datos"]
+
+
+def coa_de_nombre(nombre: str) -> str:
+    """Número de la cuenta en el COA de NetSuite: primera palabra del nombre si es numérica (p. ej. «9011.06 FCP-Related Costs» -> 9011.06)."""
+    primero = (nombre or "").strip().split(" ", 1)[0]
+    return primero if re.fullmatch(r"\d+(\.\d+)*", primero) else ""
+
+
+def coa() -> dict[str, str]:
+    """{cuenta Falcon/PCGE: número de cuenta del COA de NetSuite}."""
+    cargar()
+    return _cache.get("coa", {})
 
 
 def mapa() -> dict[str, str]:
