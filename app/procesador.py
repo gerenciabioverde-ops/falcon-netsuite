@@ -440,8 +440,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
             elif homologacion.mapa().get(pcge) is None:
                 res.problemas.append(Problema("aviso", nro, c_pcge, f"La cuenta {pcge} no está en «Cuentas homologadas»"))
                 salida[idx(c_ns)] = ""
-            else:
-                salida[idx(c_ns)] = str(homologacion.mapa()[pcge])
+            else:   # Cuenta NetSuite = número de la cuenta en el COA (p. ej. 9011.06); el ID interno se usa al pasar a Factura de Proveedor
+                salida[idx(c_ns)] = homologacion.coa().get(pcge) or str(homologacion.mapa()[pcge])
         for c in r.get("avisar_vacios", []):
             if not salida[idx(c)]:
                 res.problemas.append(Problema("aviso", nro, c, "Sin dato"))
