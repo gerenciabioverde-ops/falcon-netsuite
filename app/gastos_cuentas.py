@@ -69,7 +69,7 @@ REGLAS_DEPARTAMENTO: list[tuple[tuple[str, ...], str]] = [
 
 # (palabras del concepto, código del concepto de detracción); las reglas se contrastaron con los Monto Detr. que ya trae el reporte
 REGLAS_DETRACCION: list[tuple[tuple[str, ...], str]] = [
-    (("cafe",), "35"),       # compra de café (verde, pergamino, oro): bien exonerado del IGV, 1.5%
+    (("cafe",), "35"),       # compra de café (verde, pergamino, oro) con FACTURA: bien exonerado del IGV, 1.5% (la liquidación de compra no lleva detracción)
     (("pasaje", "boleto"), "26"),
     (("transporte", "puerto", "flete"), "27"),
     (("estiba", "thc", "movimiento de carga"), "21"),
