@@ -13,7 +13,7 @@ from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
-from . import homologacion
+from . import homologacion, proveedores
 from .esquema import Hoja, Plantilla, norm
 
 FORMATOS_FECHA = {
@@ -255,6 +255,14 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
         return res
 
     idx = hoja.idx
+    avisos_completar: dict[int, list[str]] = {}
+    if r.get("completar") == "proveedores":
+        completadas = []
+        for nro, fila in filas[1:]:
+            fila = list(fila)
+            avisos_completar[nro] = proveedores.completar(fila, idx)
+            completadas.append((nro, fila))
+        filas = [filas[0], *completadas]
     filas = [filas[0], *generar_ids(hoja, filas[1:])]
     fmt_out = FORMATOS_FECHA[formato_fecha]
     requeridos = [idx(c) for c in r.get("requeridos", [])]
@@ -349,14 +357,16 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str) 
                                               f"La cabecera difiere de la primera línea del ID «{salida[col_id]}»"))
         doc = r.get("documento")
         if doc and salida[idx(doc["numero"])]:
-            tipo, num = salida[idx(doc["tipo"])].upper(), salida[idx(doc["numero"])]
-            if "RUC" in tipo:
+            tipo, num = salida[idx(doc["tipo"])], salida[idx(doc["numero"])]
+            if proveedores.es_ruc(tipo):
                 if not (num.isdigit() and len(num) == 11):
                     res.problemas.append(Problema("error", nro, doc["numero"], "El RUC debe tener 11 dígitos"))
                 elif not _ruc_valido(num):
                     res.problemas.append(Problema("aviso", nro, doc["numero"], f"El RUC {num} no pasa la verificación del dígito final; revíselo"))
-            elif "DNI" in tipo and not (num.isdigit() and len(num) == 8):
+            elif proveedores.es_dni(tipo) and not (num.isdigit() and len(num) == 8):
                 res.problemas.append(Problema("error", nro, doc["numero"], "El DNI debe tener 8 dígitos"))
+        for texto_aviso in avisos_completar.get(nro, []):
+            res.problemas.append(Problema("aviso", nro, "Código ZIP", texto_aviso))
         for c in r.get("cinco_digitos", []):
             v = salida[idx(c)]
             if v and not (v.isdigit() and len(v) == 5):

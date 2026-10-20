@@ -51,6 +51,7 @@ def _pestanas() -> list[dict]:
         salida.append({
             "clave": clave,
             "nombre": h.nombre.strip(),
+            "nota": h.reglas.get("nota", ""),
             "columnas": [{
                 "nombre": e.strip(),
                 "auto": i == 0 and bool(h.reglas.get("id_auto")),

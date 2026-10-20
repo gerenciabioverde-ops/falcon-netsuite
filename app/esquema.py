@@ -16,6 +16,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.utils.cell import column_index_from_string
 
+from . import proveedores
+
 RUTA_PLANTILLA = Path(__file__).resolve().parent.parent / "data" / "TEMPLATE_CSV_FALCON.xlsx"
 HOJA_MAESTRA = "DATA MAESTRA"
 
@@ -93,24 +95,18 @@ REGLAS: dict[str, dict] = {
 }
 
 
-# Plantillas que no están en el Excel de la empresa y se definen aquí. Ajustar los encabezados al
-# mapeo de importación guardado en NetSuite (se enlazan por nombre o por posición de columna).
-HOJAS_EXTRA: dict[str, list[str]] = {
-    "Proveedores": [
-        "EXTERNAL ID", "Nombre de la empresa", "Subsidiaria",
-        "Latam - Tipo de Documento de Identidad", "Latam - Número de Documento",
-        "Moneda", "Términos", "Correo electrónico", "Teléfono",
-        "Dirección", "Departamento", "Provincia", "Distrito", "Código postal", "País",
-    ],
-}
+# Plantillas que no están en el Excel de plantillas y se definen en código.
+# Proveedores = hoja «Vendor» del libro Entity - Falcon Coffees - Perú - Legacy (ver app/proveedores.py).
+HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS}
 
 REGLAS["Proveedores"] = {
-    "requeridos": ["EXTERNAL ID", "Nombre de la empresa", "Subsidiaria",
-                   "Latam - Tipo de Documento de Identidad", "Latam - Número de Documento", "Moneda"],
-    "documento": {"tipo": "Latam - Tipo de Documento de Identidad", "numero": "Latam - Número de Documento"},
-    "cinco_digitos": ["Código postal"],
+    "requeridos": proveedores.REQUERIDOS,
+    "documento": {"tipo": proveedores.C_TIPO_DOC, "numero": proveedores.C_NUMERO},
+    "cinco_digitos": [proveedores.C_ZIP],
     "unico_id": True,
-    "id_auto": {"prefijo": "VEND", "campos": ["Latam - Número de Documento"]},
+    "id_auto": {"prefijo": "VEND", "campos": [proveedores.C_NUMERO]},
+    "completar": "proveedores",
+    "nota": proveedores.NOTA,
 }
 
 
@@ -236,7 +232,11 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
                 reglas=REGLAS.get(clave, {}),
             )
     for nombre, enc in HOJAS_EXTRA.items():
-        hojas.setdefault(norm(nombre), Hoja(nombre=nombre, encabezados=enc, listas={}, reglas=REGLAS.get(nombre, {})))
+        listas_extra = proveedores.listas() if nombre == "Proveedores" else {}
+        hojas.setdefault(norm(nombre), Hoja(
+            nombre=nombre, encabezados=enc, reglas=REGLAS.get(nombre, {}),
+            listas={i: Lista(valores={norm(x) for x in listas_extra[c]}, opciones=listas_extra[c])
+                    for i, c in enumerate(enc) if c in listas_extra}))
     maestra = {}
     if HOJA_MAESTRA in wb.sheetnames:
         ws = wb[HOJA_MAESTRA]
