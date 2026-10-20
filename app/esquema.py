@@ -102,7 +102,7 @@ GASTOS_ENCABEZADOS = [
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
     "Sujeto a Detracción", "Concepto Detracción", "% Detracción",
-    "Clasificación Bienes y Servicios", "Tipo Operación SUNAT",
+    "Clasificación Bienes y Servicios", "Tipo Operación SUNAT", "Neto a Pagar",
 ]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
@@ -158,7 +158,7 @@ REGLAS["Gastos"] = {
     "cuenta_gasto": ("Cuenta PCGE", "Cuenta NetSuite"),
     "metodo_pago": ("Caja", "Met. Pago"),
     "detraccion": {"sujeto": "Sujeto a Detracción", "concepto": "Concepto Detracción", "porcentaje": "% Detracción",
-                   "monto": "Monto Detr.", "total": "Total", "igv": "Igv", "tipo": "Tipo Operación SUNAT"},
+                   "monto": "Monto Detr.", "total": "Total", "igv": "Igv", "tipo": "Tipo Operación SUNAT", "neto": "Neto a Pagar"},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
     "pagado_vs_total": ("Monto Pagado", "Total"),
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
