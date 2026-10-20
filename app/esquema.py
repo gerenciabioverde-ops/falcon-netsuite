@@ -149,6 +149,8 @@ LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "U
 DETRACCIONES: dict[str, float] = {}
 # Códigos de concepto de detracción que son servicios (Anexo 3): a esos les corresponde el tipo de operación «prestación de servicios…»
 CODIGOS_SERVICIO = {"12", "19", "20", "21", "22", "24", "25", "26", "27", "30", "37"}
+# Bienes exonerados del IGV (35 y 36, 1.5%): están sujetos a detracción aunque el comprobante tenga IGV 0; su tipo de operación es «Venta de bienes exonerada del IGV»
+CODIGOS_EXONERADO = {"35", "36"}
 
 REGLAS["Proveedores"] = {
     "requeridos": proveedores.REQUERIDOS,

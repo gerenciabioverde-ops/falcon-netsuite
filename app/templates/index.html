@@ -560,7 +560,7 @@
   const metodoPago = caja => { const c = String(caja || '').trim().toLowerCase(); return !c ? '' : c.includes('caja chica') ? 'Efectivo' : /\d/.test(c) ? 'Transferencia de Fondos' : ''; };
   // Detracción SUNAT: Sujeto (Sí/No) + Concepto -> % de la tabla de la plantilla -> Monto Detr. = Total × %
   const COL_SUJ = 'Sujeto a Detracción', COL_CDET = 'Concepto Detracción', COL_PDET = '% Detracción', COL_TOP = 'Tipo Operación SUNAT', COL_NETO = 'Neto a Pagar', COL_CLAS = 'Clasificación Bienes y Servicios';
-  const CODIGOS_SERVICIO = new Set(['12', '19', '20', '21', '22', '24', '25', '26', '27', '30', '37']);
+  const CODIGOS_SERVICIO = new Set(['12', '19', '20', '21', '22', '24', '25', '26', '27', '30', '37']), CODIGOS_EXONERADO = new Set(['35', '36']);
   const numero = t => { const n = parseFloat(String(t || '').replace(/,/g, '')); return isNaN(n) ? 0 : n; };
   const fmt2 = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // 1,371.54 como en el reporte
   const porcentajeTxt = pct => pct ? (+(pct * 100).toFixed(2)) + '%' : '';
@@ -573,8 +573,9 @@
     if (si && pct && (recalcular || !numero(v[colG('Monto Detr.')]))) v[colG('Monto Detr.')] = fmt2(numero(v[colG('Total')]) * pct);
     if (!si && recalcular) v[colG('Monto Detr.')] = '0.00';
     // servicios: el tipo de operación de la tabla de SUNAT es «prestación de servicios…» (para bienes lo eliges tú)
-    if (si && !String(v[colG(COL_TOP)]).trim() && CODIGOS_SERVICIO.has(String(v[colG(COL_CDET)]).split(' ')[0])) {
-      v[colG(COL_TOP)] = (porClave.gastos.columnas[colG(COL_TOP)].opciones.find(o => o.startsWith('Venta de bienes muebles')) || '');
+    const codDet = String(v[colG(COL_CDET)]).split(' ')[0];
+    if (si && !String(v[colG(COL_TOP)]).trim() && (CODIGOS_SERVICIO.has(codDet) || CODIGOS_EXONERADO.has(codDet))) {
+      v[colG(COL_TOP)] = (porClave.gastos.columnas[colG(COL_TOP)].opciones.find(o => o.startsWith(CODIGOS_EXONERADO.has(codDet) ? 'Venta de bienes exonerada' : 'Venta de bienes muebles')) || '');
     }
     // importe neto a pagar al proveedor = importe del comprobante − detracción (solo si está sujeto)
     const tot = String(v[colG('Total')]).trim();
