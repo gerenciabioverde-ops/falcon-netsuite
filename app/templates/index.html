@@ -279,6 +279,7 @@
       cuerpo(p.clave).innerHTML = '';
       const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
       (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
+      if (p.clave === 'gastos') [...cuerpo('gastos').rows].forEach(completarIdGasto);
       while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
     });
     contadores();
@@ -422,6 +423,9 @@
       const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
     });
   }
+  // External ID de Gastos (VENDB_RUC_Serie-Número): se muestra ya completo apenas hay RUC y Serie-Número
+  const idGasto = vals => { const ruc = limpiarId(vals[colG('RUC')]), sn = limpiarId(vals[colG('Serie-Numero')]); return ruc && sn ? 'VENDB_' + ruc + '_' + sn : ''; };
+  function completarIdGasto(tr) { const ins = tr.querySelectorAll('input'); if (!ins[0].value.trim()) ins[0].value = idGasto([...ins].map(i => i.value)); }
   function sincronizarNS(tr) { const ins = tr.querySelectorAll('input'); ins[colG(COL_NS)].value = cuentaNS(ins[colG(COL_PCGE)].value); }
   function ofrecerAplicar(tr, cod) {
     const iC = colG('Concepto'), iP = colG(COL_PCGE), concepto = tr.querySelectorAll('input')[iC].value.trim();
@@ -436,6 +440,7 @@
   }
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
+    if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
     if (!(i instanceof HTMLInputElement) || +i.dataset.col !== colG(COL_PCGE)) return;
     const tr = i.closest('tr'); i.classList.remove('propuesta'); sincronizarNS(tr); guardar(); ofrecerAplicar(tr, i.value.trim());
   });
@@ -528,6 +533,8 @@
     if (clave === 'gastos') {
       const ms = camposModal(), iP = colG(COL_PCGE), iN = colG(COL_NS);
       ms[iP].setAttribute('list', 'dl-cuentas-gasto');
+      const rellenarId = () => { if (!ms[0].value.trim()) ms[0].value = idGasto(ms.map(m => m.value)); };
+      rellenarId(); [colG('RUC'), colG('Serie-Numero')].forEach(k => ms[k].addEventListener('change', rellenarId));
       ms[iN].readOnly = true; ms[iN].style.background = '#f1f5f9';
       ms[iP].addEventListener('change', () => { ms[iN].value = cuentaNS(ms[iP].value); });
     }
@@ -673,6 +680,7 @@
       claves.forEach(k => {
         cuerpo(k).innerHTML = '';
         d.hojas[k].forEach(fila => nuevaFila(k, fila, true));
+        if (k === 'gastos') [...cuerpo('gastos').rows].forEach(completarIdGasto);
         while (cuerpo(k).rows.length < FILAS_INICIALES) nuevaFila(k);
       });
       guardar(); contadores();
