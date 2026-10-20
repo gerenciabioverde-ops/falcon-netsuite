@@ -277,9 +277,12 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
     if etiq_periodo and r.get("periodo"):  # POSTING PERIOD vacío = período seleccionado
         i_per = idx(r["periodo"])
         filas = [filas[0], *[(n, [etiq_periodo if k == i_per and f[k] in (None, "") else f[k] for k in range(len(f))]) for n, f in filas[1:]]]
-    for col, valor in r.get("por_defecto", {}).items():  # valor fijo cuando la celda se deja vacía (p. ej. la subsidiaria)
+    for col, valor in r.get("por_defecto", {}).items():  # valor fijo cuando la celda se deja vacía (subsidiaria, ubicación)
         i_def = idx(col)
-        filas = [filas[0], *[(n, [valor if k == i_def and f[k] in (None, "") else f[k] for k in range(len(f))]) for n, f in filas[1:]]]
+        valor, i_si = valor if isinstance(valor, tuple) else (valor, None)  # (valor, columna que debe tener dato)
+        i_si = idx(i_si) if i_si else None
+        filas = [filas[0], *[(n, [valor if k == i_def and f[k] in (None, "") and (i_si is None or f[i_si] not in (None, "")) else f[k]
+                                  for k in range(len(f))]) for n, f in filas[1:]]]
     filas = [filas[0], *generar_ids(hoja, filas[1:])]
     fmt_out = FORMATOS_FECHA[formato_fecha]
     requeridos = [idx(c) for c in r.get("requeridos", [])]

@@ -102,11 +102,21 @@ GASTOS_ENCABEZADOS = [
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja",
 ]
-# Subsidiaria de Falcon en NetSuite (ID interno): se completa sola si la celda queda vacía
+# Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
+# Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
-for _hoja, _col in {"Factura de Proveedor": "Subsidiaria", "Factura de Cliente": "Subsidiaria",
-                    "Nota de credito Cliente": "Subsidiaria", "Asiento": "Subsidiary"}.items():
-    REGLAS[_hoja]["por_defecto"] = {_col: SUBSIDIARIA}
+UBICACION = "FCP SOLES"
+_POR_DEFECTO = {
+    "Factura de Proveedor": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION,
+                             "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe")},
+    "Factura de Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
+    "Nota de credito Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
+    "Pago Proveedor": {"SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
+    "Pago de factura de cliente": {"SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
+    "Asiento": {"Subsidiary": SUBSIDIARIA},
+}
+for _hoja, _defectos in _POR_DEFECTO.items():
+    REGLAS[_hoja]["por_defecto"] = _defectos
 
 # Fecha principal de cada documento: se avisa si cae fuera del período seleccionado
 for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "Asiento": "Date", "Factura de Cliente": "Fecha",

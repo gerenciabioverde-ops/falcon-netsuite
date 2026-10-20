@@ -167,7 +167,7 @@
   const LLAVE_PERIODO = 'falcon-netsuite-periodo';
   const JSON_H = { 'Content-Type': 'application/json' };
   const $id = id => document.getElementById(id);
-  const SUBSIDIARIA = '{{ subsidiaria }}';
+  const SUBSIDIARIA = '{{ subsidiaria }}', UBICACION = '{{ ubicacion }}';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
 
   // ---- Períodos: cada mes guarda sus propias grillas en el servidor ----
@@ -400,7 +400,7 @@
       const cortar = sn.indexOf('-'), fila = new Array(porClave[F].columnas.length).fill('');
       const poner = (n, val) => { fila[iF(n)] = val; };
       poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
-      poner('Subsidiaria', SUBSIDIARIA); poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', v('Fecha Factura'));
+      poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION); poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', v('Fecha Factura'));
       poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
       poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
       poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
