@@ -101,6 +101,7 @@ GASTOS_ENCABEZADOS = [
     "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
+    "Sujeto a Detracción", "Concepto Detracción", "% Detracción",
 ]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
@@ -126,7 +127,10 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
-LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS}}
+LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
+                                                "Sujeto a Detracción": ["Sí", "No"]}}
+# Tabla de detracciones (concepto -> porcentaje) de la hoja DATA MAESTRA de la plantilla; se llena en cargar_plantilla()
+DETRACCIONES: dict[str, float] = {}
 
 REGLAS["Proveedores"] = {
     "requeridos": proveedores.REQUERIDOS,
@@ -150,6 +154,8 @@ REGLAS["Gastos"] = {
     "id_auto": {"prefijo": "VENDB", "campos": ["RUC", "Serie-Numero"]},
     "cuenta_gasto": ("Cuenta PCGE", "Cuenta NetSuite"),
     "metodo_pago": ("Caja", "Met. Pago"),
+    "detraccion": {"sujeto": "Sujeto a Detracción", "concepto": "Concepto Detracción", "porcentaje": "% Detracción",
+                   "monto": "Monto Detr.", "total": "Total", "igv": "Igv"},
     "avisar_vacios": ["Fecha Factura", "Fecha Pago"],
     "pagado_vs_total": ("Monto Pagado", "Total"),
     "nota": ("Reporte de gastos: cargue el reporte (.xls en formato HTML, .xlsx o .csv) con «Cargar Excel / CSV». Se ignora la fila "
@@ -278,6 +284,16 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
                 listas=_listas_de_hoja(z.read(rutas[nombre]), wb, nombre),
                 reglas=REGLAS.get(clave, {}),
             )
+    DETRACCIONES.clear()
+    if HOJA_MAESTRA in wb.sheetnames:       # columnas «Nombre» y «Latam - Porcentaje Detracción» de la tabla de detracciones
+        ws_m = wb[HOJA_MAESTRA]
+        col_n = next((c for c in range(1, ws_m.max_column + 1) if norm(ws_m.cell(1, c).value) == "latam - porcentaje detracción"), None)
+        if col_n:
+            for r in range(2, ws_m.max_row + 1):
+                nombre_d, pct = ws_m.cell(r, col_n - 1).value, ws_m.cell(r, col_n).value
+                if nombre_d:
+                    DETRACCIONES[str(nombre_d).strip()] = float(pct or 0)
+    LISTAS_EXTRA["Gastos"]["Concepto Detracción"] = [n for n, p in DETRACCIONES.items() if p]
     for nombre, enc in HOJAS_EXTRA.items():
         listas_extra = proveedores.listas() if nombre == "Proveedores" else LISTAS_EXTRA.get(nombre, {})
         hojas.setdefault(norm(nombre), Hoja(
