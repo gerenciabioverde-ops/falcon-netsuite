@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, periodos
-from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
+from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
 
 BASE = Path(__file__).parent
@@ -96,6 +96,7 @@ def inicio(request: Request):
         "formatos": list(FORMATOS_FECHA),
         "subsidiaria": SUBSIDIARIA,
         "ubicacion": UBICACION,
+        "pagar_por_tipo": PAGAR_POR_TIPO,
         "cuenta_por_pagar": CUENTA_POR_PAGAR,
         "cuenta_por_pagar_rhe": CUENTA_POR_PAGAR_RHE,
     })

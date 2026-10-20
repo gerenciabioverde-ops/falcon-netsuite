@@ -442,6 +442,16 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                 salida[idx(c_met)] = gastos_cuentas.metodo_pago(salida[idx(c_caja)])
                 if not salida[idx(c_met)] and salida[idx(c_caja)]:
                     res.problemas.append(Problema("aviso", nro, c_met, f"No se pudo deducir el método de pago de la caja «{salida[idx(c_caja)][:40]}»"))
+        if r.get("cuenta_pagar"):  # cuenta por pagar: PCGE según el tipo de documento (si está vacía) y su número en el COA de NetSuite
+            cp = r["cuenta_pagar"]
+            if not salida[idx(cp["pcge"])]:
+                salida[idx(cp["pcge"])] = esquema.cuenta_pagar_por_tipo(salida[idx(cp["tipo"])])
+            pcge_p = homologacion.normalizar(salida[idx(cp["pcge"])])
+            if pcge_p and homologacion.mapa().get(pcge_p) is None:
+                res.problemas.append(Problema("aviso", nro, cp["pcge"], f"La cuenta por pagar {pcge_p} no está en «Cuentas homologadas»; agréguela con su cuenta de NetSuite"))
+                salida[idx(cp["ns"])] = ""
+            else:
+                salida[idx(cp["ns"])] = (homologacion.coa().get(pcge_p) or str(homologacion.mapa().get(pcge_p, ""))) if pcge_p else ""
         if r.get("cuenta_gasto"):  # Cuenta NetSuite = ID interno de la cuenta PCGE elegida (según «Cuentas homologadas»)
             c_pcge, c_ns = r["cuenta_gasto"]
             pcge = homologacion.normalizar(salida[idx(c_pcge)])
