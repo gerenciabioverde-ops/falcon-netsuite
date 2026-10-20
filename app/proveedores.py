@@ -100,7 +100,7 @@ def completar(fila: list, idx) -> list[str]:
 
     tipo, numero = g(C_TIPO_DOC), g(C_NUMERO)
     if numero and es_ruc(tipo):
-        poner(C_PERSONA, {"20": "Jurídico", "10": "Natural"}.get(numero[:2], ""))
+        poner(C_PERSONA, {"20": "Jurídico", "10": "Natural", "15": "Natural", "17": "Natural"}.get(numero[:2], ""))
         if numero.isdigit() and len(numero) == 11:
             poner(C_DIGITO, numero[-1])
     elif numero and es_dni(tipo):
