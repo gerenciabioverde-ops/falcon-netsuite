@@ -62,3 +62,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - **Números con formato:** las columnas numéricas (Sub-Total, Igv, Total, Monto Detr., Neto a Pagar, importes de las demás hojas) se ven con comas de miles y punto decimal (`1,320.82`); es solo visual: al editar aparece el valor simple y al guardar/exportar se usa el valor sin comas.
 
 - **Constancias de detracción:** en Gastos, «📎 Subir constancias de detracción (HTML)» lee los .html de SUNAT (varios a la vez), los relaciona por RUC + Serie-Número y llena Fecha Detr., N° Constancia, N° Operación Detr. y Monto Detr. (marca Sí y el concepto si estaban vacíos). **Monto Pagado** es automático: Total − Monto Detr. (Sub-Total + IGV = Total).
+
+- **Código de impuesto (Factura de Proveedor):** `Gastos: Código de impuesto` se llena según el IGV del gasto: con IGV `VAT_PE:S-PE`, sin IGV `VAT_PE:E-PE`. Se completa solo si está vacío, así que puedes cambiarlo a mano (p. ej. `VAT_PE:I-PE` para inafecto) y no se vuelve a pisar.
