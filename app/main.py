@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, periodos
 from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
-from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, validar_hoja
+from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, reporte_errores_xlsx, validar_hoja
 
 BASE = Path(__file__).parent
 RAIZ = BASE.parent
@@ -351,6 +351,11 @@ def descargar(token: str, archivo: str):
         nombre_zip = f"netsuite_csv_{periodo}.zip" if periodo else "netsuite_csv.zip"
         return Response(empaquetar_zip(resultados), media_type="application/zip",
                         headers={"Content-Disposition": f'attachment; filename="{nombre_zip}"'})
+    if archivo == "errores.xlsx":
+        periodo = _RESULTADOS[token][2]
+        return Response(reporte_errores_xlsx(resultados, periodos.etiqueta(periodo) if periodo else ""),
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": f'attachment; filename="errores_{periodo or "validacion"}.xlsx"'})
     for r in resultados:
         if r.archivo == archivo:
             if not r.exportable:

@@ -64,3 +64,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - **Constancias de detracción:** en Gastos, «📎 Subir constancias de detracción (HTML)» lee los .html de SUNAT (varios a la vez), los relaciona por RUC + Serie-Número y llena Fecha Detr., N° Constancia, N° Operación Detr. y Monto Detr. (marca Sí y el concepto si estaban vacíos). **Monto Pagado** es automático: Total − Monto Detr. (Sub-Total + IGV = Total).
 
 - **Código de impuesto (Factura de Proveedor):** `Gastos: Código de impuesto` se llena según el IGV del gasto: con IGV `VAT_PE:S-PE`, sin IGV `VAT_PE:E-PE`. Se completa solo si está vacío, así que puedes cambiarlo a mano (p. ej. `VAT_PE:I-PE` para inafecto) y no se vuelve a pisar.
+
+- **Reporte de errores (Excel):** después de «Validar y generar», si hay errores o avisos aparece «📄 Descargar reporte de errores (Excel)»: una hoja Resumen por plantilla y una hoja «Errores y avisos» con fila (#), identificador, columna, valor actual y mensaje (con filtros).
