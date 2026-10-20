@@ -162,6 +162,7 @@
   const LLAVE_PERIODO = 'falcon-netsuite-periodo';
   const JSON_H = { 'Content-Type': 'application/json' };
   const $id = id => document.getElementById(id);
+  const SUBSIDIARIA = '{{ subsidiaria }}';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
 
   // ---- Períodos: cada mes guarda sus propias grillas en el servidor ----
@@ -393,7 +394,7 @@
       const cortar = sn.indexOf('-'), fila = new Array(porClave[F].columnas.length).fill('');
       const poner = (n, val) => { fila[iF(n)] = val; };
       poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
-      poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', v('Fecha Factura'));
+      poner('Subsidiaria', SUBSIDIARIA); poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', v('Fecha Factura'));
       poner('Latam - Tipo de Transacción', TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || '');
       poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
       poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : ''); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);
@@ -406,7 +407,7 @@
     nuevas.forEach(f => nuevaFila(F, f));
     renumerar(F); contadores(); guardar(); activar(F);
     alert(nuevas.length + ' filas pasadas a Factura de Proveedor' + (repetidas ? ' (' + repetidas + ' ya estaban)' : '') + (sinId ? ' (' + sinId + ' sin RUC o Serie-Número)' : '') +
-      '.\nFalta completar: Cuenta (por pagar), Subsidiaria y Código de impuesto' + (sinCuenta ? ' (y la cuenta de ' + sinCuenta + ' gastos sin Cuenta NetSuite)' : '') + '.');
+      '.\nFalta completar: Cuenta (por pagar) y Código de impuesto' + (sinCuenta ? ' (y la cuenta de ' + sinCuenta + ' gastos sin Cuenta NetSuite)' : '') + '.');
   });
 
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
