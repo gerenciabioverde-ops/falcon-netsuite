@@ -236,6 +236,24 @@
     return { hojas };
   }
   // guardar(): lo llaman las pantallas tras cada cambio; se envía al servidor con una pequeña espera
+  // Columnas numéricas: se ven con comas de miles y punto decimal (1,320.82); el valor real (1320.82) no cambia
+  function formatoMiles(t) {
+    const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(String(t).trim());
+    if (!m) return t;
+    return m[1] + m[2].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + (m[3] || '').padEnd(2, '0');
+  }
+  function numeroVisual(inp) {
+    const nat = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    let crudo = '';
+    const mostrar = () => nat.set.call(inp, document.activeElement === inp ? crudo : formatoMiles(crudo));
+    Object.defineProperty(inp, 'value', {
+      get() { return document.activeElement === inp ? nat.get.call(inp) : crudo; },
+      set(v) { crudo = v == null ? '' : String(v); mostrar(); }
+    });
+    inp.addEventListener('input', () => { crudo = nat.get.call(inp); });
+    inp.addEventListener('focus', () => { crudo = crudo.replace(/,/g, ''); mostrar(); });
+    inp.addEventListener('blur', () => { crudo = nat.get.call(inp).trim().replace(/,/g, ''); mostrar(); });
+  }
   function guardar() {
     if (!periodo || !periodoListo) return;
     pendiente = true; estadoPeriodo('Cambios sin guardar…', '#b45309');
@@ -290,6 +308,7 @@
       if (clave === 'gastos' && c.nombre === COL_PAGNS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
       if (clave === 'gastos' && c.nombre === 'Neto a Pagar') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − detracción'; }
       if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
+      if (c.numero) numeroVisual(inp);
       inp.value = (valores && valores[i]) ? (c.fecha ? fechaExcel(valores[i]) : valores[i]) : '';
       if (bloqueada) { inp.readOnly = true; inp.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; }
       td.appendChild(inp); tr.appendChild(td);

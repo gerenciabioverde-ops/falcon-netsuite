@@ -58,3 +58,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - Cambiar listas/columnas: editar `data/TEMPLATE_CSV_FALCON.xlsx`; el esquema se lee de ahí al arrancar.
 - Formato de fecha del CSV: se elige en pantalla (debe coincidir con la preferencia de fecha de NetSuite).
 - CSV de salida: UTF-8 con BOM, separador coma.
+
+- **Números con formato:** las columnas numéricas (Sub-Total, Igv, Total, Monto Detr., Neto a Pagar, importes de las demás hojas) se ven con comas de miles y punto decimal (`1,320.82`); es solo visual: al editar aparece el valor simple y al guardar/exportar se usa el valor sin comas.
