@@ -492,7 +492,7 @@
     if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-cuentas-gasto'; document.body.appendChild(dl); }
     dl.innerHTML = '';
     tablaCuentas.filter(f => String(f.falcon).startsWith('6')).forEach(f => {
-      const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
+      const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_es || f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
     });
   }
   // External ID de Gastos (VENDB_RUC_Serie-Número): se muestra ya completo apenas hay RUC y Serie-Número
@@ -682,8 +682,8 @@
       const ms = camposModal(), pintarDestino = () => {
         const f = tablaCuentas.find(x => sinEsp(x.falcon) === sinEsp(ms[colG(COL_PCGE)].value) && sinEsp(x.falcon));
         dest.textContent = f && (f.destino || f.contrapartida) ? [f.destino, f.contrapartida].filter(Boolean).join(' / ') : '—';
-        dest.title = f ? (f.nombre_falcon || '') : '';
-        info.textContent = f ? 'PCGE ' + f.falcon + ' (' + (f.nombre_falcon || '') + ')  →  NetSuite ' + (f.nombre_netsuite || '') + ' · ID interno ' + f.netsuite + ' (el ID interno es el que va al CSV)' : '';
+        dest.title = f ? (f.nombre_es || f.nombre_falcon || '') : '';
+        info.textContent = f ? 'PCGE ' + f.falcon + ' (' + (f.nombre_es || f.nombre_falcon || '') + ')  →  NetSuite ' + (f.nombre_netsuite || '') + ' · ID interno ' + f.netsuite + ' (el ID interno es el que va al CSV)' : '';
       };
       ms[colG(COL_PCGE)].addEventListener('change', pintarDestino); pintarDestino();
     }
@@ -785,7 +785,7 @@
     cuerpo.innerHTML = '';
     tablaCuentas.filter(f => !q || Object.values(f).some(v => String(v).toLowerCase().includes(q))).slice(0, 500).forEach(f => {
       const tr = document.createElement('tr');
-      [f.falcon, f.nombre_falcon, f.netsuite, f.nombre_netsuite, f.destino, f.contrapartida].forEach(v => {
+      [f.falcon, f.nombre_es || f.nombre_falcon, f.netsuite, f.nombre_netsuite, f.destino, f.contrapartida].forEach(v => {
         const td = document.createElement('td'); td.style.padding = '4px 8px'; td.textContent = v || ''; tr.appendChild(td);
       });
       cuerpo.appendChild(tr);
