@@ -70,6 +70,8 @@
       {% for p in pestanas %}
       <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{{ p.nombre }}
         <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
+        {% if p.clave == 'proveedores' %}<button type="button" data-tab="csvprov" class="tab px-4 py-2.5 border-b-2" title="Vista previa del CSV de proveedores tal como se envía a NetSuite">CSV Proveedor
+        <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
       {% endfor %}
       <button type="button" data-tab="cuentas" class="tab px-4 py-2.5 border-b-2 ml-auto border-l">Cuentas homologadas
         <span id="cuentas-contador" class="ml-1 text-xs bg-green-100 text-green-800 rounded-full px-1.5 hidden"></span></button>
@@ -105,6 +107,18 @@
       </div>
       {% endfor %}
 
+      <div id="panel-csvprov" class="panel hidden space-y-3">
+        <p class="text-sm text-slate-600">Así sale el CSV de <strong>Proveedores</strong> para NetSuite: con los datos de la pestaña Proveedores ya completados (External ID <code>VEND_</code>+número, Ciudad, Estado, ZIP, país, tipo de persona, dígito verificador…). Es solo de lectura: para corregir algo, hazlo en la pestaña Proveedores.</p>
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <button type="button" id="cp-actualizar" class="border rounded px-3 py-1.5 hover:bg-slate-50">🔄 Actualizar vista</button>
+          <a id="cp-csv" class="border rounded px-3 py-1.5 bg-green-700 text-white hidden" href="#">⬇ Descargar CSV completo</a>
+          <a id="cp-csv-ok" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hidden" href="#">⬇ Descargar solo los proveedores sin errores</a>
+          <a id="cp-excel" class="border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hidden" href="#">📄 Reporte de errores (Excel)</a>
+          <label class="flex items-center gap-1"><input type="checkbox" id="cp-solo-errores"> Solo con errores</label>
+          <span id="cp-estado" class="text-slate-600"></span>
+        </div>
+        <div id="cp-tabla" style="overflow:auto;max-height:60vh" class="border rounded"></div>
+      </div>
       <div id="panel-cuentas" class="panel hidden space-y-3">
         <p class="text-sm text-slate-600">
           Tabla de equivalencias entre la <strong>cuenta de Falcon</strong> (código contable) y la <strong>ID interno de la cuenta en NetSuite</strong>. Al generar los CSV, las columnas de cuenta (Cuenta, Gastos: Cuenta, Account, A/P ACCOUNT, ACCOUNT)
@@ -754,10 +768,48 @@
       b.classList.toggle('border-blue-700', on); b.classList.toggle('text-blue-800', on);
       b.classList.toggle('font-semibold', on); b.classList.toggle('border-transparent', !on);
     });
-    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas');
+    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov');
+    if (clave === 'csvprov') cargarCsvProv();
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
     ajustarAlto();
   }
+
+  // ---- Pestaña «CSV Proveedor»: vista previa (solo lectura) del CSV que se envía a NetSuite ----
+  let cpDatos = null;
+  async function cargarCsvProv() {
+    const est = $id('cp-estado'); est.textContent = 'Preparando el CSV…'; est.style.color = '';
+    try {
+      const fmt = encodeURIComponent($id('formato-grilla').value);
+      const r = await fetch('/proveedores/csv?formato_fecha=' + fmt + '&periodo=' + (periodo || ''), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(leer('proveedores', true)) });
+      if (!r.ok) { est.textContent = 'Error ' + r.status + ' al preparar el CSV.'; est.style.color = '#b91c1c'; return; }
+      cpDatos = await r.json(); pintarCsvProv();
+    } catch (e) { est.textContent = 'No se pudo conectar con el servidor.'; est.style.color = '#b91c1c'; }
+  }
+  function pintarCsvProv() {
+    const d = cpDatos, malas = new Set(d.con_error), total = d.filas.length;
+    const solo = $id('cp-solo-errores').checked, est = $id('cp-estado');
+    const sinErr = total - malas.size, cont = $id('csvprov-contador');
+    cont.textContent = malas.size; cont.classList.toggle('hidden', !malas.size);
+    $id('cp-csv').classList.toggle('hidden', !(total && !d.errores)); $id('cp-csv').href = '/descargar/' + d.token + '/Proveedores.csv';
+    $id('cp-csv-ok').classList.toggle('hidden', !(sinErr && d.errores)); $id('cp-csv-ok').href = '/descargar/' + d.token + '/Proveedores_sin_errores.csv';
+    $id('cp-excel').classList.toggle('hidden', !(d.errores || d.avisos)); $id('cp-excel').href = '/descargar/' + d.token + '/errores.xlsx';
+    est.textContent = total ? total + ' proveedores · ' + sinErr + ' sin errores · ' + malas.size + ' con errores (' + d.errores + ' errores)' : 'No hay proveedores en este período.';
+    est.style.color = malas.size ? '#b45309' : '#15803d';
+    const tb = document.createElement('table'); tb.className = 'text-xs'; tb.style.borderCollapse = 'collapse';
+    const th = document.createElement('tr'); ['Fila', ...d.encabezados, 'Observaciones'].forEach((h, i) => { const c = document.createElement('th'); c.textContent = h; c.style.cssText = 'position:sticky;top:0;background:#f1f5f9;border:1px solid #e2e8f0;padding:4px 8px;white-space:nowrap;text-align:left'; th.appendChild(c); });
+    tb.appendChild(th);
+    d.filas.forEach((f, i) => {
+      const n = d.numeros[i], mala = malas.has(n);
+      if (solo && !mala) return;
+      const tr = document.createElement('tr'); if (mala) tr.style.background = '#fef2f2';
+      const msgs = (d.problemas[n] || []).map(p => (p.nivel === 'error' ? '✖ ' : '⚠ ') + p.columna + ': ' + p.mensaje).join(' · ');
+      [n, ...f, msgs].forEach((v, k) => { const c = document.createElement('td'); c.textContent = v == null ? '' : v; c.style.cssText = 'border:1px solid #e2e8f0;padding:3px 8px;white-space:nowrap' + (k === f.length + 1 && msgs ? ';color:#b91c1c' : ''); tr.appendChild(c); });
+      tb.appendChild(tr);
+    });
+    $id('cp-tabla').replaceChildren(tb);
+  }
+  $id('cp-actualizar').addEventListener('click', cargarCsvProv);
+  $id('cp-solo-errores').addEventListener('change', () => { if (cpDatos) pintarCsvProv(); });
 
   // La grilla ocupa todo el alto libre de la ventana: desde donde empieza hasta justo antes de los botones y de la barra «Validar y generar»
   function ajustarAlto() {

@@ -66,3 +66,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - **Código de impuesto (Factura de Proveedor):** `Gastos: Código de impuesto` se llena según el IGV del gasto: con IGV `VAT_PE:S-PE`, sin IGV `VAT_PE:E-PE`. Se completa solo si está vacío, así que puedes cambiarlo a mano (p. ej. `VAT_PE:I-PE` para inafecto) y no se vuelve a pisar.
 
 - **Reporte de errores (Excel):** después de «Validar y generar», si hay errores o avisos aparece «📄 Descargar reporte de errores (Excel)»: una hoja Resumen por plantilla y una hoja «Errores y avisos» con fila (#), identificador, columna, valor actual y mensaje (con filtros).
+
+- **Pestaña «CSV Proveedor»:** vista previa de solo lectura del CSV de Proveedores tal como se envía a NetSuite (ya completado y validado), con las filas con errores marcadas y su observación. Permite «Solo con errores», descargar el CSV completo (si no hay errores), descargar **solo los proveedores sin errores** (para subir ya los que están completos) y el reporte de errores en Excel.
