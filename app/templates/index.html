@@ -24,6 +24,10 @@
   .grilla td.nro .btn-editar:hover { background: #dbeafe; }
   #modal-fila { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,.55); align-items: center; justify-content: center; padding: 16px; }
   #modal-fila .caja { background: #fff; border-radius: 8px; width: min(1100px, 100%); max-height: 94vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  #modal-cuenta { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,.55); align-items: center; justify-content: center; padding: 16px; }
+  #modal-cuenta .caja { background: #fff; border-radius: 8px; width: min(760px, 100%); max-height: 94vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  #modal-cuenta label { display: block; font-size: 12px; color: #475569; }
+  #modal-cuenta input { display: block; width: 100%; margin-top: 2px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
   input.propuesta { background: #fef3c7 !important; }
   .bloque-cuenta { grid-column: 1 / -1; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 8px; padding: 12px; }
   .bloque-cuenta-titulo { font-weight: 600; color: #1e3a8a; margin-bottom: 8px; }
@@ -104,11 +108,13 @@
         <p class="text-sm text-slate-600">
           Tabla de equivalencias entre la <strong>cuenta de Falcon</strong> (código contable) y la <strong>ID interno de la cuenta en NetSuite</strong>. Al generar los CSV, las columnas de cuenta (Cuenta, Gastos: Cuenta, Account, A/P ACCOUNT, ACCOUNT)
           que traigan un código de Falcon se reemplazan por su ID interno de NetSuite; lo que no esté en la tabla se deja igual.
+          Sube el libro <em>COA-PCGE</em> (hoja «Hoja1» con «Cuenta NetSuite» y «Cuenta PCGE») o usa <strong>+ Crear cuenta</strong> y <strong>✎ Editar</strong> para agregar o corregir cuentas una por una.
         </p>
         <div class="flex flex-wrap items-center gap-3 text-sm">
           <input type="file" id="archivo-cuentas" accept=".xlsx,.xlsm,.csv" class="border rounded p-1.5 bg-white">
           <button type="button" id="btn-subir-cuentas" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Subir cuentas</button>
           <a href="/homologacion/plantilla" class="text-blue-700 underline">Descargar plantilla Excel</a>
+          <button type="button" id="btn-nueva-cuenta" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100">+ Crear cuenta</button>
           <button type="button" id="btn-borrar-cuentas" class="border rounded px-3 py-1.5 text-red-700 hover:bg-red-50 hidden">Borrar tabla</button>
         </div>
         <div id="estado-cuentas" class="text-sm"></div>
@@ -118,7 +124,7 @@
           <input type="search" id="filtro-cuentas" placeholder="Buscar cuenta…" class="border rounded px-2 py-1.5 text-sm w-64">
           <div class="overflow-auto border rounded" style="max-height: calc(100vh - 30rem); min-height: 10rem;">
             <table class="grilla border-collapse text-left w-full">
-              <thead><tr><th>Cuenta Falcon</th><th>Nombre Falcon</th><th>ID interno NetSuite</th><th>Nombre NetSuite</th><th title="Asiento de destino del PCGE: solo informativo, no se envía a NetSuite">Cuenta destino</th><th title="Contrapartida del asiento de destino">Contrapartida</th></tr></thead>
+              <thead><tr><th>Cuenta Falcon</th><th>Nombre Falcon</th><th>ID interno NetSuite</th><th>Nombre NetSuite</th><th title="Asiento de destino del PCGE: solo informativo, no se envía a NetSuite">Cuenta destino</th><th title="Contrapartida del asiento de destino">Contrapartida</th><th>Acciones</th></tr></thead>
               <tbody id="cuerpo-cuentas" class="text-sm"></tbody>
             </table>
           </div>
@@ -139,6 +145,27 @@
   </section>
 
   <section id="resultado"></section>
+
+  <div id="modal-cuenta" role="dialog" aria-modal="true">
+    <div class="caja">
+      <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0"><strong id="mc-titulo" style="font-size:16px">Cuenta contable</strong></div>
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px 16px;padding:12px 16px">
+        <label>Cuenta PCGE *<input id="mc-falcon" autocomplete="off" placeholder="p. ej. 421201"></label>
+        <label>Nombre PCGE (español)<input id="mc-nombre" autocomplete="off" placeholder="p. ej. Facturas por Pagar Comerciales - Terceros"></label>
+        <label>Número de cuenta en el COA de NetSuite<input id="mc-coa" autocomplete="off" placeholder="p. ej. 6145.03"></label>
+        <label>Nombre de la cuenta en NetSuite<input id="mc-nombre-ns" autocomplete="off" placeholder="p. ej. Transporte Terrestre"></label>
+        <label>ID interno de NetSuite *<input id="mc-id" autocomplete="off" inputmode="numeric" placeholder="p. ej. 1061"></label>
+        <span></span>
+        <label>Cuenta destino (solo consulta)<input id="mc-destino" autocomplete="off" placeholder="p. ej. 95631101"></label>
+        <label>Contrapartida (solo consulta)<input id="mc-contra" autocomplete="off" placeholder="p. ej. 79100011"></label>
+      </div>
+      <div id="mc-error" style="margin:0 16px 8px;font-size:13px;color:#b91c1c"></div>
+      <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e2e8f0">
+        <button type="button" id="mc-guardar" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded text-sm">Guardar</button>
+        <button type="button" id="mc-cancelar" class="border rounded px-4 py-2 text-sm hover:bg-slate-50">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
   <div id="modal-fila" role="dialog" aria-modal="true">
     <div class="caja">
@@ -881,9 +908,40 @@
       [f.falcon, f.nombre_es || f.nombre_falcon, f.netsuite, f.nombre_netsuite, f.destino, f.contrapartida].forEach(v => {
         const td = document.createElement('td'); td.style.padding = '4px 8px'; td.textContent = v || ''; tr.appendChild(td);
       });
+      const ta = document.createElement('td'); ta.style.cssText = 'padding:4px 8px;white-space:nowrap';
+      const be = document.createElement('button'), bx = document.createElement('button');
+      be.type = bx.type = 'button'; be.textContent = '✎ Editar'; bx.textContent = '🗑'; bx.title = 'Eliminar cuenta';
+      be.className = 'border rounded px-2 py-0.5 text-xs text-blue-700 hover:bg-blue-50'; bx.className = 'border rounded px-2 py-0.5 text-xs text-red-700 hover:bg-red-50 ml-1';
+      be.addEventListener('click', () => abrirCuenta(f)); bx.addEventListener('click', () => eliminarCuenta(f));
+      ta.append(be, bx); tr.appendChild(ta);
       cuerpo.appendChild(tr);
     });
   }
+  // ---- Crear / modificar / eliminar una cuenta de la tabla ----
+  let cuentaOriginal = '';
+  function abrirCuenta(f) {
+    cuentaOriginal = f ? f.falcon : '';
+    $('mc-titulo').textContent = f ? 'Modificar cuenta ' + f.falcon : 'Crear cuenta';
+    const coa = f ? coaDe(f) : '', nombreNs = f ? String(f.nombre_netsuite || '').replace(coa, '').trim() : '';
+    $('mc-falcon').value = f ? f.falcon : ''; $('mc-nombre').value = f ? (f.nombre_es || f.nombre_falcon || '') : '';
+    $('mc-coa').value = coa; $('mc-nombre-ns').value = nombreNs; $('mc-id').value = f ? f.netsuite : '';
+    $('mc-destino').value = f ? (f.destino || '') : ''; $('mc-contra').value = f ? (f.contrapartida || '') : '';
+    $('mc-error').textContent = ''; $('modal-cuenta').style.display = 'flex'; $('mc-falcon').focus();
+  }
+  async function guardarCuentaForm() {
+    const cuerpo = { falcon: $('mc-falcon').value, nombre_es: $('mc-nombre').value, coa: $('mc-coa').value, nombre_ns: $('mc-nombre-ns').value,
+      netsuite: $('mc-id').value, destino: $('mc-destino').value, contrapartida: $('mc-contra').value, original: cuentaOriginal };
+    const r = await fetch('/homologacion/cuenta', { method: 'PUT', headers: JSON_H, body: JSON.stringify(cuerpo) });
+    if (!r.ok) { let m = 'Error ' + r.status; try { m = (await r.json()).detail || m; } catch (e) {} $('mc-error').textContent = m; return; }
+    $('modal-cuenta').style.display = 'none'; await cargarCuentas();
+  }
+  async function eliminarCuenta(f) {
+    if (!confirm('¿Eliminar la cuenta ' + f.falcon + ' (' + (f.nombre_es || f.nombre_falcon || '') + ') de la tabla?\n\nLos gastos que la usen quedarán sin cuenta NetSuite hasta que la vuelvas a crear.')) return;
+    await fetch('/homologacion/cuenta/' + encodeURIComponent(f.falcon), { method: 'DELETE' }); await cargarCuentas();
+  }
+  $('btn-nueva-cuenta').addEventListener('click', () => abrirCuenta(null));
+  $('mc-guardar').addEventListener('click', guardarCuentaForm);
+  $('mc-cancelar').addEventListener('click', () => { $('modal-cuenta').style.display = 'none'; });
   async function cargarCuentas() {
     try {
       const d = await (await fetch('/homologacion')).json();
