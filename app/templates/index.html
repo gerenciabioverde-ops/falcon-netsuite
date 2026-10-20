@@ -362,6 +362,14 @@
   });
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && modal.style.display === 'flex') cerrarFila(); });
 
+  // ---- Cerrar el reporte de resultado (no toca los datos de las grillas) ----
+  document.getElementById('resultado').addEventListener('click', ev => {
+    if (ev.target.closest && ev.target.closest('[data-cerrar-resultado]')) {
+      document.getElementById('resultado').innerHTML = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
   // ---- Cuentas homologadas ----
   const $ = id => document.getElementById(id);
   let tablaCuentas = [];
