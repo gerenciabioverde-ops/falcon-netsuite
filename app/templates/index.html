@@ -102,6 +102,7 @@
           {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE y el departamento según el Concepto en los gastos que no los tienen (para que los revises)">💡 Proponer cuenta y departamento</button>
           {% if p.clave == 'gastos' %}<button type="button" id="btn-constancias" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube las constancias de depósito de detracción (.html de SUNAT): se relacionan por RUC + Serie-Número y llenan Fecha Detr., N° Constancia, N° Operación y Monto Detr.">📎 Subir constancias de detracción (HTML)</button><input type="file" id="archivos-constancias" accept=".html,.htm" multiple class="hidden">{% endif %}
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
+          {% if p.clave == 'proveedores' %}<button type="button" id="btn-ids-ns" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): cada proveedor se relaciona por nombre y su ID interno se guarda en External ID; las facturas usan ese ID como Proveedor">🔗 Cargar ID de NetSuite (CSV)</button><input type="file" id="archivo-ids-ns" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
@@ -553,7 +554,7 @@
     if (!id) return null;
     const cortar = sn.indexOf('-'), fila = new Array(porClave[FP].columnas.length).fill('');
     const poner = (n, val) => { fila[iF(n)] = val; };
-    poner('EXTERNAL ID', id); poner('Proveedor', 'VEND_' + ruc);
+    poner('EXTERNAL ID', id); poner('Proveedor', idNetSuite(ruc) || 'VEND_' + ruc);
     poner('Cuenta', v(COL_PAGNS) || (/honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR));       // cuenta por pagar: número del COA de Gastos (42100); si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
     poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
@@ -760,6 +761,53 @@
       comprobante: comp, monto: numero((c['monto del deposito'] || '').replace(/[^0-9.,]/g, '')), fecha: f ? (+f[1]) + '/' + (+f[2]) + '/' + f[3] : '',
       concepto: ((c['bien o servicio'] || '').split(' ')[0] || '').replace(/^0+/, '') };
   }
+  // ---- ID de NetSuite de cada proveedor (export de NetSuite: «ID interno» y «Nombre»), se guarda en External ID de Proveedores ----
+  const colP = n => porClave.proveedores.columnas.findIndex(c => c.nombre === n);
+  const idNetSuite = ruc => {       // ID interno del proveedor con ese RUC/DNI (solo números), o '' si aún no se cargó
+    const iN = colP('Latam - Tax Reg Number'), iI = colP('External ID'), r = String(ruc || '').trim();
+    if (!r || iN < 0 || iI < 0) return '';
+    for (const tr of cuerpo('proveedores').rows) { const v = tr.querySelectorAll('input'); if (v[iN].value.trim() === r) return /^\d+$/.test(v[iI].value.trim()) ? v[iI].value.trim() : ''; }
+    return '';
+  };
+  const normNombre = t => quitarTildes(String(t || '').replace(/&amp;/gi, '&')).replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const claveSuelta = t => normNombre(t).split(' ').sort().join(' ');       // sin importar el orden (Apellidos Nombres / Nombres Apellidos)
+  function leerCsvNetSuite(texto) {       // admite ; o , como separador y comillas
+    texto = texto.replace(/^﻿/, '');
+    const sep = (texto.split('\n')[0].match(/;/g) || []).length >= (texto.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+    const filas = []; let fila = [], campo = '', q = false;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      if (q) { if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else q = false; } else campo += c; }
+      else if (c === '"') q = true;
+      else if (c === sep) { fila.push(campo); campo = ''; }
+      else if (c === '\n') { fila.push(campo.replace(/\r$/, '')); filas.push(fila); fila = []; campo = ''; }
+      else campo += c;
+    }
+    if (campo || fila.length) { fila.push(campo.replace(/\r$/, '')); filas.push(fila); }
+    return filas;
+  }
+  $id('btn-ids-ns').addEventListener('click', () => $id('archivo-ids-ns').click());
+  $id('archivo-ids-ns').addEventListener('change', async ev => {
+    const archivo = ev.target.files[0]; ev.target.value = '';
+    if (!archivo) return;
+    const filas = leerCsvNetSuite(await archivo.text()), enc = (filas[0] || []).map(quitarTildes);
+    const iId = enc.findIndex(c => c === 'id interno' || c === 'internal id'), iNom = enc.findIndex(c => c === 'nombre' || c === 'name');
+    if (iId < 0 || iNom < 0) { estadoGrilla('El CSV debe tener las columnas «ID interno» y «Nombre» (export de proveedores de NetSuite).', '#b91c1c'); return; }
+    const exacto = {}, suelto = {};
+    filas.slice(1).forEach(f => { const id = (f[iId] || '').trim(), n = f[iNom] || ''; if (/^\d+$/.test(id) && n.trim()) { exacto[normNombre(n)] = id; suelto[claveSuelta(n)] = id; } });
+    const iE = colP('Nombre de la empresa'), iNo = colP('Nombres'), iA = colP('Apellidos'), iI = colP('External ID'), sin = [];
+    let ok = 0;
+    for (const tr of cuerpo('proveedores').rows) {
+      const v = tr.querySelectorAll('input'), nombre = v[iE].value.trim();
+      if (!nombre) continue;
+      const completo = (v[iNo].value + ' ' + v[iA].value).trim();
+      const largos = Object.keys(exacto).filter(k => k.length >= 40 && normNombre(nombre).startsWith(k));       // NetSuite corta los nombres largos
+      const id = exacto[normNombre(nombre)] || (largos.length === 1 && exacto[largos[0]]) || (completo && exacto[normNombre(completo)]) || suelto[claveSuelta(nombre)] || (completo && suelto[claveSuelta(completo)]) || '';
+      if (id) { v[iI].value = id; ok++; } else sin.push(nombre);
+    }
+    guardar(); contadores();
+    estadoGrilla(ok + ' proveedor(es) con ID de NetSuite' + (sin.length ? ' · sin coincidencia por nombre (' + sin.length + '): ' + sin.slice(0, 8).join(', ') + (sin.length > 8 ? '…' : '') : '') + '. Las facturas nuevas usan ese ID como Proveedor.', sin.length ? '#b45309' : '#15803d');
+  });
   $id('btn-constancias').addEventListener('click', () => $id('archivos-constancias').click());
   $id('archivos-constancias').addEventListener('change', async ev => {
     const archivos = [...ev.target.files]; ev.target.value = '';
