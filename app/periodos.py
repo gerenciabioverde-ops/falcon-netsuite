@@ -69,11 +69,23 @@ def _id_nuevo(valor) -> str:
 
 
 def _migrar_ids(datos: dict) -> dict:
+    """IDs de Gastos / Factura de Proveedor: formato sin separadores y de largo fijo (VENDB_RUC + serie de 4 + número de 8)."""
+    from . import esquema, ids
+    hojas = datos.get("hojas") or {}
     for clave in ("gastos", "factura de proveedor"):
-        h = (datos.get("hojas") or {}).get(clave)
-        for f in (h or {}).get("filas") or []:
+        for f in (hojas.get(clave) or {}).get("filas") or []:
             if f:
                 f[0] = _id_nuevo(f[0])
+    nuevos: dict[str, str] = {}
+    iR, iS = esquema.GASTOS_ENCABEZADOS.index("RUC"), esquema.GASTOS_ENCABEZADOS.index("Serie-Numero")
+    for f in (hojas.get("gastos") or {}).get("filas") or []:
+        if f and str(f[0]).startswith("VENDB_") and len(f) > max(iR, iS):
+            nuevo = ids.id_comprobante("VENDB", f[iR], f[iS])
+            if nuevo and nuevo != f[0]:
+                nuevos[f[0]], f[0] = nuevo, nuevo
+    for f in (hojas.get("factura de proveedor") or {}).get("filas") or []:
+        if f and f[0] in nuevos:
+            f[0] = nuevos[f[0]]
     return datos
 
 

@@ -569,7 +569,7 @@
   function facturaDeGasto(g) {
     const ig = n => porClave[GF].columnas.findIndex(c => c.nombre === n), iF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
     const v = n => (g[ig(n)] || '').trim(), ruc = limpiarId(v('RUC')), sn = v('Serie-Numero');
-    const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + limpiarId(sn) : '');
+    const id = v('External ID') || idComprobante(ruc, sn);
     if (!id) return null;
     const cortar = sn.indexOf('-'), fila = new Array(porClave[FP].columnas.length).fill('');
     const poner = (n, val) => { fila[iF(n)] = val; };
@@ -672,7 +672,11 @@
     });
   }
   // External ID de Gastos (VENDB_RUC+Serie+Número, todo junto): se muestra ya completo apenas hay RUC y Serie-Número
-  const idGasto = vals => { const ruc = limpiarId(vals[colG('RUC')]), sn = limpiarId(vals[colG('Serie-Numero')]); return ruc && sn ? 'VENDB_' + ruc + sn : ''; };
+  const idComprobante = (ruc, sn) => {       // VENDB_ + RUC + serie (4, con ceros a la izquierda) + número (8): largo fijo, VENDB_20513497769FA0100018047
+    const t = String(sn || '').trim(), k = t.indexOf('-'), serie = limpiarId(k >= 0 ? t.slice(0, k) : ''), num = limpiarId(k >= 0 ? t.slice(k + 1) : t), r = limpiarId(ruc);
+    return r && num ? 'VENDB_' + r.padStart(11, '0') + serie.padStart(4, '0') + num.padStart(8, '0') : '';
+  };
+  const idGasto = vals => idComprobante(vals[colG('RUC')], vals[colG('Serie-Numero')]);
   // Met. Pago según la Caja: con número de cuenta = Transferencia de Fondos; Caja Chica = Efectivo
   const metodoPago = caja => { const c = String(caja || '').trim().toLowerCase(); return !c ? '' : c.includes('caja chica') ? 'Efectivo' : /\d/.test(c) ? 'Transferencia de Fondos' : ''; };
   // Detracción SUNAT: Sujeto (Sí/No) + Concepto -> % de la tabla de la plantilla -> Monto Detr. = Total × %
