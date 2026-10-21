@@ -167,13 +167,16 @@ def completar(fila: list, idx) -> list:
 
 # ---------- CSV para NetSuite (formulario «Falcon Vendor Form - Latam Peru») ----------
 # Columnas del CSV de Proveedores, en el orden del formulario de NetSuite: información principal, subsidiaria,
-# sublista Dirección y sección LatamReady. Salen de las columnas de la pestaña Proveedores. External ID sale vacío: lo genera
+# sublista Dirección (ventana de edición de la dirección: País, Dirección 1, Ciudad = distrito, County = departamento,
+# Estado = país como en los proveedores ya creados, ZIP) y sección LatamReady. Salen de las columnas de la pestaña Proveedores. External ID sale vacío: lo genera
 # NetSuite al registrar el proveedor.
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Subsidiaria principal",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
-    "Dirección: Dirección 1", "Dirección: Ciudad", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Latam - PE Ubigeo",
+    "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
+    "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
+    "Dirección: EDI Location ID #", "Dirección: Latam - PE Ubigeo",
     "Latam Entidad - SUNAT País", "Latam Entidad - Código SUNAT del País",
     "Latam - Tipo de documento de identidad", "Latam - Código del tipo de documento de identidad",
     "Latam - Nro de registro de contribuyente", "Latam - ¿Es buen contribuyente?", "Latam - ¿Agente de retención?",
@@ -200,7 +203,9 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         salida.append([
             FORMULARIO, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", g(C_SUBS),
             "Sí", "Sí", "", pais,
-            g(C_DIR1), g(C_CIUDAD), g(C_ESTADO), g(C_ZIP), g(C_UBIGEO),
+            "", "", "", g(C_DIR1), "",
+            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
+            "", g(C_UBIGEO),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
             g(C_TIPO_DOC), CODIGO_TIPO_DOC.get(g(C_TIPO_DOC).upper(), ""),
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
