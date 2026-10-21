@@ -214,8 +214,8 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
     return salida
 
 
-# ---------- CSV para la subsidiaria USD (formulario «Formulario de proveedor estándar_2») ----------
-FORMULARIO_USD = "Formulario de proveedor estándar_2"
+# ---------- CSV para la subsidiaria USD (formulario «Falcon Vendor Form - Latam Peru») ----------
+FORMULARIO_USD = "Falcon Vendor Form - Latam Peru"
 SUBSIDIARIA_USD = "FCP (USD)"
 SALIDA_USD = [
     "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Categoría",
