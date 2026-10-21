@@ -853,20 +853,18 @@
       conContrato.forEach(tr => { const ins = tr.querySelectorAll('input'); ins[iP].value = CUENTA_CONTRATO; ins[iP].classList.add('propuesta'); sincronizarNS(tr); });
       cambiadas = conContrato.length; guardar(); contadores();
     }
-    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && (!ins[iP].value.trim() || !ins[iD].value.trim() || !ins[colG(COL_CLAS)].value.trim() || (/^s[ií]$/i.test(ins[colG(COL_SUJ)].value.trim()) && !ins[colG(COL_CDET)].value.trim())); });
+    const filas = [...cuerpo('gastos').rows].filter(tr => { const ins = tr.querySelectorAll('input'); return ins[iC].value.trim() && (!ins[iP].value.trim() || !ins[iD].value.trim() || (/^s[ií]$/i.test(ins[colG(COL_SUJ)].value.trim()) && !ins[colG(COL_CDET)].value.trim())); });
     if (!filas.length) { alert(cambiadas ? cambiadas + ' gastos cambiados a la cuenta ' + CUENTA_CONTRATO + ' (en amarillo).' : 'No hay gastos sin cuenta ni departamento para proponer.'); return; }
     const conceptos = [...new Set(filas.map(tr => tr.querySelectorAll('input')[iC].value.trim()))];
     const r = await fetch('/gastos/proponer', { method: 'POST', headers: JSON_H, body: JSON.stringify({ conceptos }) });
     if (!r.ok) { alert('No se pudo proponer (error ' + r.status + ').'); return; }
-    const resp = await r.json(), cuentas = resp.propuestas, deptos = resp.departamentos || {}, detrs = resp.detracciones || {}, clasifs = resp.clasificaciones || {}, sinC = new Set(), sinD = new Set(); let nc = 0, nd = 0, nx = 0;
+    const resp = await r.json(), cuentas = resp.propuestas, deptos = resp.departamentos || {}, detrs = resp.detracciones || {}, sinC = new Set(), sinD = new Set(); let nc = 0, nd = 0, nx = 0;
     filas.forEach(tr => {
       const ins = tr.querySelectorAll('input'), c = ins[iC].value.trim();
       if (!ins[iP].value.trim()) {
         const cod = ins[iA].value.trim() ? CUENTA_CONTRATO : cuentas[c];       // con Area/Contrato = 219901
         if (cod) { ins[iP].value = cod; ins[iP].classList.add('propuesta'); sincronizarNS(tr); nc++; } else sinC.add(c);
       }
-      const iK = colG(COL_CLAS);
-      if (!ins[iK].value.trim() && clasifs[c]) { ins[iK].value = clasifs[c]; ins[iK].classList.add('propuesta'); }
       const iS = colG(COL_SUJ), iX = colG(COL_CDET);       // concepto de detracción solo donde el gasto ya está marcado «Sí»
       const cafeSinFactura = /cafe/.test(quitarTildes(c)) && !/^factura/.test(quitarTildes(ins[colG('Tipo Doc')].value));       // el café con liquidación de compra no lleva el 1.5%
       if (/^s[ií]$/i.test(ins[iS].value.trim()) && !ins[iX].value.trim() && detrs[c] && !cafeSinFactura) { ins[iX].value = detrs[c]; ins[iX].classList.add('propuesta'); completarDetraccion(tr, false); nx++; }
