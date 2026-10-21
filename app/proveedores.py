@@ -177,12 +177,11 @@ FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
     "Buyer ID", "Subsidiaria principal",
-    "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta",
-    "Dirección: Dirección 1",
-    "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP",
-    "Latam Entidad - SUNAT País",
-    "Latam - Tipo de documento de identidad",
-    "Latam - Nro de registro de contribuyente", "Latam - ¿Es buen contribuyente?", "Latam - ¿Agente de retención?",
+    "Envío predeterminado", "Facturación predeterminada", "Etiqueta", "Dirección 1",
+    "Ciudad", "County", "Estado", "Zip",
+    "Latam Entidad - Sunat País",
+    "Latam - Tipo de Documento de Identidad",
+    "Latam - Nro de Registro de Contribuyente", "Latam - Es buen contribuyente?", "Latam - ¿Agente de retención?",
     "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción",
 ]
 CODIGO_SUNAT_PERU = "9589"
