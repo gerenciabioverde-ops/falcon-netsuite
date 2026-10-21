@@ -80,12 +80,12 @@
     <div class="p-3">
       {% for p in pestanas %}
       <div id="panel-{{ p.clave }}" class="panel hidden space-y-3" data-hoja="{{ p.clave }}">
-        <p class="text-xs text-slate-500">
+        {% if p.clave != 'gastos' %}<p class="text-xs text-slate-500">
           Las columnas con <span class="text-red-600 font-bold">*</span> son obligatorias. El <strong>EXTERNAL ID se genera solo</strong> si lo dejas vacío (mismo comprobante = mismo ID). Puedes copiar un rango desde Excel y pegarlo (Ctrl+V)
           sobre cualquier celda. Varias filas con el mismo EXTERNAL ID forman un solo documento.
           {% if p.nombre.startswith('Factura') or p.nombre.startswith('Nota') %}«Artículos: Importe» se calcula solo (cantidad × tarifa) si lo dejas vacío.{% endif %}
           {% if p.nota %}<br><strong>{{ p.nota }}</strong>{% endif %}
-        </p>
+        </p>{% endif %}
         <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;">
           <table class="grilla border-collapse text-left">
             <thead><tr>
