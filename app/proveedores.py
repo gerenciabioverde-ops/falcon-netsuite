@@ -219,7 +219,7 @@ FORMULARIO_USD = "Falcon Vendor Form - Latam Peru"
 SUBSIDIARIA_USD = "FCP (USD)"
 SALIDA_USD = [
     "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Categoría",
-    "Correo electrónico", "Teléfono", "Subsidiaria principal",
+    "Correo electrónico", "Teléfono", "Subsidiaria principal", "Legacy NS ID", "Línea de negocio de SuiteTax Latam Engine",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
@@ -236,10 +236,10 @@ def a_salida_usd(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         pais = g(C_PAIS)
         salida.append([
             FORMULARIO_USD, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", "",
-            "", "", SUBSIDIARIA_USD,
+            "", "", SUBSIDIARIA_USD, g(C_NUMERO), "",       # Legacy NS ID = RUC (o DNI)
             "Sí", "Sí", "", pais,
             "", "", "", g(C_DIR1), "",
-            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), g(C_NUMERO),       # Legacy ID de la dirección = RUC (o DNI)
+            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
             "", g(C_UBIGEO),
         ])
     return salida
