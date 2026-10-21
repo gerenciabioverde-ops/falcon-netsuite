@@ -37,6 +37,7 @@ DIRECCION_DEFECTO = "JAEN - CAJAMARCA"
 
 # Subsidiaria principal del proveedor (ID interno de Falcon Perú en NetSuite, la misma de las demás hojas)
 SUBSIDIARIA = "43"
+SUBSIDIARIA_NOMBRE = "FCP"      # nombre de la subsidiaria en el formulario del proveedor (en el CSV)
 
 REQUERIDOS = [C_ID, C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
               C_PERSONA, C_TIPO_DOC, C_NUMERO, C_SUBS]
@@ -172,7 +173,8 @@ def completar(fila: list, idx) -> list:
 # NetSuite al registrar el proveedor.
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
-    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellidos", "Individual", "Dirección web", "Subsidiaria principal",
+    "Formulario personalizado", "External ID", "Internal ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
+    "Buyer ID", "JDE ID (ML)", "Dirección web", "Categoría", "Comentarios", "Correo electrónico", "Teléfono", "Subsidiaria principal",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
@@ -181,7 +183,7 @@ SALIDA = [
     "Latam - Tipo de documento de identidad", "Latam - Código del tipo de documento de identidad",
     "Latam - Nro de registro de contribuyente", "Latam - ¿Es buen contribuyente?", "Latam - ¿Agente de retención?",
     "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción", "Latam - Vínculo contrib. y res. extranj.",
-    "Latam - Vínculo contributivo y código de residencia extranjera", "Legacy NS ID",
+    "Latam - Vínculo contributivo y código de residencia extranjera", "Auto-Approve Bills", "Auto-Approve PO", "Legacy NS ID",
 ]
 CODIGO_SUNAT_PERU = "9589"
 # Catálogo SUNAT N.° 6 (tipo de documento de identidad)
@@ -206,7 +208,8 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), _t_f(g(C_TIPO)), "", g(C_SUBS),
+            FORMULARIO, "", "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
+            "", "", "", "", "", "", "", SUBSIDIARIA_NOMBRE,       # Buyer ID, JDE ID, Dirección web, Categoría, Comentarios, Correo, Teléfono
             "T", "T", "", pais,       # Envío y Facturación predeterminada (casillas: T/F)
             "", "", "", g(C_DIR1), "",
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
@@ -214,39 +217,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
             g(C_TIPO_DOC), CODIGO_TIPO_DOC.get(g(C_TIPO_DOC).upper(), ""),
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
-            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", g(C_NUMERO),       # Legacy NS ID = RUC (o DNI)
+            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", "", "", g(C_NUMERO),       # Auto-Approve Bills / PO vacías; Legacy NS ID = RUC (o DNI)
         ])
     return salida
 
-
-# ---------- CSV para la subsidiaria USD (formulario «Falcon Vendor Form - Latam Peru») ----------
-FORMULARIO_USD = "Falcon Vendor Form - Latam Peru"
-SUBSIDIARIA_USD = "FCP (USD)"
-SALIDA_USD = [
-    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellidos", "Individual", "Dirección web", "Categoría",
-    "Correo electrónico", "Teléfono", "Internal ID", "Buyer ID", "JDE ID (ML)", "Comentarios", "Auto-Approve Bills", "Auto-Approve PO",
-    "Subsidiaria principal", "Legacy NS ID", "Línea de negocio de SuiteTax Latam Engine",
-    "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
-    "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
-    "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
-    "Dirección: EDI Location ID #", "Dirección: Latam - PE Ubigeo",
-]
-
-
-def a_salida_usd(encabezados: list[str], filas: list[list]) -> list[list[str]]:
-    """CSV de proveedores para la subsidiaria FCP (USD): formulario estándar (sin la sección LatamReady), mismos datos de la pestaña."""
-    pos = {c: i for i, c in enumerate(encabezados)}
-    salida = []
-    for f in filas:
-        g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
-        pais = g(C_PAIS)
-        salida.append([
-            FORMULARIO_USD, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), _t_f(g(C_TIPO)), "", "",
-            "", "", "", "", "", "", "", "",       # Correo, Teléfono, Internal ID, Buyer ID, JDE ID (ML), Comentarios, Auto-Approve Bills / PO
-            SUBSIDIARIA_USD, g(C_NUMERO), "",       # Legacy NS ID = RUC (o DNI)
-            "T", "T", "", pais,       # Envío y Facturación predeterminada (casillas: T/F)
-            "", "", "", g(C_DIR1), "",
-            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
-            "", g(C_UBIGEO),
-        ])
-    return salida
