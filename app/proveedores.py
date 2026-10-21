@@ -209,7 +209,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         pais = g(C_PAIS)
         salida.append([
             FORMULARIO, "", "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
-            "", "", "", "", "", "", "", SUBSIDIARIA_NOMBRE,       # Buyer ID, JDE ID, Dirección web, Categoría, Comentarios, Correo, Teléfono
+            g(C_NUMERO), "", "", "", "", "", "", SUBSIDIARIA_NOMBRE,       # Buyer ID = RUC (o DNI); JDE ID, Dirección web, Categoría, Comentarios, Correo, Teléfono vacíos
             "T", "T", "", pais,       # Envío y Facturación predeterminada (casillas: T/F)
             "", "", "", g(C_DIR1), "",
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
