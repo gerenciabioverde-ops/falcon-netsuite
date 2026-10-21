@@ -227,7 +227,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         pais = g(C_PAIS)
         salida.append([
             FORMULARIO, g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
-            g(C_NUMERO), SUBSIDIARIA,       # Buyer ID = RUC (o DNI); Subsidiaria principal = Internal ID (43 = FCP)
+            g(C_NUMERO), "FCP",       # Buyer ID = RUC (o DNI); Subsidiaria principal = FCP (en NetSuite se asigna con valor fijo)
             "T", "T", _cortar(g(C_DIR1)),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
             _cortar(g(C_DIR1)),
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP),
