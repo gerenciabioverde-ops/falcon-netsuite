@@ -37,7 +37,6 @@ DIRECCION_DEFECTO = "JAEN - CAJAMARCA"
 
 # Subsidiaria principal del proveedor (ID interno de Falcon Perú en NetSuite, la misma de las demás hojas)
 SUBSIDIARIA = "43"
-SUBSIDIARIA_NOMBRE = SUBSIDIARIA      # en el CSV va el Internal ID de la subsidiaria (43 = FCP), igual que en las demás plantillas; el nombre "FCP" NetSuite no lo reconoce
 
 REQUERIDOS = [C_ID, C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
               C_PERSONA, C_TIPO_DOC, C_NUMERO, C_SUBS]
@@ -176,7 +175,7 @@ def completar(fila: list, idx) -> list:
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
-    "Buyer ID", "Subsidiaria principal",
+    "Buyer ID",
     "Envío predeterminado", "Facturación predeterminada", "Etiqueta", "Dirección 1",
     "Ciudad", "County", "Estado", "Zip",
     "Latam Entidad - Sunat País",
@@ -229,7 +228,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         pais = g(C_PAIS)
         salida.append([
             FORMULARIO, "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
-            g(C_NUMERO), SUBSIDIARIA_NOMBRE,       # Buyer ID = RUC (o DNI)
+            g(C_NUMERO),       # Buyer ID = RUC (o DNI)
             "T", "T", _cortar(g(C_DIR1)),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
             _cortar(g(C_DIR1)),
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP),
