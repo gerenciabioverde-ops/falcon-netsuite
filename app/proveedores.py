@@ -133,7 +133,8 @@ def completar(fila: list, idx) -> list:
 
 # ---------- CSV para NetSuite (formulario «Falcon Vendor Form - Latam Peru») ----------
 # Columnas del CSV de Proveedores, en el orden del formulario de NetSuite: información principal, subsidiaria,
-# sublista Dirección y sección LatamReady. Salen de las columnas de la pestaña Proveedores.
+# sublista Dirección y sección LatamReady. Salen de las columnas de la pestaña Proveedores. External ID sale vacío: lo genera
+# NetSuite al registrar el proveedor.
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Nombre de la empresa", "Tipo", "Dirección web", "Subsidiaria principal",
@@ -163,7 +164,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, g(C_ID), g(C_NOMBRE), g(C_TIPO), "", g(C_SUBS),
+            FORMULARIO, "", g(C_NOMBRE), g(C_TIPO), "", g(C_SUBS),
             "Sí", "Sí", g(C_CIUDAD), pais,
             g(C_DIR1), g(C_CIUDAD), g(C_ESTADO), g(C_ZIP), g(C_UBIGEO),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
