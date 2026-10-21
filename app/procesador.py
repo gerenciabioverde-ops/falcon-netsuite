@@ -326,8 +326,12 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
 
     autocalc = [(idx(i), idx(c), idx(t)) for i, c, t in r.get("autocalcular", [])]
     cuentas = {idx(c) for c in r.get("cuentas", [])}
+    cuentas_coa = {idx(c) for c in r.get("cuentas_coa", [])}
     mapa_h = homologacion.mapa() if cuentas else {}
     coa_h = homologacion.coa_a_id() if cuentas else {}
+    # cuentas que salen con el número del COA de NetSuite: PCGE de Falcon o ID interno -> número del COA
+    coa_de = {**{homologacion.normalizar(k): v for k, v in homologacion.coa().items()},
+              **{homologacion.normalizar(i): n for n, i in homologacion.coa_a_id().items()}} if cuentas_coa else {}
     traducidas: dict[tuple, list[int]] = {}
     ids_vistos: dict[str, int] = {}
     claves_vistas: dict[tuple, int] = {}
@@ -361,6 +365,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                     if nuevo is not None and nuevo != str(v).strip():
                         traducidas.setdefault((nom, str(v).strip(), nuevo), []).append(nro)
                         v = nuevo
+                if i in cuentas_coa:
+                    v = coa_de.get(homologacion.normalizar(v), v)
                 if i in fechas:
                     texto = _fecha(v).strftime(fmt_out)
                 elif i in numericos:

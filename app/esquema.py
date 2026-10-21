@@ -36,7 +36,8 @@ REGLAS: dict[str, dict] = {
         ],
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
-        "cuentas": ["Cuenta", "Gastos: Cuenta"],
+        "cuentas": ["Gastos: Cuenta"],
+        "cuentas_coa": ["Cuenta"],       # la cuenta por pagar sale con su número del COA de NetSuite (42100), no con el ID interno
         "id_auto": {"prefijo": "VENDB", "campos": ["Proveedor", "Latam - Serie CxP", "Latam - Número Preimpreso"], "sin_separador": True, "quitar_primero": "VEND_"},
     },
     "Pago Proveedor": {
