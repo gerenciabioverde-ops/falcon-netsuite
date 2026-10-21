@@ -239,6 +239,15 @@ def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, li
     cols = [(hoja.idx(c), hoja.idx(c) in fechas) for c in spec["campos"]]
     for nro, fila in salida:
         if vacio(fila[0]):
+            if spec.get("sin_separador"):       # VENDB_ + RUC + Serie + Número, todo junto: VENDB_20513497769FA0100018047
+                crudo = [("" if vacio(fila[i]) else str(fila[i]).strip()) for i, _ in cols]
+                quitar = spec.get("quitar_primero", "")
+                if quitar and crudo[0].startswith(quitar):
+                    crudo[0] = crudo[0][len(quitar):]
+                partes = [re.sub(r"[^A-Za-z0-9]+", "", c) for c in crudo]
+                if all(partes):
+                    fila[0] = f"{spec['prefijo']}_{''.join(partes)}"
+                continue
             partes = [_clave(fila[i], f) for i, f in cols]
             if all(partes):
                 fila[0] = "_".join([spec["prefijo"], *partes])

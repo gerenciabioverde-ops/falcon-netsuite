@@ -20,7 +20,7 @@ El **EXTERNAL ID se genera solo** si se deja vacío, y es siempre el mismo para 
 
 | Plantilla | Formato | Ejemplo |
 |---|---|---|
-| Factura de Proveedor | `VENDB_{Proveedor}_{Serie}_{Número}` | `VENDB_296720_F001_12` |
+| Factura de Proveedor | `VENDB_{RUC}{Serie}{Número}` (todo junto, sin guiones) | `VENDB_20513497769FA0100018047` |
 | Pago Proveedor | `BP_PE_{Beneficiario}_{BILL}_{AAAAMMDD}` | `BP_PE_296720_25114824_20261009` |
 | Factura de Cliente | `FACT_VENTA_{Cliente}_{Serie}_{Número}` | |
 | Nota de crédito Cliente | `NotaCredito_{Cliente}_{Serie}_{Número}` | |
@@ -78,3 +78,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - **Proveedores Individual (persona):** en NetSuite una persona lleva Nombre y Apellido, no «Nombre de la empresa». La pestaña Proveedores tiene las columnas **Nombres** y **Apellidos** (se llenan solas y se pueden corregir): en mayúsculas (SUNAT, RUC 10) el orden es «APELLIDO APELLIDO NOMBRES»; en minúsculas (reporte de gastos), «Nombres Apellido Apellido». En el CSV, las personas salen con **Nombre** y **Apellido** y **Nombre de la empresa** en blanco; las empresas solo con Nombre de la empresa.
 
 - **Dirección del proveedor (CSV):** sigue la ventana de edición de dirección de NetSuite: País, Atención, Destinatario, Teléfono, Dirección 1, Dirección 2, Ciudad (distrito), County (departamento), Estado (Peru, como en los proveedores ya creados), Código ZIP, Legacy ID, EDI Location ID y el ubigeo. Etiqueta sale en blanco.
+
+- **External ID de Gastos y Factura de Proveedor:** `VENDB_` + RUC + Serie + Número, todo junto y sin guiones (`VENDB_20513497769FA0100018047`). Los períodos guardados con el formato anterior (`VENDB_RUC_Serie-Número`) se convierten solos al abrirlos, en Gastos y en Factura de Proveedor a la vez, para que sigan vinculados.
