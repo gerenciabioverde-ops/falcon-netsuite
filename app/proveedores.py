@@ -182,8 +182,7 @@ SALIDA = [
     "Latam Entidad - SUNAT País", "Latam Entidad - Código SUNAT del País",
     "Latam - Tipo de documento de identidad", "Latam - Código del tipo de documento de identidad",
     "Latam - Nro de registro de contribuyente", "Latam - ¿Es buen contribuyente?", "Latam - ¿Agente de retención?",
-    "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción", "Latam - Vínculo contrib. y res. extranj.",
-    "Latam - Vínculo contributivo y código de residencia extranjera", "Auto-Approve Bills", "Auto-Approve PO",
+    "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción",
 ]
 CODIGO_SUNAT_PERU = "9589"
 # Catálogo SUNAT N.° 6 (tipo de documento de identidad)
@@ -227,7 +226,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
             tipo_doc_por_numero(g(C_NUMERO), g(C_TIPO_DOC)), CODIGO_TIPO_DOC.get(tipo_doc_por_numero(g(C_NUMERO), g(C_TIPO_DOC)).upper(), ""),
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
-            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", "", "",       # Auto-Approve Bills / PO vacías
+            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"),
         ])
     return salida
 
