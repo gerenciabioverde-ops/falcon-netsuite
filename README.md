@@ -87,3 +87,5 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 - **CSV de Proveedores: nombres de columna como los campos de NetSuite.** «Apellidos» (antes Apellido) e «Individual» (antes Tipo) con `T` = persona / `F` = empresa; Envío y Facturación predeterminada en `T`. El CSV USD agrega, vacías, las columnas del formulario Internal ID, Buyer ID, JDE ID (ML), Comentarios, Auto-Approve Bills y Auto-Approve PO.
 
 - **CSV de Proveedores = formulario «Falcon Vendor Form - Latam Peru» (subsidiaria FCP):** principal (Formulario personalizado, External ID, Individual T/F, Nombre de la empresa o Nombre/Apellidos, Buyer ID = RUC o DNI, Subsidiaria principal `FCP`), sublista Dirección y LatamReady (SUNAT país, tipo de documento, nro. de registro, buen contribuyente, agente de retención/percepción, CtaCte detracción). Lo que no tiene dato sale vacío. Se quitó la pestaña «CSV Proveedor USD».
+
+- **Límite de 150 caracteres:** NetSuite rechaza una etiqueta o dirección de más de 150 caracteres («The field label contained more than the maximum number (150) of characters allowed»). En el CSV, Dirección 1 y Etiqueta se cortan a 150 y la fila lleva un aviso.
