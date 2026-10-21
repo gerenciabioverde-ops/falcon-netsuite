@@ -200,6 +200,16 @@ def _si_no(v: str) -> str:
     return "Sí" if _t(v).upper() in ("T", "TRUE", "SI", "SÍ", "S", "1") else "No"
 
 
+def tipo_doc_por_numero(numero: str, actual: str = "") -> str:
+    """Tipo de documento según el número: 8 dígitos = DNI, 11 dígitos = RUC (si no, se deja el que tenga la fila)."""
+    n = _t(numero)
+    if n.isdigit() and len(n) == 8:
+        return "DOCUMENTO NACIONAL DE IDENTIDAD (DNI)"
+    if n.isdigit() and len(n) == 11:
+        return "REGISTRO ÚNICO DE CONTRIBUYENTES"
+    return actual
+
+
 def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
     """Convierte filas (ya completadas, con las columnas de la pestaña Proveedores) a las columnas del CSV para NetSuite."""
     pos = {c: i for i, c in enumerate(encabezados)}
@@ -215,7 +225,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
             "", g(C_UBIGEO),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
-            g(C_TIPO_DOC), CODIGO_TIPO_DOC.get(g(C_TIPO_DOC).upper(), ""),
+            tipo_doc_por_numero(g(C_NUMERO), g(C_TIPO_DOC)), CODIGO_TIPO_DOC.get(tipo_doc_por_numero(g(C_NUMERO), g(C_TIPO_DOC)).upper(), ""),
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
             _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", "", "",       # Auto-Approve Bills / PO vacías
         ])
