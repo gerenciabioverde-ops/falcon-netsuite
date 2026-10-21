@@ -239,7 +239,7 @@ def a_salida_usd(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             "", "", SUBSIDIARIA_USD,
             "Sí", "Sí", "", pais,
             "", "", "", g(C_DIR1), "",
-            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
+            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), g(C_NUMERO),       # Legacy ID de la dirección = RUC (o DNI)
             "", g(C_UBIGEO),
         ])
     return salida
