@@ -91,6 +91,7 @@
             <thead><tr>
               <th>#</th>
               {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
+              {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado, la factura saldrá con VEND_RUC">ID Proveedor NetSuite</th>{% endif %}
               {% for c in p.columnas %}<th>{{ c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
             </tr></thead>
             <tbody></tbody>
@@ -341,7 +342,7 @@
     bEd.title = 'Editar esta fila en un formulario';
     n.append(num, bEd);
     tr.appendChild(n);
-    if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); }
+    if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); const ip = document.createElement('td'); ip.className = 'idp'; ip.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(ip); }
     p.columnas.forEach((c, i) => {
       const td = document.createElement('td'), inp = document.createElement('input');
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
@@ -382,7 +383,16 @@
     vbTemporizador = setTimeout(() => {
       if (!porClave.gastos || !porClave.hasOwnProperty || !document.getElementById('panel-gastos')) return;
       const ids = new Set([...cuerpo('factura de proveedor').rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
+      const iRucP = porClave.proveedores.columnas.findIndex(c => c.nombre === 'Latam - Tax Reg Number'), iIdP = porClave.proveedores.columnas.findIndex(c => c.nombre === 'External ID'), iRucG = porClave.gastos.columnas.findIndex(c => c.nombre === 'RUC');
+      const idsProv = {};       // RUC/DNI -> ID de NetSuite ('' si el proveedor está en la pestaña pero sin ID)
+      [...cuerpo('proveedores').rows].forEach(tr => { const v = tr.querySelectorAll('input'), r = v[iRucP].value.trim(), id = v[iIdP].value.trim(); if (r) idsProv[r] = /^\d+$/.test(id) ? id : ''; });
       [...cuerpo('gastos').rows].forEach(tr => {
+        const ip = tr.querySelector('td.idp'), ruc = ((tr.querySelectorAll('input')[iRucG] || {}).value || '').trim();
+        if (ip) {
+          if (!ruc) { ip.textContent = ''; ip.title = ''; }
+          else if (idsProv[ruc]) { ip.textContent = idsProv[ruc]; ip.style.color = '#15803d'; ip.style.background = ''; ip.title = 'ID de NetSuite del proveedor'; }
+          else { ip.textContent = '⚠ sin ID'; ip.style.color = '#b45309'; ip.style.background = '#fef3c7'; ip.title = ruc in idsProv ? 'El proveedor está en la pestaña Proveedores pero sin ID de NetSuite (cargue el export con «Cargar ID de NetSuite»)' : 'Este RUC/DNI no está en la pestaña Proveedores'; }
+        }
         const vb = tr.querySelector('td.vb'); if (!vb) return;
         const vals = [...tr.querySelectorAll('input')].map(i => i.value), id = (vals[0] || '').trim();
         if (!vals.some(v => v.trim())) { vb.textContent = ''; vb.title = ''; return; }
