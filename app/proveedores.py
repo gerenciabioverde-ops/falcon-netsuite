@@ -209,7 +209,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
             g(C_TIPO_DOC), CODIGO_TIPO_DOC.get(g(C_TIPO_DOC).upper(), ""),
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
-            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", "",
+            _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", g(C_NUMERO),       # Legacy NS ID = RUC (o DNI)
         ])
     return salida
 
