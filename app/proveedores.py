@@ -37,7 +37,7 @@ DIRECCION_DEFECTO = "JAEN - CAJAMARCA"
 
 # Subsidiaria principal del proveedor (ID interno de Falcon Perú en NetSuite, la misma de las demás hojas)
 SUBSIDIARIA = "43"
-SUBSIDIARIA_NOMBRE = "FCP"      # nombre de la subsidiaria en el formulario del proveedor (en el CSV)
+SUBSIDIARIA_NOMBRE = SUBSIDIARIA      # en el CSV va el Internal ID de la subsidiaria (43 = FCP), igual que en las demás plantillas; el nombre "FCP" NetSuite no lo reconoce
 
 REQUERIDOS = [C_ID, C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
               C_PERSONA, C_TIPO_DOC, C_NUMERO, C_SUBS]
