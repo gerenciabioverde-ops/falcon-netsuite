@@ -127,6 +127,8 @@ def completar(fila: list, idx) -> list:
     if not g(C_UBIGEO):       # sin ubigeo (el reporte de SUNAT no trae dirección): se usa el de Jaén para que el proveedor se pueda cargar
         fila[idx(C_UBIGEO)] = UBIGEO_DEFECTO
         avisos.append((C_UBIGEO, f"Sin ubigeo en SUNAT: se usó el de Jaén ({UBIGEO_DEFECTO}); corríjalo si conoce el real"))
+    if len(g(C_DIR1)) > MAX_DIRECCION:
+        avisos.append((C_DIR1, f"La dirección tiene {len(g(C_DIR1))} caracteres: NetSuite acepta {MAX_DIRECCION}, se corta en el CSV"))
     if not g(C_DIR1):
         fila[idx(C_DIR1)] = DIRECCION_DEFECTO
         avisos.append((C_DIR1, f"Sin dirección en SUNAT: se usó «{DIRECCION_DEFECTO}»; corríjala si conoce la real"))
@@ -198,6 +200,17 @@ def _si_no(v: str) -> str:
     return "Sí" if _t(v).upper() in ("T", "TRUE", "SI", "SÍ", "S", "1") else "No"
 
 
+MAX_DIRECCION = 150      # NetSuite: la etiqueta y la dirección no pueden pasar de 150 caracteres
+
+
+def _cortar(texto: str, n: int = MAX_DIRECCION) -> str:
+    """Corta al máximo que acepta NetSuite (en un espacio si se puede, para no dejar una palabra a medias)."""
+    if len(texto) <= n:
+        return texto
+    corte = texto[:n]
+    return (corte.rsplit(" ", 1)[0] if " " in corte[n // 2:] else corte).rstrip(" ,-.;")
+
+
 def tipo_doc_por_numero(numero: str, actual: str = "") -> str:
     """Tipo de documento según el número: 8 dígitos = DNI, 11 dígitos = RUC (si no, se deja el que tenga la fila)."""
     n = _t(numero)
@@ -218,8 +231,8 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         salida.append([
             FORMULARIO, "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), SUBSIDIARIA_NOMBRE,       # Buyer ID = RUC (o DNI)
-            "T", "T", g(C_DIR1),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
-            g(C_DIR1),
+            "T", "T", _cortar(g(C_DIR1)),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
+            _cortar(g(C_DIR1)),
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(),
             tipo_doc_por_numero(g(C_NUMERO), g(C_TIPO_DOC)),
