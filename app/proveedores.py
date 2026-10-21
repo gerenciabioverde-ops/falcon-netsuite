@@ -199,7 +199,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         pais = g(C_PAIS)
         salida.append([
             FORMULARIO, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", g(C_SUBS),
-            "Sí", "Sí", g(C_CIUDAD), pais,
+            "Sí", "Sí", "", pais,
             g(C_DIR1), g(C_CIUDAD), g(C_ESTADO), g(C_ZIP), g(C_UBIGEO),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
             g(C_TIPO_DOC), CODIGO_TIPO_DOC.get(g(C_TIPO_DOC).upper(), ""),
