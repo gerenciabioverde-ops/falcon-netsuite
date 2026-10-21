@@ -20,14 +20,14 @@ ENCABEZADOS = [
     "Latam - País de la entidad", "Latam - Tipo de Persona", "Latam - Tipo de doc. de identidad",
     "Latam - Tax Reg Number", "Latam - Dígito Verificador", "Latam - Es buen contribuyente?",
     "Latam - Es agente retención?", "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?",
-    "LATAM PE - CtaCte Detracción", "Tipo", "Subsidiaria",
+    "LATAM PE - CtaCte Detracción", "Tipo", "Subsidiaria", "Nombres", "Apellidos",
 ]
 C_ID, C_NOMBRE, C_DIR1 = "External ID", "Nombre de la empresa", "Dirección 1"
 C_CIUDAD, C_ESTADO, C_PAIS, C_ZIP, C_UBIGEO = "Ciudad", "Estado", "País", "Código ZIP", "Latam - PE Ubigeo"
 C_PAIS_SUB, C_PAIS_ENT = "Latam - País de la subsidiaria", "Latam - País de la entidad"
 C_PERSONA, C_TIPO_DOC, C_NUMERO, C_DIGITO = ("Latam - Tipo de Persona", "Latam - Tipo de doc. de identidad",
                                               "Latam - Tax Reg Number", "Latam - Dígito Verificador")
-C_TIPO, C_SUBS = "Tipo", "Subsidiaria"
+C_TIPO, C_SUBS, C_NOMBRES, C_APELLIDOS = "Tipo", "Subsidiaria", "Nombres", "Apellidos"
 C_CHECKS = ["Latam - Es buen contribuyente?", "Latam - Es agente retención?",
             "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?"]
 
@@ -80,6 +80,34 @@ def es_dni(tipo: str) -> bool:
     return "DNI" in t or "NACIONAL DE IDENTIDAD" in t
 
 
+_PARTICULAS = {"de", "del", "la", "las", "los", "y", "san", "santa"}
+
+
+def dividir_nombre(nombre: str) -> tuple[str, str]:
+    """Separa el nombre completo de una persona en (nombres, apellidos) para el formulario de NetSuite (Individual).
+    En mayúsculas (como viene de SUNAT para los RUC 10) el orden es «APELLIDO PATERNO MATERNO NOMBRES»; en otro caso
+    (reporte de gastos) es «Nombres Apellido Apellido». Las partículas («de la», «del»…) se pegan a la palabra siguiente."""
+    palabras = _t(nombre).split()
+    fichas: list[str] = []
+    pegar = ""
+    for w in palabras:
+        if w.lower() in _PARTICULAS:
+            pegar += w + " "
+            continue
+        fichas.append(pegar + w)
+        pegar = ""
+    if pegar:
+        fichas.append(pegar.strip())
+    if len(fichas) < 2:
+        return (fichas[0] if fichas else "", "")
+    mayusculas = _t(nombre).isupper()
+    if mayusculas:      # APELLIDO APELLIDO NOMBRE(S)
+        k = min(2, len(fichas) - 1)
+        return " ".join(fichas[k:]), " ".join(fichas[:k])
+    k = min(2, len(fichas) - 1)      # Nombre(s) Apellido Apellido
+    return " ".join(fichas[:-k]), " ".join(fichas[-k:])
+
+
 def tipo_entidad(numero: str) -> str:
     """Tipo de proveedor en NetSuite según el Tax Reg Number: 8 dígitos (DNI) = Individual, 11 dígitos (RUC) = Empresa."""
     n = _t(numero)
@@ -122,6 +150,12 @@ def completar(fila: list, idx) -> list:
     tipo, numero = g(C_TIPO_DOC), g(C_NUMERO)
     poner(C_TIPO, tipo_entidad(numero))
     poner(C_SUBS, SUBSIDIARIA)
+    if g(C_TIPO) == "Individual":
+        nombres, apellidos = dividir_nombre(g(C_NOMBRE))
+        poner(C_NOMBRES, nombres)
+        poner(C_APELLIDOS, apellidos)
+        if not g(C_APELLIDOS):
+            avisos.append((C_APELLIDOS, "No se pudo separar el nombre de los apellidos; complételos (NetSuite los exige para un proveedor Individual)"))
     if numero and es_ruc(tipo):
         poner(C_PERSONA, {"20": "Jurídico", "10": "Natural", "15": "Natural", "17": "Natural"}.get(numero[:2], ""))
         if numero.isdigit() and len(numero) == 11:
@@ -137,7 +171,7 @@ def completar(fila: list, idx) -> list:
 # NetSuite al registrar el proveedor.
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
-    "Formulario personalizado", "External ID", "Nombre de la empresa", "Tipo", "Dirección web", "Subsidiaria principal",
+    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Subsidiaria principal",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Dirección 1", "Dirección: Ciudad", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Latam - PE Ubigeo",
     "Latam Entidad - SUNAT País", "Latam Entidad - Código SUNAT del País",
@@ -164,7 +198,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, "", g(C_NOMBRE), g(C_TIPO), "", g(C_SUBS),
+            FORMULARIO, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", g(C_SUBS),
             "Sí", "Sí", g(C_CIUDAD), pais,
             g(C_DIR1), g(C_CIUDAD), g(C_ESTADO), g(C_ZIP), g(C_UBIGEO),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(), CODIGO_SUNAT_PERU if pais.lower() in ("peru", "perú") else "",
