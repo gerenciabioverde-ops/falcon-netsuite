@@ -28,7 +28,7 @@
           <td class="{{ 'text-red-700 font-semibold' if r.errores else '' }}">{{ r.errores }}</td>
           <td>{{ r.avisos }}</td>
           <td class="text-right">
-            {% if r.exportable %}<a class="text-blue-700 underline" href="/descargar/{{ token }}/{{ r.archivo }}">CSV</a>
+            {% if r.exportable %}<a class="text-blue-700 underline" href="/descargar/{{ token }}/{{ r.archivo }}">CSV</a> · <a class="text-blue-700 underline" href="/descargar/{{ token }}/{{ r.archivo_xlsx }}">Excel</a>
             {% elif not r.filas and not r.errores %}<span class="text-slate-400">sin datos</span>
             {% else %}<span class="text-red-700">corregir</span>{% endif %}
           </td>
