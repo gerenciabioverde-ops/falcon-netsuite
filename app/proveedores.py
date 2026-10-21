@@ -174,7 +174,7 @@ def completar(fila: list, idx) -> list:
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Internal ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
-    "Buyer ID", "Comentarios", "Subsidiaria principal",
+    "Buyer ID", "Subsidiaria principal",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
@@ -219,7 +219,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         pais = g(C_PAIS)
         salida.append([
             FORMULARIO, "", "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
-            g(C_NUMERO), "", SUBSIDIARIA_NOMBRE,       # Buyer ID = RUC (o DNI); Comentarios vacío
+            g(C_NUMERO), SUBSIDIARIA_NOMBRE,       # Buyer ID = RUC (o DNI)
             "T", "T", "", pais,       # Envío y Facturación predeterminada (casillas: T/F)
             "", "", "", g(C_DIR1), "",
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
