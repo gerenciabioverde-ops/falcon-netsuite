@@ -175,7 +175,7 @@ FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
     "Buyer ID", "Subsidiaria principal",
-    "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
+    "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta",
     "Dirección: Dirección 1",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP",
     "Latam Entidad - SUNAT País",
@@ -218,7 +218,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         salida.append([
             FORMULARIO, "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), SUBSIDIARIA_NOMBRE,       # Buyer ID = RUC (o DNI)
-            "T", "T", g(C_DIR1), pais,       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
+            "T", "T", g(C_DIR1),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
             g(C_DIR1),
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(),
