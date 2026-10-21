@@ -342,7 +342,7 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
 
 
 @app.post("/proveedores/csv")
-def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", variante: str = "", filas: list[list[str]] = Body(...)):
+def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", filas: list[list[str]] = Body(...)):
     """Vista previa del CSV de proveedores tal como se enviará a NetSuite (ya completado y validado) + token para descargarlo."""
     if formato_fecha not in FORMATOS_FECHA:
         raise HTTPException(400, "Formato de fecha no válido")
@@ -357,12 +357,6 @@ def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", varian
             armado.append((pos, celdas))
     if len(armado) <= 1:
         res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
-    elif variante == "usd":         # subsidiaria FCP (USD): mismas validaciones, otro formulario de NetSuite
-        res = validar_hoja(hoja, armado, formato_fecha, periodo or None)
-        if res.filas:
-            res.filas = proveedores.a_salida_usd(res.encabezados, res.filas)
-            res.encabezados_origen, res.encabezados = res.encabezados, list(proveedores.SALIDA_USD)
-        res.nombre = "Proveedores USD"
     else:
         res = procesar({"proveedores": armado}, PLANTILLA, formato_fecha, periodo or None)[0]
     por_fila: dict[int, list[dict]] = {}
