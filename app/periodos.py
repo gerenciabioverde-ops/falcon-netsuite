@@ -29,7 +29,7 @@ def _ruta(periodo: str) -> Path:
 
 
 def _fila_gastos(f: list) -> list:
-    """Lleva una fila de Gastos al diseño actual (34 columnas). Se reconoce el diseño por el contenido: en el diseño
+    """Lleva una fila de Gastos al diseño actual (37 columnas; las 3 últimas —% Retención, Monto Retención y Código de impuesto— se agregaron al final). Se reconoce el diseño por el contenido: en el diseño
     de 19 columnas la columna 10 es la Moneda (PEN/USD); en el actual es la Cuenta NetSuite (un número). Así también se
     arreglan filas de 19 columnas que se guardaron rellenadas con celdas vacías hasta 21."""
     f = list(f)
@@ -38,9 +38,9 @@ def _fila_gastos(f: list) -> list:
     if len(f) >= 19 and str(f[10]).strip().upper() in ("PEN", "USD", "SOL"):
         f = [*f[:9], "", "", *f[9:19]]
     if len(f) >= 34:
-        return f[:34]
+        return (f + [""] * 3)[:37]
     f = (f + [""] * 32)[:32]
-    return [*f[:17], "", "", *f[17:]]          # N° Constancia y N° Operación Detr. van después de Fecha Detr.
+    return [*f[:17], "", "", *f[17:], "", "", ""]          # N° Constancia y N° Operación Detr. van después de Fecha Detr.
 
 
 # Nombres anteriores de los departamentos de Gastos -> nombres actuales
@@ -52,9 +52,9 @@ def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
-        g["filas"] = [_fila_gastos(f) if 18 <= len(f) <= 32 else f for f in g["filas"]]
+        g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 37) else f for f in g["filas"]]
         for f in g["filas"]:
-            if len(f) == 34 and str(f[24]).strip().lower() in _DEPARTAMENTOS_ANTES:
+            if len(f) >= 34 and str(f[24]).strip().lower() in _DEPARTAMENTOS_ANTES:
                 f[24] = _DEPARTAMENTOS_ANTES[str(f[24]).strip().lower()]
     return datos
 

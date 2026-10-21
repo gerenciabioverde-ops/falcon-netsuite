@@ -355,6 +355,7 @@
       if (clave === 'gastos' && c.nombre === COL_PAG) inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_PAGNS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
       if (clave === 'gastos' && c.nombre === 'Monto Pagado') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − Monto Detr.'; }
+      if (clave === 'gastos' && c.nombre === 'Monto Retención') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total × % Retención'; }
       if (clave === 'gastos' && c.nombre === 'Neto a Pagar') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − detracción'; }
       if (clave === 'gastos' && c.nombre === COL_NS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: ID interno de la cuenta PCGE según «Cuentas homologadas»'; }
       if (c.numero) numeroVisual(inp);
@@ -379,7 +380,7 @@
   }
 
   // Gastos -> Factura de Proveedor: solo pasa el documento que tiene la información necesaria; la columna «V°B° Factura» muestra ✔ si ya pasó
-  const REQ_PASO = ['RUC', 'Razon Social', 'Tipo Doc', 'Serie-Numero', 'Fecha Factura', 'Moneda', 'Sub-Total', 'Total', 'Cuenta PCGE', 'Cuenta NetSuite', 'Cuenta por Pagar NetSuite', 'Met. Pago', 'Departamento'];
+  const REQ_PASO = ['RUC', 'Razon Social', 'Tipo Doc', 'Serie-Numero', 'Fecha Factura', 'Moneda', 'Sub-Total', 'Total', 'Cuenta PCGE', 'Cuenta NetSuite', 'Cuenta por Pagar NetSuite', 'Met. Pago', 'Departamento', 'Código de impuesto'];
   const COL_IDPROV = 'ID Proveedor NetSuite';       // columna solo de lectura de Gastos: el proveedor debe tener ID de NetSuite para que el gasto pase
   const faltantesGasto = vals => {
     const f = REQ_PASO.filter(n => !String(vals[porClave.gastos.columnas.findIndex(c => c.nombre === n)] || '').trim());
@@ -564,7 +565,7 @@
   const tipoTransaccionOtros = t => { const k = quitarTildes(t); return TIPO_OTROS[k] || (k.startsWith('liquidaci') ? 'Liquidaciones Varias' : 'Boleta de Venta'); };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '');       // solo letras y números: FA01-00018047 -> FA0100018047
   const GF = 'gastos', FP = 'factura de proveedor';
-  const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación', 'Gastos: Código de impuesto'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
+  const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
   // Fila de Factura de Proveedor que corresponde a una fila de Gastos (o null si no tiene RUC y Serie-Número)
   function facturaDeGasto(g) {
     const ig = n => porClave[GF].columnas.findIndex(c => c.nombre === n), iF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
@@ -583,7 +584,7 @@
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno
     poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
     poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco
-    poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Código de impuesto', numero(v('Igv')) > 0 ? 'VAT_PE:S-PE' : 'VAT_PE:E-PE'); poner('Gastos: Nota', v('Descripción Gasto'));
+    poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Código de impuesto', v('Código de impuesto') || (numero(v('Igv')) > 0 ? 'VAT_PE:S-PE' : 'VAT_PE:E-PE')); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
   // modo 'completar': solo celdas vacías (botón de Gastos). modo 'actualizar': también cambia lo que ya no coincide con Gastos.
@@ -719,12 +720,25 @@
     if (recalcular || !ins[colG(COL_PAG)].value.trim()) ins[colG(COL_PAG)].value = pagarPorTipo(tipo);
     ins[colG(COL_PAGNS)].value = cuentaNS(ins[colG(COL_PAG)].value) || ins[colG(COL_PAGNS)].value;
   }
+  // Código de impuesto del gasto (pasa a «Gastos: Código de impuesto» de Factura de Proveedor): con IGV = S-PE; sin IGV = E-PE (exonerado, en amarillo para revisar:
+  // puede ser inafecto I-PE); recibo por honorarios: con % de retención = R10-PE, sin retención = E-PE. Monto Retención = Total × %
+  const COL_RET = '% Retención', COL_MRET = 'Monto Retención', COL_COD = 'Código de impuesto';
+  function completarImpuesto(tr, desdeRetencion) {
+    const ins = [...tr.querySelectorAll('input')], v = n => ins[colG(n)];
+    if (!v('Total').value.trim() && !v('Tipo Doc').value.trim()) return;       // fila vacía
+    const pct = numero(v(COL_RET).value), rhe = /honorarios/i.test(v('Tipo Doc').value), c = v(COL_COD);
+    v(COL_MRET).value = pct > 0 && v('Total').value.trim() ? fmt2(numero(v('Total').value) * pct / 100) : '';
+    const propio = !c.value.trim() || c.classList.contains('propuesta');       // lo escrito a mano no se pisa (salvo al cambiar la retención de un recibo por honorarios)
+    if (rhe) { if (desdeRetencion || !c.value.trim()) { c.value = pct > 0 ? 'VAT_PE:R10-PE' : 'VAT_PE:E-PE'; c.classList.remove('propuesta'); } return; }
+    if (propio) { c.value = numero(v('Igv').value) > 0 ? 'VAT_PE:S-PE' : 'VAT_PE:E-PE'; c.classList.toggle('propuesta', !(numero(v('Igv').value) > 0)); }
+  }
   function completarIdGasto(tr) {
     const ins = tr.querySelectorAll('input'), iM = colG('Met. Pago');
     completarCuentaPagar(tr, false);
     if (!ins[0].value.trim()) ins[0].value = idGasto([...ins].map(i => i.value));
     if (!ins[iM].value.trim()) ins[iM].value = metodoPago(ins[colG('Caja')].value);
     completarDetraccion(tr, false);
+    completarImpuesto(tr, false);
   }
   // Departamento / Clase: al elegir uno en un gasto se ofrece copiarlo a los demás gastos del mismo concepto que lo tienen vacío
   function ofrecerAplicarCol(tr, nombre) {
@@ -761,10 +775,13 @@
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
     if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero'), colG('Caja')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
-    if (i instanceof HTMLInputElement && +i.dataset.col === colG('Tipo Doc')) { completarCuentaPagar(i.closest('tr'), true); guardar(); return; }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG('Tipo Doc')) { completarCuentaPagar(i.closest('tr'), true); completarImpuesto(i.closest('tr'), false); guardar(); return; }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG(COL_RET)) { completarImpuesto(i.closest('tr'), true); guardar(); return; }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG('Igv')) { completarImpuesto(i.closest('tr'), false); guardar(); contadores(); return; }
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG(COL_COD)) { i.classList.remove('propuesta'); guardar(); contadores(); return; }
     if (i instanceof HTMLInputElement && +i.dataset.col === colG(COL_PAG)) { const ins = i.closest('tr').querySelectorAll('input'); ins[colG(COL_PAGNS)].value = cuentaNS(i.value); guardar(); return; }
     if (i instanceof HTMLInputElement && [colG(COL_SUJ), colG(COL_CDET), colG('Total')].includes(+i.dataset.col)) {
-      completarDetraccion(i.closest('tr'), +i.dataset.col !== colG('Total')); guardar(); return;
+      completarDetraccion(i.closest('tr'), +i.dataset.col !== colG('Total')); completarImpuesto(i.closest('tr'), false); guardar(); return;
     }
     if (i instanceof HTMLInputElement && +i.dataset.col === colG('Monto Detr.')) { completarDetraccion(i.closest('tr'), false); guardar(); return; }
     if (i instanceof HTMLInputElement && [colG('Departamento'), colG('Clase')].includes(+i.dataset.col)) { i.classList.remove('propuesta'); guardar(); ofrecerAplicarCol(i.closest('tr'), porClave.gastos.columnas[+i.dataset.col].nombre); return; }
@@ -1101,7 +1118,9 @@
     const ins = tr.querySelectorAll('input');
     const iP = mClave === 'gastos' ? colG(COL_PCGE) : -1, antes = iP >= 0 ? ins[iP].value : '';
     const antesDC = mClave === 'gastos' ? ['Departamento', 'Clase'].map(n => [n, ins[colG(n)].value]) : [];
+    const antesRet = mClave === 'gastos' ? ins[colG(COL_RET)].value : '', antesCod = mClave === 'gastos' ? ins[colG(COL_COD)].value : '';
     camposModal().forEach((m, i) => { ins[i].value = m.value; });
+    if (mClave === 'gastos') { if (ins[colG(COL_COD)].value !== antesCod) ins[colG(COL_COD)].classList.remove('propuesta'); completarImpuesto(tr, ins[colG(COL_RET)].value !== antesRet); }
     if (iP >= 0 && ins[iP].value !== antes) { ins[iP].classList.remove('propuesta'); sincronizarNS(tr); }
     guardar(); contadores();
     if (iP >= 0 && ins[iP].value.trim() && ins[iP].value !== antes) ofrecerAplicar(tr, ins[iP].value.trim());

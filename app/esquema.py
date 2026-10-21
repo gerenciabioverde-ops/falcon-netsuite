@@ -105,6 +105,7 @@ GASTOS_ENCABEZADOS = [
     "Sujeto a Detracción", "Concepto Detracción", "% Detracción",
     "Clasificación Bienes y Servicios", "Tipo Operación SUNAT", "Neto a Pagar",
     "Cuenta por Pagar PCGE", "Cuenta por Pagar NetSuite",
+    "% Retención", "Monto Retención", "Código de impuesto",      # al final para no mover las demás columnas de los datos guardados
 ]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
@@ -144,7 +145,8 @@ HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Ga
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
 LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
-                                                "Sujeto a Detracción": ["Sí", "No"]}}
+                                                "Sujeto a Detracción": ["Sí", "No"],
+                                                "Código de impuesto": ["VAT_PE:S-PE", "VAT_PE:E-PE", "VAT_PE:I-PE", "VAT_PE:R10-PE"]}}
 # Tabla de detracciones (concepto -> porcentaje) de la hoja DATA MAESTRA de la plantilla; se llena en cargar_plantilla()
 DETRACCIONES: dict[str, float] = {}
 # Códigos de concepto de detracción que son servicios (Anexo 3): a esos les corresponde el tipo de operación «prestación de servicios…»
@@ -167,7 +169,7 @@ REGLAS["Proveedores"] = {
 REGLAS["Gastos"] = {
     "requeridos": ["Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto", "Moneda", "Sub-Total", "Total"],
     "fechas": ["Fecha Factura", "Fecha Pago", "Fecha Detr."],
-    "numericos": ["Sub-Total", "Igv", "Total", "Monto Detr.", "Monto Pagado"],
+    "numericos": ["Sub-Total", "Igv", "Total", "Monto Detr.", "Monto Pagado", "Monto Retención"],
     "ruc_o_dni": "RUC",
     "cuadre_total": ("Sub-Total", "Igv", "Total"),
     "unico_compuesto": ["RUC", "Serie-Numero"],
