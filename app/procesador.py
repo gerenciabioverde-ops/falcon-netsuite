@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
-from . import esquema, gastos_cuentas, homologacion, periodos, proveedores
+from . import esquema, gastos_cuentas, homologacion, ids, periodos, proveedores
 from .esquema import Hoja, Plantilla, norm
 
 FORMATOS_FECHA = {
@@ -266,9 +266,7 @@ def generar_ids(hoja: Hoja, filas: list[tuple[int, list]]) -> list[tuple[int, li
                 quitar = spec.get("quitar_primero", "")
                 if quitar and crudo[0].startswith(quitar):
                     crudo[0] = crudo[0][len(quitar):]
-                partes = [re.sub(r"[^A-Za-z0-9]+", "", c) for c in crudo]
-                if all(partes):
-                    fila[0] = f"{spec['prefijo']}_{''.join(partes)}"
+                fila[0] = ids.id_comprobante(spec["prefijo"], *crudo) or fila[0]
                 continue
             partes = [_clave(fila[i], f) for i, f in cols]
             if all(partes):
