@@ -512,21 +512,21 @@
   }));
 
 
-  // Gastos -> Factura de Proveedor: una fila por gasto con el mismo External ID (VENDB_RUC_Serie-Número)
+  // Gastos -> Factura de Proveedor: una fila por gasto con el mismo External ID (VENDB_RUC+Serie+Número, todo junto)
   const MONEDA_NS = { PEN: 'SOL', USD: 'USD' };
   const METODO_NS = { 'Transferencia de Fondos': 'PE - TRANSFERENCIA DE FONDOS', 'Efectivo': 'PE - EFECTIVO, EN LOS DEMÁS CASOS' };
   const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
   // Tipos que no están en la lista de NetSuite: liquidación de gastos, planilla de movilidad y recibo -> «Otros Gastos»; liquidación de compra -> «Liquidaciones Varias»; el resto -> «Boleta de Venta»
   const TIPO_OTROS = { 'liquidacion de gastos': 'Otros Gastos', 'planilla de movilidad': 'Otros Gastos', 'recibo': 'Otros Gastos' };
   const tipoTransaccionOtros = t => { const k = quitarTildes(t); return TIPO_OTROS[k] || (k.startsWith('liquidaci') ? 'Liquidaciones Varias' : 'Boleta de Venta'); };
-  const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '');       // solo letras y números: FA01-00018047 -> FA0100018047
   const GF = 'gastos', FP = 'factura de proveedor';
   const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación', 'Gastos: Código de impuesto'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
   // Fila de Factura de Proveedor que corresponde a una fila de Gastos (o null si no tiene RUC y Serie-Número)
   function facturaDeGasto(g) {
     const ig = n => porClave[GF].columnas.findIndex(c => c.nombre === n), iF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
     const v = n => (g[ig(n)] || '').trim(), ruc = limpiarId(v('RUC')), sn = v('Serie-Numero');
-    const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + '_' + limpiarId(sn) : '');
+    const id = v('External ID') || (ruc && limpiarId(sn) ? 'VENDB_' + ruc + limpiarId(sn) : '');
     if (!id) return null;
     const cortar = sn.indexOf('-'), fila = new Array(porClave[FP].columnas.length).fill('');
     const poner = (n, val) => { fila[iF(n)] = val; };
@@ -622,8 +622,8 @@
       const o = document.createElement('option'); o.value = f.falcon; o.label = f.nombre_es || f.nombre_falcon || f.nombre_netsuite || ''; dl.appendChild(o);
     });
   }
-  // External ID de Gastos (VENDB_RUC_Serie-Número): se muestra ya completo apenas hay RUC y Serie-Número
-  const idGasto = vals => { const ruc = limpiarId(vals[colG('RUC')]), sn = limpiarId(vals[colG('Serie-Numero')]); return ruc && sn ? 'VENDB_' + ruc + '_' + sn : ''; };
+  // External ID de Gastos (VENDB_RUC+Serie+Número, todo junto): se muestra ya completo apenas hay RUC y Serie-Número
+  const idGasto = vals => { const ruc = limpiarId(vals[colG('RUC')]), sn = limpiarId(vals[colG('Serie-Numero')]); return ruc && sn ? 'VENDB_' + ruc + sn : ''; };
   // Met. Pago según la Caja: con número de cuenta = Transferencia de Fondos; Caja Chica = Efectivo
   const metodoPago = caja => { const c = String(caja || '').trim().toLowerCase(); return !c ? '' : c.includes('caja chica') ? 'Efectivo' : /\d/.test(c) ? 'Transferencia de Fondos' : ''; };
   // Detracción SUNAT: Sujeto (Sí/No) + Concepto -> % de la tabla de la plantilla -> Monto Detr. = Total × %

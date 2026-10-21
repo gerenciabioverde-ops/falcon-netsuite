@@ -59,9 +59,27 @@ def _migrar(datos: dict) -> dict:
     return datos
 
 
+_ID_ANTIGUO = re.compile(r"^VENDB_([A-Za-z0-9-]+)_([A-Za-z0-9-]+)$")
+
+
+def _id_nuevo(valor) -> str:
+    """VENDB_RUC_Serie-Número (formato anterior) -> VENDB_RUC+SerieNúmero sin separadores (VENDB_20513497769FA0100018047)."""
+    m = _ID_ANTIGUO.match(str(valor or "").strip())
+    return "VENDB_" + m.group(1).replace("-", "") + m.group(2).replace("-", "") if m else valor
+
+
+def _migrar_ids(datos: dict) -> dict:
+    for clave in ("gastos", "factura de proveedor"):
+        h = (datos.get("hojas") or {}).get(clave)
+        for f in (h or {}).get("filas") or []:
+            if f:
+                f[0] = _id_nuevo(f[0])
+    return datos
+
+
 def leer(periodo: str) -> dict:
     try:
-        return _migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8")))
+        return _migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8"))))
     except (FileNotFoundError, ValueError):
         return {"actualizado": "", "hojas": {}}
 

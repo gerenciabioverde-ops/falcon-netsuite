@@ -37,7 +37,7 @@ REGLAS: dict[str, dict] = {
         "lineas_desde": "Artículos: Artículo",
         "autocalcular": [("Artículos: Importe", "Artículos: Cantidad", "Artículos: Tarifa")],
         "cuentas": ["Cuenta", "Gastos: Cuenta"],
-        "id_auto": {"prefijo": "VENDB", "campos": ["Proveedor", "Latam - Serie CxP", "Latam - Número Preimpreso"]},
+        "id_auto": {"prefijo": "VENDB", "campos": ["Proveedor", "Latam - Serie CxP", "Latam - Número Preimpreso"], "sin_separador": True, "quitar_primero": "VEND_"},
     },
     "Pago Proveedor": {
         "requeridos": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "ACCOUNT", "CURRENCY", "EXCHANGE RATE",
@@ -172,7 +172,7 @@ REGLAS["Gastos"] = {
     "cuadre_total": ("Sub-Total", "Igv", "Total"),
     "unico_compuesto": ["RUC", "Serie-Numero"],
     "unico_id": True,
-    "id_auto": {"prefijo": "VENDB", "campos": ["RUC", "Serie-Numero"]},
+    "id_auto": {"prefijo": "VENDB", "campos": ["RUC", "Serie-Numero"], "sin_separador": True},
     "cuenta_gasto": ("Cuenta PCGE", "Cuenta NetSuite"),
     "metodo_pago": ("Caja", "Met. Pago"),
     "cuenta_pagar": {"pcge": "Cuenta por Pagar PCGE", "ns": "Cuenta por Pagar NetSuite", "tipo": "Tipo Doc"},
