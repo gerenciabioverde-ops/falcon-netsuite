@@ -77,7 +77,7 @@ Las pestañas guardan un borrador en el navegador. «Artículos: Importe» se ca
 
 - **Proveedores Individual (persona):** en NetSuite una persona lleva Nombre y Apellido, no «Nombre de la empresa». La pestaña Proveedores tiene las columnas **Nombres** y **Apellidos** (se llenan solas y se pueden corregir): en mayúsculas (SUNAT, RUC 10) el orden es «APELLIDO APELLIDO NOMBRES»; en minúsculas (reporte de gastos), «Nombres Apellido Apellido». En el CSV, las personas salen con **Nombre** y **Apellido** y **Nombre de la empresa** en blanco; las empresas solo con Nombre de la empresa.
 
-- **Dirección del proveedor (CSV):** sigue la ventana de edición de dirección de NetSuite: País, Dirección 1, Ciudad (distrito), County (departamento), Estado (Peru, como en los proveedores ya creados), Código ZIP y el ubigeo. Etiqueta sale en blanco.
+- **Dirección del proveedor (CSV):** sigue la ventana de edición de dirección de NetSuite: País, Dirección 1, Ciudad (distrito), County (departamento), Estado (Peru, como en los proveedores ya creados) y Código ZIP. Etiqueta sale en blanco.
 
 - **External ID de Gastos y Factura de Proveedor:** `VENDB_` + RUC + Serie + Número, todo junto y sin guiones (`VENDB_20513497769FA0100018047`). Los períodos guardados con el formato anterior (`VENDB_RUC_Serie-Número`) se convierten solos al abrirlos, en Gastos y en Factura de Proveedor a la vez, para que sigan vinculados.
 

@@ -178,7 +178,6 @@ SALIDA = [
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Dirección 1",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP",
-    "Dirección: Latam - PE Ubigeo",
     "Latam Entidad - SUNAT País",
     "Latam - Tipo de documento de identidad",
     "Latam - Nro de registro de contribuyente", "Latam - ¿Es buen contribuyente?", "Latam - ¿Agente de retención?",
@@ -222,7 +221,6 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             "T", "T", g(C_DIR1), pais,       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
             g(C_DIR1),
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP),
-            g(C_UBIGEO),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(),
             tipo_doc_por_numero(g(C_NUMERO), g(C_TIPO_DOC)),
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
