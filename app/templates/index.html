@@ -217,13 +217,30 @@
   const $id = id => document.getElementById(id);
   // Como en Excel: las fechas se ven D/M/AAAA (9/10/2026), aunque el reporte las traiga como 2026-10-09
   const fechaExcel = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '').trim()); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : v; };
+  // Nombre completo -> [nombres, apellidos] (misma regla que el servidor): en mayúsculas «APELLIDO APELLIDO NOMBRES», si no «Nombres Apellido Apellido»
+  function dividirNombre(nombre) {
+    const part = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'san', 'santa']), fichas = [];
+    let pegar = '';
+    String(nombre || '').trim().split(/\s+/).filter(Boolean).forEach(w => { if (part.has(w.toLowerCase())) { pegar += w + ' '; return; } fichas.push(pegar + w); pegar = ''; });
+    if (pegar) fichas.push(pegar.trim());
+    if (fichas.length < 2) return [fichas[0] || '', ''];
+    const k = Math.min(2, fichas.length - 1), may = String(nombre).trim() === String(nombre).trim().toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(nombre);
+    return may ? [fichas.slice(k).join(' '), fichas.slice(0, k).join(' ')] : [fichas.slice(0, -k).join(' '), fichas.slice(-k).join(' ')];
+  }
   // Proveedores: Tipo según el Tax Reg Number (8 dígitos = DNI = Individual, 11 dígitos = RUC = Empresa)
+  function completarNombresProv(tr, cols, ins, recalcular) {       // persona: NetSuite pide Nombre y Apellidos por separado
+    const iNo = cols.findIndex(c => c.nombre === 'Nombres'), iA = cols.findIndex(c => c.nombre === 'Apellidos'), iE = cols.findIndex(c => c.nombre === 'Nombre de la empresa');
+    if (iNo < 0 || iA < 0 || (!recalcular && (ins[iNo].value.trim() || ins[iA].value.trim()))) return;
+    const [no, ap] = dividirNombre(ins[iE].value); ins[iNo].value = no; ins[iA].value = ap;
+  }
   function completarTipoProv(tr, recalcular) {
     const cols = porClave.proveedores.columnas, ins = tr.querySelectorAll('input');
     const iN = cols.findIndex(c => c.nombre === 'Latam - Tax Reg Number'), iT = cols.findIndex(c => c.nombre === 'Tipo');
-    if (iN < 0 || iT < 0 || (ins[iT].value.trim() && !recalcular)) return;
+    if (iN < 0 || iT < 0) return;
     const n = ins[iN].value.trim();
+    if (ins[iT].value.trim() && !recalcular) { if (ins[iT].value === 'Individual') completarNombresProv(tr, cols, ins); return; }
     ins[iT].value = /^\d{8}$/.test(n) ? 'Individual' : /^\d{11}$/.test(n) ? 'Empresa' : (recalcular ? '' : ins[iT].value);
+    if (ins[iT].value === 'Individual') completarNombresProv(tr, cols, ins, recalcular);
   }
   // Valores fijos de la plantilla (subsidiaria, ubicación): se ven en la grilla apenas la fila tiene datos
   function aplicarDefectos(clave, tr, salvo) {
