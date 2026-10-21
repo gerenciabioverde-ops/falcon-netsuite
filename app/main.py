@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.concurrency import run_in_threadpool
 
-from . import carga, gastos_cuentas, homologacion, periodos
+from . import carga, gastos_cuentas, homologacion, periodos, proveedores
 from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, reporte_errores_xlsx, validar_hoja
 
@@ -342,7 +342,7 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
 
 
 @app.post("/proveedores/csv")
-def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", filas: list[list[str]] = Body(...)):
+def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", variante: str = "", filas: list[list[str]] = Body(...)):
     """Vista previa del CSV de proveedores tal como se enviará a NetSuite (ya completado y validado) + token para descargarlo."""
     if formato_fecha not in FORMATOS_FECHA:
         raise HTTPException(400, "Formato de fecha no válido")
@@ -355,7 +355,16 @@ def proveedores_csv(formato_fecha: str = "DD/MM/YYYY", periodo: str = "", filas:
         celdas = [(c.strip() if isinstance(c, str) and c.strip() else None) for c in (fila + [""] * n)[:n]]
         if any(c is not None for c in celdas):
             armado.append((pos, celdas))
-    res = procesar({"proveedores": armado}, PLANTILLA, formato_fecha, periodo or None)[0] if len(armado) > 1 else ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
+    if len(armado) <= 1:
+        res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
+    elif variante == "usd":         # subsidiaria FCP (USD): mismas validaciones, otro formulario de NetSuite
+        res = validar_hoja(hoja, armado, formato_fecha, periodo or None)
+        if res.filas:
+            res.filas = proveedores.a_salida_usd(res.encabezados, res.filas)
+            res.encabezados_origen, res.encabezados = res.encabezados, list(proveedores.SALIDA_USD)
+        res.nombre = "Proveedores USD"
+    else:
+        res = procesar({"proveedores": armado}, PLANTILLA, formato_fecha, periodo or None)[0]
     por_fila: dict[int, list[dict]] = {}
     for p in res.problemas:
         por_fila.setdefault(p.fila or 0, []).append({"nivel": p.nivel, "columna": p.columna, "mensaje": p.mensaje})

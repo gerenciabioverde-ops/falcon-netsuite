@@ -212,3 +212,34 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"), "", "", "",
         ])
     return salida
+
+
+# ---------- CSV para la subsidiaria USD (formulario «Formulario de proveedor estándar_2») ----------
+FORMULARIO_USD = "Formulario de proveedor estándar_2"
+SUBSIDIARIA_USD = "FCP (USD)"
+SALIDA_USD = [
+    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Categoría",
+    "Correo electrónico", "Teléfono", "Subsidiaria principal",
+    "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
+    "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
+    "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
+    "Dirección: EDI Location ID #", "Dirección: Latam - PE Ubigeo",
+]
+
+
+def a_salida_usd(encabezados: list[str], filas: list[list]) -> list[list[str]]:
+    """CSV de proveedores para la subsidiaria FCP (USD): formulario estándar (sin la sección LatamReady), mismos datos de la pestaña."""
+    pos = {c: i for i, c in enumerate(encabezados)}
+    salida = []
+    for f in filas:
+        g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
+        pais = g(C_PAIS)
+        salida.append([
+            FORMULARIO_USD, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", "",
+            "", "", SUBSIDIARIA_USD,
+            "Sí", "Sí", "", pais,
+            "", "", "", g(C_DIR1), "",
+            g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
+            "", g(C_UBIGEO),
+        ])
+    return salida
