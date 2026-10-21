@@ -90,6 +90,7 @@
           <table class="grilla border-collapse text-left">
             <thead><tr>
               <th>#</th>
+              {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
               {% for c in p.columnas %}<th>{{ c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
             </tr></thead>
             <tbody></tbody>
@@ -339,6 +340,7 @@
     bEd.title = 'Editar esta fila en un formulario';
     n.append(num, bEd);
     tr.appendChild(n);
+    if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); }
     p.columnas.forEach((c, i) => {
       const td = document.createElement('td'), inp = document.createElement('input');
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
@@ -370,7 +372,28 @@
       .filter(f => conVacias || f.some(v => v.trim() !== ''));
   }
 
+  // Gastos -> Factura de Proveedor: solo pasa el documento que tiene la información necesaria; la columna «V°B° Factura» muestra ✔ si ya pasó
+  const REQ_PASO = ['RUC', 'Razon Social', 'Tipo Doc', 'Serie-Numero', 'Fecha Factura', 'Moneda', 'Sub-Total', 'Total', 'Cuenta PCGE', 'Cuenta NetSuite', 'Cuenta por Pagar NetSuite', 'Met. Pago', 'Departamento'];
+  const faltantesGasto = vals => REQ_PASO.filter(n => !String(vals[porClave.gastos.columnas.findIndex(c => c.nombre === n)] || '').trim());
+  let vbTemporizador = null;
+  function vistoBuenoFactura() {
+    clearTimeout(vbTemporizador);
+    vbTemporizador = setTimeout(() => {
+      if (!porClave.gastos || !porClave.hasOwnProperty || !document.getElementById('panel-gastos')) return;
+      const ids = new Set([...cuerpo('factura de proveedor').rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
+      [...cuerpo('gastos').rows].forEach(tr => {
+        const vb = tr.querySelector('td.vb'); if (!vb) return;
+        const vals = [...tr.querySelectorAll('input')].map(i => i.value), id = (vals[0] || '').trim();
+        if (!vals.some(v => v.trim())) { vb.textContent = ''; vb.title = ''; return; }
+        const f = faltantesGasto(vals), enFactura = id && ids.has(id);
+        if (f.length) { vb.textContent = '⚠'; vb.style.color = '#b45309'; vb.title = (enFactura ? 'Ya está en Factura de Proveedor pero le falta: ' : 'No pasa a Factura de Proveedor: falta ') + f.join(', '); return; }
+        vb.textContent = enFactura ? '✔' : ''; vb.style.color = '#15803d';
+        vb.title = enFactura ? 'Ya pasó a Factura de Proveedor' : 'Listo para pasar a Factura de Proveedor';
+      });
+    }, 250);
+  }
   function contadores() {
+    vistoBuenoFactura();
     document.querySelectorAll('.tab').forEach(b => {
       const k = b.dataset.tab, c = b.querySelector('.contador');
       if (!c) return;
@@ -549,10 +572,12 @@
     const iCuentaFP = porClave[FP].columnas.findIndex(c => c.nombre === 'Cuenta');
     const idsPagarAuto = new Set([CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, ...['421201', '424001', '469901'].map(cuentaID).filter(Boolean)]);       // IDs que puso la app en versiones anteriores
     const colsFijas = new Set(FIJOS_FACTURA.map(n => porClave[FP].columnas.findIndex(c => c.nombre === n)));
-    const r = { nuevas: [], cambios: [], vinculadas: [], sinCambios: 0, sinId: 0, sinCuenta: 0 };
+    const r = { nuevas: [], cambios: [], vinculadas: [], sinCambios: 0, sinId: 0, sinCuenta: 0, incompletas: [] };
     leer(GF).forEach(g => {
       const f = facturaDeGasto(g);
       if (!f) { r.sinId++; return; }
+      const falt = faltantesGasto(g);
+      if (falt.length) { r.incompletas.push({ id: f.id, falt }); return; }       // información incompleta: no pasa (ni se actualiza) en Factura de Proveedor
       if (f.sinCuenta) r.sinCuenta++;
       const tr = existentes.get(f.id);
       if (tr === undefined) { existentes.set(f.id, null); r.nuevas.push(f.fila); return; }
@@ -576,6 +601,10 @@
     tr.dataset.bloqueada = '1';
     tr.querySelectorAll('input').forEach(i => { i.readOnly = true; i.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; });
   }
+  const textoIncompletas = r => r.incompletas.length
+    ? '\n\n⚠ ' + r.incompletas.length + ' gasto(s) con información incompleta NO pasaron (ver ⚠ en la columna V°B° Factura de Gastos):\n' +
+      r.incompletas.slice(0, 5).map(x => '• ' + x.id + ': falta ' + x.falt.join(', ')).join('\n') + (r.incompletas.length > 5 ? '\n• …' : '')
+    : '';
   function aplicarSincronizacion(r) {
     r.vinculadas.forEach(bloquearFila);
     r.cambios.forEach(({ tr, dif }) => { const ins = tr.querySelectorAll('input'); dif.forEach(([k, val]) => { ins[k].value = val; }); });
@@ -585,24 +614,24 @@
   }
   $id('btn-pasar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('completar');
-    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert(r.sinCambios ? 'Los ' + r.sinCambios + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos con RUC y Serie-Número para pasar.'); return; }
+    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert(r.sinCambios ? 'Los ' + r.sinCambios + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos completos con RUC y Serie-Número para pasar.') + textoIncompletas(r); return; }
     aplicarSincronizacion(r); activar(FP);
     alert(r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' ya existentes completadas con datos de Gastos' : '') +
       (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + (r.sinId ? ' (' + r.sinId + ' sin RUC o Serie-Número)' : '') +
-      '.' + (r.sinCuenta ? '\nFalta la cuenta de ' + r.sinCuenta + ' gastos sin Cuenta NetSuite.' : ''));
+      '.' + textoIncompletas(r));
   });
   // En Factura de Proveedor: trae de Gastos los datos que cambiaron, de todas las facturas a la vez
   $id('btn-actualizar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('actualizar');
     const campos = r.cambios.reduce((n, c) => n + c.dif.length, 0);
-    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert('Factura de Proveedor ya está al día con Gastos.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '')); return; }
+    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert('Factura de Proveedor ya está al día con Gastos.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '') + textoIncompletas(r)); return; }
     const ejemplos = r.cambios.slice(0, 5).map(({ tr, dif }) => {
       const ins = tr.querySelectorAll('input');
       return '• ' + ins[0].value + ': ' + dif.slice(0, 3).map(([k, val]) => porClave[FP].columnas[k].nombre + ' → ' + val).join('; ');
     });
     if (!confirm('Se actualizará Factura de Proveedor con los datos de Gastos:\n• ' + r.nuevas.length + ' facturas nuevas\n• ' + r.cambios.length + ' facturas existentes con cambios (' + campos + ' campos)\n' +
         (ejemplos.length ? '\nEjemplos:\n' + ejemplos.join('\n') + '\n' : '') +
-        '\nLo que cambió en Gastos reemplaza lo que haya en esos campos de la factura. Lo demás (cuenta por pagar, impuestos, departamento…) no se toca.\n\n¿Continuar?')) return;
+        '\nLo que cambió en Gastos reemplaza lo que haya en esos campos de la factura. Lo demás (cuenta por pagar, impuestos, departamento…) no se toca.' + textoIncompletas(r) + '\n\n¿Continuar?')) return;
     aplicarSincronizacion(r);
     alert('Listo: ' + r.nuevas.length + ' nuevas y ' + r.cambios.length + ' actualizadas.');
   });
