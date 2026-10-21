@@ -40,6 +40,7 @@ class ResultadoHoja:
     numeros_fila: list[int] = field(default_factory=list)
     problemas: list[Problema] = field(default_factory=list)
     encabezados_origen: list[str] | None = None  # columnas de la pestaña, cuando el CSV sale con otras (Proveedores)
+    cuentas: list[str] = field(default_factory=list)  # columnas con cuentas: el CSV lleva el ID interno, el Excel el número del COA
 
     @property
     def errores(self) -> int:
@@ -75,8 +76,12 @@ class ResultadoHoja:
         ws = wb.active
         ws.title = re.sub(r"[\\/*?:\[\]]", " ", self.nombre.strip())[:31] or "Hoja"
         ws.append(list(self.encabezados))
+        # en el reporte las cuentas van como en el sistema (número del COA de NetSuite: 1203.00, 42100); el CSV lleva el ID interno
+        id_a_coa = {i: n for n, i in homologacion.coa_a_id().items()}
+        cols_cuenta = {self.encabezados.index(c) for c in self.cuentas if c in self.encabezados}
         for fila in self.filas:
-            ws.append([("" if c is None else str(c)) for c in fila])
+            ws.append([("" if c is None else str(id_a_coa.get(str(c).strip(), c)) if k in cols_cuenta else ("" if c is None else str(c)))
+                       for k, c in enumerate(fila)])
         for celda in ws[1]:
             celda.font = celda.font.copy(bold=True)
         for fila in ws.iter_rows(min_row=2):
@@ -282,7 +287,8 @@ def _ruc_valido(ruc: str) -> bool:
 
 
 def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, periodo: str | None = None) -> ResultadoHoja:
-    res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados)
+    res = ResultadoHoja(nombre=hoja.nombre, encabezados=hoja.encabezados,
+                        cuentas=list(hoja.reglas.get("cuentas", [])))
     if not filas:
         return res
     r = hoja.reglas
