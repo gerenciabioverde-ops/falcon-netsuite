@@ -172,7 +172,7 @@ def completar(fila: list, idx) -> list:
 # NetSuite al registrar el proveedor.
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
-    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Subsidiaria principal",
+    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellidos", "Individual", "Dirección web", "Subsidiaria principal",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
@@ -189,6 +189,11 @@ CODIGO_TIPO_DOC = {"DOCUMENTO NACIONAL DE IDENTIDAD (DNI)": "1", "CARNET DE EXTR
                    "PASAPORTE": "7", "CÉDULA DIPLOMÁTICA DE IDENTIDAD": "A", "OTROS TIPOS DE DOCUMENTOS": "0"}
 
 
+def _t_f(tipo: str) -> str:
+    """Casilla «Individual» de NetSuite: T = persona, F = empresa (vacío si no se conoce el tipo)."""
+    return "T" if tipo == "Individual" else "F" if tipo == "Empresa" else ""
+
+
 def _si_no(v: str) -> str:
     return "Sí" if _t(v).upper() in ("T", "TRUE", "SI", "SÍ", "S", "1") else "No"
 
@@ -201,8 +206,8 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", g(C_SUBS),
-            "Sí", "Sí", "", pais,
+            FORMULARIO, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), _t_f(g(C_TIPO)), "", g(C_SUBS),
+            "T", "T", "", pais,       # Envío y Facturación predeterminada (casillas: T/F)
             "", "", "", g(C_DIR1), "",
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
             "", g(C_UBIGEO),
@@ -218,8 +223,9 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
 FORMULARIO_USD = "Falcon Vendor Form - Latam Peru"
 SUBSIDIARIA_USD = "FCP (USD)"
 SALIDA_USD = [
-    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellido", "Tipo", "Dirección web", "Categoría",
-    "Correo electrónico", "Teléfono", "Subsidiaria principal", "Legacy NS ID", "Línea de negocio de SuiteTax Latam Engine",
+    "Formulario personalizado", "External ID", "Nombre de la empresa", "Nombre", "Apellidos", "Individual", "Dirección web", "Categoría",
+    "Correo electrónico", "Teléfono", "Internal ID", "Buyer ID", "JDE ID (ML)", "Comentarios", "Auto-Approve Bills", "Auto-Approve PO",
+    "Subsidiaria principal", "Legacy NS ID", "Línea de negocio de SuiteTax Latam Engine",
     "Dirección: Envío predeterminado", "Dirección: Facturación predeterminada", "Dirección: Etiqueta", "Dirección: País",
     "Dirección: Atención", "Dirección: Destinatario", "Dirección: Teléfono", "Dirección: Dirección 1", "Dirección: Dirección 2",
     "Dirección: Ciudad", "Dirección: County", "Dirección: Estado", "Dirección: Código ZIP", "Dirección: Legacy ID",
@@ -235,9 +241,10 @@ def a_salida_usd(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO_USD, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), g(C_TIPO), "", "",
-            "", "", SUBSIDIARIA_USD, g(C_NUMERO), "",       # Legacy NS ID = RUC (o DNI)
-            "Sí", "Sí", "", pais,
+            FORMULARIO_USD, "", "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS), _t_f(g(C_TIPO)), "", "",
+            "", "", "", "", "", "", "", "",       # Correo, Teléfono, Internal ID, Buyer ID, JDE ID (ML), Comentarios, Auto-Approve Bills / PO
+            SUBSIDIARIA_USD, g(C_NUMERO), "",       # Legacy NS ID = RUC (o DNI)
+            "T", "T", "", pais,       # Envío y Facturación predeterminada (casillas: T/F)
             "", "", "", g(C_DIR1), "",
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP), "",
             "", g(C_UBIGEO),
