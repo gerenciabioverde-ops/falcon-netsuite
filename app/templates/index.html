@@ -156,6 +156,10 @@
             {% for f in formatos %}<option>{{ f }}</option>{% endfor %}
           </select>
         </label>
+        <fieldset class="flex items-center gap-3 text-sm" title="Formato de los archivos que se descargan al validar y generar">
+          <label class="inline-flex items-center gap-1"><input type="radio" name="formato-salida" value="csv" checked> CSV</label>
+          <label class="inline-flex items-center gap-1"><input type="radio" name="formato-salida" value="xlsx"> Excel</label>
+        </fieldset>
         <button type="button" id="btn-grilla" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded">Validar y generar</button>
         <span id="estado-grilla" class="text-sm text-slate-500"></span>
       </div>
@@ -965,15 +969,16 @@
       if (!r.ok) { estadoGrilla('Error ' + r.status + ' al procesar.', '#b91c1c'); return; }
       const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
       const zip = doc.querySelector('a[href$="todos.zip"]');
+      const excel = (document.querySelector('input[name="formato-salida"]:checked') || {}).value === 'xlsx';
       const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
       // un CSV por plantilla de NetSuite; «Gastos» es solo de trabajo y no se descarga
-      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector('a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos');
+      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos');
       csvs.forEach((x, i) => setTimeout(() => { const l = document.createElement('a'); l.href = x.a.getAttribute('href'); l.download = ''; document.body.appendChild(l); l.click(); l.remove(); }, i * 600));
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
-        (ok.length ? 'Descargado (CSV para NetSuite): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún CSV.')) +
-        (sinCsv.length ? ' Sin CSV por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
+        (ok.length ? 'Descargado (' + (excel ? 'Excel' : 'CSV para NetSuite') + '): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún archivo.')) +
+        (sinCsv.length ? ' Sin archivo por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
       const token = doc.querySelector('table').dataset.token;
       if (conProblemas && token) {       // reporte en Excel con cada error y aviso (fila, columna, valor y mensaje)

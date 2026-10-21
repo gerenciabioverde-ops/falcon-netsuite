@@ -393,6 +393,12 @@ def descargar(token: str, archivo: str):
                 return Response(sub.csv_bytes(), media_type="text/csv; charset=utf-8",
                                 headers={"Content-Disposition": f'attachment; filename="{archivo}"'})
     for r in resultados:
+        if r.archivo_xlsx == archivo:
+            if not r.exportable:
+                raise HTTPException(409, "La hoja tiene errores; corríjalos antes de exportar.")
+            return Response(r.xlsx_bytes(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            headers={"Content-Disposition": f'attachment; filename="{r.archivo_xlsx}"'})
+    for r in resultados:
         if r.archivo == archivo:
             if not r.exportable:
                 raise HTTPException(409, "La hoja tiene errores; corríjalos antes de exportar.")

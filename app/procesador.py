@@ -64,6 +64,28 @@ class ResultadoHoja:
     def archivo(self) -> str:
         return re.sub(r"\W+", "_", self.nombre.strip()).strip("_") + ".csv"
 
+    @property
+    def archivo_xlsx(self) -> str:
+        return self.archivo[:-4] + ".xlsx"
+
+    def xlsx_bytes(self) -> bytes:
+        """Las mismas filas del CSV en un libro de Excel (todo como texto, para no perder ceros ni formatos)."""
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = re.sub(r"[\\/*?:\[\]]", " ", self.nombre.strip())[:31] or "Hoja"
+        ws.append(list(self.encabezados))
+        for fila in self.filas:
+            ws.append([("" if c is None else str(c)) for c in fila])
+        for celda in ws[1]:
+            celda.font = celda.font.copy(bold=True)
+        for fila in ws.iter_rows(min_row=2):
+            for celda in fila:
+                celda.number_format = "@"
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
 
 # ---------- lectura ----------
 
