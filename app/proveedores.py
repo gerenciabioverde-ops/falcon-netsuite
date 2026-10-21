@@ -170,8 +170,7 @@ def completar(fila: list, idx) -> list:
 # ---------- CSV para NetSuite (formulario «Falcon Vendor Form - Latam Peru») ----------
 # Columnas del CSV de Proveedores, en el orden del formulario de NetSuite: información principal, subsidiaria,
 # sublista Dirección (ventana de edición de la dirección: País, Dirección 1, Ciudad = distrito, County = departamento,
-# Estado = país como en los proveedores ya creados, ZIP) y sección LatamReady. Salen de las columnas de la pestaña Proveedores. External ID sale vacío: lo genera
-# NetSuite al registrar el proveedor.
+# Estado = país como en los proveedores ya creados, ZIP) y sección LatamReady. Salen de las columnas de la pestaña Proveedores. External ID sale con el ID cargado desde NetSuite (vacío si aún no se cargó).
 FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
@@ -227,7 +226,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, "", _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
+            FORMULARIO, g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), SUBSIDIARIA,       # Buyer ID = RUC (o DNI); Subsidiaria principal = Internal ID (43 = FCP)
             "T", "T", _cortar(g(C_DIR1)),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
             _cortar(g(C_DIR1)),
