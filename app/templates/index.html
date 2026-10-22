@@ -977,9 +977,12 @@
     tr = [...cuerpo('proveedores').rows].find(t => ![...t.querySelectorAll('input')].some(i => i.value.trim())) || nuevaFila('proveedores');
     const ins = [...tr.querySelectorAll('input')];
     ins[ix('Latam - Tax Reg Number')].value = ruc;
-    if (razon) ins[ix('Nombre de la empresa')].value = razon;       // la razón social del gasto, si el padrón no la trae
-    completarTipoProv(tr, true);
-    if (/^\d{11}$/.test(ruc)) await autocompletarPorRuc(ins, avisar);
+    if (/^\d{11}$/.test(ruc)) await autocompletarPorRuc(ins, avisar);       // el nombre del padrón va primero (ya con inicial mayúscula)
+    const iNom = ix('Nombre de la empresa'), deGasto = razon && !ins[iNom].value.trim();
+    if (deGasto) ins[iNom].value = razon;       // si el padrón no lo trajo: la razón social del gasto
+    completarTipoProv(tr, true);       // (un DNI separa Nombres/Apellidos con el orden de SUNAT, que necesita las mayúsculas originales)
+    if (deGasto && razon === razon.toUpperCase()) ['Nombre de la empresa', 'Nombres', 'Apellidos'].forEach(n => { const e = ins[ix(n)]; if (e) e.value = e.value.replace(/[A-ZÁÉÍÓÚÑÜ]+/g, m => m[0] + m.slice(1).toLowerCase()); });       // y luego con el mismo formato que los demás
+    if (/^\d{11}$/.test(ruc)) { /* ya completado arriba */ }
     else {      // DNI: el servidor completa tipo de documento, tipo de persona, etc.
       try {
         const f = await (await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
