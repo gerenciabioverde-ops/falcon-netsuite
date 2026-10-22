@@ -115,6 +115,7 @@
           {% if p.clave == 'bancos mn' %}<button type="button" id="btn-pasar-pagos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
+          {% if p.clave == 'factura de proveedor' %}<select id="filtro-transaccion" class="border rounded px-2 py-1.5 bg-white" title="Al generar el CSV de Factura de Proveedor, solo salen las filas de este «Latam - Tipo de Transacción» (las demás hojas no cambian). «Todos» = sin filtro"><option value="">CSV: todos los rubros</option></select>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
       </div>
@@ -416,6 +417,17 @@
       if (!porClave.gastos || !porClave.hasOwnProperty || !document.getElementById('panel-gastos')) return;
       const ids = new Set([...cuerpo('factura de proveedor').rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
       const iTd = colF('Latam - Tipo de Documento Fiscal'), iSe = colF('Latam - Serie CxP'), iNu = colF('Latam - Número Preimpreso');
+      (() => {       // opciones del filtro «CSV: …» = los Tipo de Transacción que hay en la pestaña
+        const sel = $id('filtro-transaccion'); if (!sel) return;
+        const iT = porClave['factura de proveedor'].columnas.findIndex(c => c.nombre === 'Latam - Tipo de Transacción');
+        const n = {}; [...cuerpo('factura de proveedor').rows].forEach(tr => { const v = (tr.querySelectorAll('input')[iT].value || '').trim(); if (v) n[v] = (n[v] || 0) + 1; });
+        const actual = sel.value, claves = Object.keys(n).sort();
+        if (sel.dataset.firma === JSON.stringify(n)) return;
+        sel.dataset.firma = JSON.stringify(n); sel.innerHTML = '';
+        sel.add(new Option('CSV: todos los rubros (' + claves.reduce((t, k) => t + n[k], 0) + ')', ''));
+        claves.forEach(k => sel.add(new Option('Solo ' + k + ' (' + n[k] + ')', k)));
+        sel.value = claves.includes(actual) ? actual : '';
+      })();
       const iCta = porClave['factura de proveedor'].columnas.findIndex(c => c.nombre === 'Cuenta'), idsCta = new Set(tablaCuentas.map(f => String(f.netsuite)));
       [...cuerpo('factura de proveedor').rows].forEach(tr => {       // ID Interno Cta (solo vista): ID de NetSuite de la cuenta, el que va al CSV
         const ic = tr.querySelector('td.idcta'); if (!ic) return;
@@ -1256,6 +1268,8 @@
   document.getElementById('btn-grilla').addEventListener('click', async () => {
     const datos = {};
     esquema.forEach(p => { datos[p.clave] = leer(p.clave, true); });
+    const rubro = $id('filtro-transaccion').value, iTT = porClave['factura de proveedor'].columnas.findIndex(c => c.nombre === 'Latam - Tipo de Transacción');
+    if (rubro) datos['factura de proveedor'] = datos['factura de proveedor'].map(f => (f[iTT] || '').trim() === rubro ? f : f.map(() => ''));       // las demás quedan en blanco (así el número de fila sigue siendo el de la pestaña)
     const estado = document.getElementById('estado-grilla');
     estadoGrilla('Procesando…');
     try {
@@ -1276,6 +1290,7 @@
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
         (ok.length ? 'Descargado (' + (excel ? 'Excel' : 'CSV para NetSuite') + '): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún archivo.')) +
+        (rubro ? ' (Factura de Proveedor: solo «' + rubro + '»)' : '') +
         (sinCsv.length ? ' Sin archivo por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
       const token = doc.querySelector('table').dataset.token;
