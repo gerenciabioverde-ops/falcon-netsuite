@@ -105,7 +105,8 @@
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
-          {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE y el departamento según el Concepto en los gastos que no los tienen (para que los revises)">💡 Proponer cuenta y departamento</button>
+          {% if p.clave == 'gastos' %}<button type="button" id="btn-crear-prov" class="border rounded px-3 py-1.5 bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100" title="Crea en la pestaña Proveedores todos los RUC/DNI de Gastos que aún no están registrados (con datos del padrón de SUNAT si está cargado)">➕ Crear proveedores faltantes</button>
+          <button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE y el departamento según el Concepto en los gastos que no los tienen (para que los revises)">💡 Proponer cuenta y departamento</button>
           {% if p.clave == 'gastos' %}<button type="button" id="btn-constancias" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube las constancias de depósito de detracción (.html de SUNAT): se relacionan por RUC + Serie-Número y llenan Fecha Detr., N° Constancia, N° Operación y Monto Detr.">📎 Subir constancias de detracción (HTML)</button><input type="file" id="archivos-constancias" accept=".html,.htm" multiple class="hidden">{% endif %}
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
           {% if p.clave == 'proveedores' %}<button type="button" id="btn-ids-ns" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): cada proveedor se relaciona por nombre y su ID interno se guarda en External ID; las facturas usan ese ID como Proveedor">🔗 Cargar ID de NetSuite (CSV)</button><input type="file" id="archivo-ids-ns" accept=".csv,.txt" class="hidden">
@@ -968,22 +969,53 @@
   // ---- Atajo en Gastos: escribir el RUC seguido de «+» abre el formulario para crear ese proveedor ----
   const RUC_MAS = /^\s*(\d{8}|\d{11})\s*\+\s*$/;
   let retornoFila = null;       // si se llegó desde el formulario de un gasto, al cerrar el del proveedor se vuelve a ese gasto
-  async function nuevoProveedorDesdeGasto(ruc, razon, retorno) {
+  // Crea (o encuentra) la fila del proveedor en la grilla: RUC, razón social del gasto y lo que traiga el padrón / el servidor
+  async function crearFilaProveedor(ruc, razon, avisar) {
     const cs = porClave.proveedores.columnas, ix = n => cs.findIndex(c => c.nombre === n);
     let tr = [...cuerpo('proveedores').rows].find(t => t.querySelectorAll('input')[ix('Latam - Tax Reg Number')].value.trim() === ruc);
-    if (tr) estadoGrilla('El proveedor ' + ruc + ' ya está en Proveedores: se abre su ficha.', '#1d4ed8');
-    else {
-      tr = [...cuerpo('proveedores').rows].find(t => ![...t.querySelectorAll('input')].some(i => i.value.trim())) || nuevaFila('proveedores');
-      const ins = [...tr.querySelectorAll('input')];
-      ins[ix('Latam - Tax Reg Number')].value = ruc;
-      if (razon) ins[ix('Nombre de la empresa')].value = razon;       // la razón social del gasto, si el padrón no la trae
-      completarTipoProv(tr, true);
-      await autocompletarPorRuc(ins, msgs => estadoGrilla(msgs.join(' · '), '#b45309'));
-      renumerar('proveedores'); guardar(); contadores();
+    if (tr) return { tr, nueva: false };
+    tr = [...cuerpo('proveedores').rows].find(t => ![...t.querySelectorAll('input')].some(i => i.value.trim())) || nuevaFila('proveedores');
+    const ins = [...tr.querySelectorAll('input')];
+    ins[ix('Latam - Tax Reg Number')].value = ruc;
+    if (razon) ins[ix('Nombre de la empresa')].value = razon;       // la razón social del gasto, si el padrón no la trae
+    completarTipoProv(tr, true);
+    if (/^\d{11}$/.test(ruc)) await autocompletarPorRuc(ins, avisar);
+    else {      // DNI: el servidor completa tipo de documento, tipo de persona, etc.
+      try {
+        const f = await (await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hoja: 'proveedores', fila: ins.map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value, periodo }) })).json();
+        const sinDefecto = new Set(['Dirección 1', 'Latam - PE Ubigeo', 'Ciudad', 'Estado', 'Código ZIP'].map(ix));       // un DNI no está en el padrón: sin Jaén en el sistema (el CSV sí lo aplica)
+        f.fila.forEach((v, i) => { if (ins[i] && !sinDefecto.has(i) && !ins[i].value.trim() && v) { if (ins[i].tagName === 'SELECT' && ![...ins[i].options].some(o => o.value === v)) ins[i].add(new Option(v, v)); ins[i].value = v; } });
+      } catch (e) { /* sin servidor: queda lo escrito */ }
     }
+    return { tr, nueva: true };
+  }
+  async function nuevoProveedorDesdeGasto(ruc, razon, retorno) {
+    const { tr, nueva } = await crearFilaProveedor(ruc, razon, msgs => estadoGrilla(msgs.join(' · '), '#b45309'));
+    if (!nueva) estadoGrilla('El proveedor ' + ruc + ' ya está en Proveedores: se abre su ficha.', '#1d4ed8');
+    else { renumerar('proveedores'); guardar(); contadores(); }
     retornoFila = retorno || null;
     abrirFila('proveedores', [...cuerpo('proveedores').rows].indexOf(tr));
   }
+  // Todos los RUC/DNI de Gastos que no están en Proveedores, con la razón social del primer gasto que los usa
+  function proveedoresFaltantes() {
+    const cs = porClave.proveedores.columnas, iP = cs.findIndex(c => c.nombre === 'Latam - Tax Reg Number');
+    const hay = new Set([...cuerpo('proveedores').rows].map(t => t.querySelectorAll('input')[iP].value.trim()).filter(Boolean)), faltan = new Map();
+    [...cuerpo('gastos').rows].forEach(tr => {
+      const v = tr.querySelectorAll('input'), r = (v[colG('RUC')] || {}).value.trim();
+      if (r && !hay.has(r) && !faltan.has(r)) faltan.set(r, (v[colG('Razon Social')] || {}).value.trim());
+    });
+    return faltan;
+  }
+  $id('btn-crear-prov').addEventListener('click', async () => {
+    const faltan = proveedoresFaltantes();
+    if (!faltan.size) { estadoGrilla('Todos los RUC/DNI de Gastos ya están en Proveedores.', '#15803d'); return; }
+    if (!confirm('Hay ' + faltan.size + ' RUC/DNI en Gastos que no están en Proveedores. Se crean en la pestaña Proveedores (con los datos del padrón de SUNAT si está cargado; si no, con la razón social del gasto). ¿Continuar?')) return;
+    let n = 0;
+    for (const [ruc, razon] of faltan) { n++; estadoGrilla('Creando proveedores… ' + n + ' de ' + faltan.size, '#1d4ed8'); await crearFilaProveedor(ruc, razon, () => {}); }
+    renumerar('proveedores'); guardar(); contadores(); vistoBuenoFactura();
+    estadoGrilla('Se crearon ' + faltan.size + ' proveedores en la pestaña Proveedores. Revísalos, créalos en NetSuite y carga sus ID con «Cargar ID de NetSuite».', '#15803d');
+  });
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
     if (i instanceof HTMLInputElement && +i.dataset.col === colG('RUC') && RUC_MAS.test(i.value)) {       // «RUC+» -> crear el proveedor
