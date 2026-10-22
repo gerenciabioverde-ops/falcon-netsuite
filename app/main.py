@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.concurrency import run_in_threadpool
 
-from . import carga, gastos_cuentas, homologacion, periodos, proveedores
+from . import carga, gastos_cuentas, homologacion, padron, periodos, proveedores
 from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, reporte_errores_xlsx, validar_hoja
 
@@ -339,6 +339,51 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
         "token": _guardar(resultados, periodo), "resultados": resultados, "avisos": [], "error": None,
         "periodo_etiqueta": periodos.etiqueta(periodo) if periodo else "",
     })
+
+
+@app.get("/padron/estado")
+def padron_estado():
+    return padron.estado()
+
+
+@app.post("/padron/actualizar")
+async def padron_actualizar(request: Request, archivo: UploadFile | None = File(None)):
+    """Descarga el padrón reducido de SUNAT (o usa el ZIP/TXT subido) y guarda los RUC que usa el sistema."""
+    _solo_local(request)
+    ruta = None
+    if archivo is not None and archivo.filename:
+        import tempfile
+        fd, ruta = tempfile.mkstemp(suffix=".zip", prefix="padron_subido_")
+        with os.fdopen(fd, "wb") as f:
+            while True:
+                trozo = await archivo.read(1024 * 1024)
+                if not trozo:
+                    break
+                f.write(trozo)
+    if not padron.iniciar_actualizacion(ruta):
+        return JSONResponse({"ok": False, "mensaje": "Ya hay una actualización del padrón en curso."})
+    return {"ok": True}
+
+
+@app.get("/padron/ruc/{ruc}")
+def padron_ruc(ruc: str):
+    """Datos del RUC según el padrón de SUNAT, con los valores de las columnas de Proveedores que se pueden completar."""
+    if not padron.es_ruc(ruc):
+        return {"encontrado": False, "mensaje": "Escriba un RUC de 11 dígitos para consultar SUNAT."}
+    d = padron.buscar(ruc)
+    if d is None:
+        return {"encontrado": False, "cargado": padron.estado()["cargados"],
+                "mensaje": "Ese RUC no está en el padrón cargado: use «🏛️ Actualizar padrón SUNAT» (queda anotado para la próxima actualización)."}
+    campos = {proveedores.C_NOMBRE: d["razon"], proveedores.C_DIR1: d["direccion"], proveedores.C_UBIGEO: d["ubigeo"],
+              proveedores.C_TIPO_DOC: "REGISTRO ÚNICO DE CONTRIBUYENTES", proveedores.C_NUMERO: d["ruc"]}
+    avisos = []
+    if d["estado"] and d["estado"].upper() != "ACTIVO":
+        avisos.append(f"SUNAT: el RUC está {d['estado']}")
+    if d["condicion"] and d["condicion"].upper() != "HABIDO":
+        avisos.append(f"SUNAT: condición de domicilio {d['condicion']}")
+    if d["ubigeo_codigo"] and not d["ubigeo"]:
+        avisos.append(f"El ubigeo {d['ubigeo_codigo']} de SUNAT no está en la lista de la plantilla: elija el ubigeo")
+    return {"encontrado": True, "datos": d, "campos": {k: v for k, v in campos.items() if v}, "avisos": avisos}
 
 
 @app.post("/proveedores/csv")
