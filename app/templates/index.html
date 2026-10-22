@@ -93,6 +93,7 @@
             <thead><tr>
               <th>#</th>
               {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
+              {% if p.clave == 'gastos' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie-número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado, la factura saldrá con VEND_RUC">ID Proveedor NetSuite</th>{% endif %}
               {% for c in p.columnas %}<th>{{ c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
             </tr></thead>
@@ -350,7 +351,7 @@
     bEd.title = 'Editar esta fila en un formulario';
     n.append(num, bEd);
     tr.appendChild(n);
-    if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); const ip = document.createElement('td'); ip.className = 'idp'; ip.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(ip); }
+    if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); const ip = document.createElement('td'); ip.className = 'idp'; ip.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(ip); const rf = document.createElement('td'); rf.className = 'refn'; rf.style.cssText = 'white-space:nowrap;min-width:8rem;font-size:.8rem;padding:0 6px'; tr.appendChild(rf); }
     p.columnas.forEach((c, i) => {
       const td = document.createElement('td'), inp = document.createElement('input');
       inp.type = 'text'; inp.dataset.col = i; inp.autocomplete = 'off';
@@ -391,6 +392,12 @@
     if (!idNetSuite(vals[porClave.gastos.columnas.findIndex(c => c.nombre === 'RUC')])) f.push(COL_IDPROV);
     return f;
   };
+  // N° Referencia (solo vista): como la factura de NetSuite, «FA E001-1258» = tipo de documento + serie-número. No va en ningún CSV
+  const PREFIJO_REF = { 'factura': 'FA', 'boleta': 'BV', 'recibo por honorarios': 'RH', 'liquidacion de compra': 'LC', 'liquidacion compra': 'LC', 'nota de debito': 'ND', 'nota de credito': 'NC' };
+  const numeroReferencia = (tipo, sn) => {
+    const t = quitarTildes(tipo), k = Object.keys(PREFIJO_REF).find(x => t.startsWith(x)), serie = String(sn || '').trim().replace(/\s*-\s*/g, '-');
+    return serie ? ((k ? PREFIJO_REF[k] + ' ' : '') + serie) : '';
+  };
   let vbTemporizador = null;
   function vistoBuenoFactura() {
     clearTimeout(vbTemporizador);
@@ -401,6 +408,8 @@
       const idsProv = {};       // RUC/DNI -> ID de NetSuite ('' si el proveedor está en la pestaña pero sin ID)
       [...cuerpo('proveedores').rows].forEach(tr => { const v = tr.querySelectorAll('input'), r = v[iRucP].value.trim(), id = v[iIdP].value.trim(); if (r) idsProv[r] = /^\d+$/.test(id) ? id : ''; });
       [...cuerpo('gastos').rows].forEach(tr => {
+        const rf = tr.querySelector('td.refn');
+        if (rf) { const w = [...tr.querySelectorAll('input')].map(i => i.value); rf.textContent = numeroReferencia(w[colG('Tipo Doc')], w[colG('Serie-Numero')]); }
         const ip = tr.querySelector('td.idp'), ruc = ((tr.querySelectorAll('input')[iRucG] || {}).value || '').trim();
         if (ip) {
           if (!ruc) { ip.textContent = ''; ip.title = ''; }
