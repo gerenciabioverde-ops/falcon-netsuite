@@ -15,10 +15,9 @@ from pathlib import Path
 RUTA = Path(__file__).resolve().parent.parent / "data" / "proveedores_listas.json"
 
 ENCABEZADOS = [
-    "External ID", "Nombre de la empresa", "Nombres", "Apellidos", "Dirección 1", "Ciudad", "Estado", "País",
-    "Código ZIP", "Latam - PE Ubigeo", "Latam - País de la subsidiaria",
-    "Latam - País de la entidad", "Latam - Tipo de Persona", "Latam - Tipo de doc. de identidad",
-    "Latam - Tax Reg Number", "Latam - Dígito Verificador", "Latam - Es buen contribuyente?",
+    "External ID", "Latam - Tipo de doc. de identidad", "Latam - Tax Reg Number", "Nombre de la empresa", "Nombres", "Apellidos",
+    "Dirección 1", "Ciudad", "Estado", "País", "Código ZIP", "Latam - PE Ubigeo", "Latam - País de la subsidiaria",
+    "Latam - País de la entidad", "Latam - Tipo de Persona", "Latam - Dígito Verificador", "Latam - Es buen contribuyente?",
     "Latam - Es agente retención?", "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?",
     "LATAM PE - CtaCte Detracción", "Tipo", "Subsidiaria",
 ]
