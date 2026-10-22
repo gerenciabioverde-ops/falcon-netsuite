@@ -135,6 +135,8 @@ def completar(fila: list, idx) -> list:
     if not g(C_UBIGEO):       # sin ubigeo (el reporte de SUNAT no trae dirección): se usa el de Jaén para que el proveedor se pueda cargar
         fila[idx(C_UBIGEO)] = UBIGEO_DEFECTO
         avisos.append((C_UBIGEO, f"Sin ubigeo en SUNAT: se usó el de Jaén ({UBIGEO_DEFECTO}); corríjalo si conoce el real"))
+    if g(C_TIPO) != "Individual" and len(g(C_NOMBRE)) > MAX_NOMBRE:
+        avisos.append((C_NOMBRE, f"El nombre tiene {len(g(C_NOMBRE))} caracteres: NetSuite acepta {MAX_NOMBRE}, se corta en el CSV; abrévielo si quiere decidir cómo queda"))
     if len(g(C_DIR1)) > MAX_DIRECCION:
         avisos.append((C_DIR1, f"La dirección tiene {len(g(C_DIR1))} caracteres: NetSuite acepta {MAX_DIRECCION}, se corta en el CSV"))
     if not g(C_DIR1):
@@ -207,6 +209,7 @@ def _si_no(v: str) -> str:
 
 
 MAX_DIRECCION = 150      # NetSuite: la etiqueta y la dirección no pueden pasar de 150 caracteres
+MAX_NOMBRE = 83      # NetSuite: «companyname» (Nombre de la empresa) no puede pasar de 83 caracteres
 
 
 def _cortar(texto: str, n: int = MAX_DIRECCION) -> str:
@@ -235,7 +238,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, "" if g(C_ID).upper().startswith("VEND_") else g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
+            FORMULARIO, "" if g(C_ID).upper().startswith("VEND_") else g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else _cortar(g(C_NOMBRE), MAX_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), "FCP",       # Buyer ID = RUC (o DNI); Subsidiaria principal = FCP (en NetSuite se asigna con valor fijo)
             "T", "T",       # Envío y Facturación predeterminada (casillas: T/F)
             _cortar(g(C_DIR1)),
