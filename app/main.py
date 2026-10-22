@@ -453,7 +453,11 @@ def descargar(token: str, archivo: str):
                     filas = [f for f in filas if bool(str(f[i]).strip()) == (sufijo == "_actualizar.csv")]
                 if not filas:
                     raise HTTPException(409, "Ninguna fila cumple (sin errores" + ("" if sufijo == "_sin_errores.csv" else ", " + ("con" if sufijo == "_actualizar.csv" else "sin") + " ID de NetSuite") + ").")
-                sub = ResultadoHoja(nombre=r.nombre, encabezados=r.encabezados, filas=filas)
+                enc = list(r.encabezados)
+                if sufijo == "_actualizar.csv":       # «Teléfono» vacío al final: con «Sobrescribir campos vacíos» limpia el teléfono que dejó una asignación equivocada
+                    enc.append("Teléfono")
+                    filas = [list(f) + [""] for f in filas]
+                sub = ResultadoHoja(nombre=r.nombre, encabezados=enc, filas=filas)
                 return Response(sub.csv_bytes(), media_type="text/csv; charset=utf-8",
                                 headers={"Content-Disposition": f'attachment; filename="{archivo}"'})
     for r in resultados:
