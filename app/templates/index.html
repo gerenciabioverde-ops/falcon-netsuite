@@ -249,13 +249,16 @@
     if (iNo < 0 || iA < 0 || (!recalcular && (ins[iNo].value.trim() || ins[iA].value.trim()))) return;
     const [no, ap] = dividirNombre(ins[iE].value); ins[iNo].value = no; ins[iA].value = ap;
   }
+  // Tipo del proveedor: con Nombres o Apellidos = Individual; con Nombre de la empresa = Empresa; un DNI (8 dígitos) siempre es Individual
+  const tipoProveedor = (nombre, nombres, apellidos, numero) => ((nombres || '').trim() || (apellidos || '').trim()) ? 'Individual' : /^\d{8}$/.test((numero || '').trim()) ? 'Individual' : (nombre || '').trim() ? 'Empresa' : /^\d{11}$/.test((numero || '').trim()) ? 'Empresa' : '';
   function completarTipoProv(tr, recalcular) {
     const cols = porClave.proveedores.columnas, ins = tr.querySelectorAll('input');
     const iN = cols.findIndex(c => c.nombre === 'Latam - Tax Reg Number'), iT = cols.findIndex(c => c.nombre === 'Tipo');
     if (iN < 0 || iT < 0) return;
     const n = ins[iN].value.trim();
     if (ins[iT].value.trim() && !recalcular) { if (ins[iT].value === 'Individual') completarNombresProv(tr, cols, ins); return; }
-    ins[iT].value = /^\d{8}$/.test(n) ? 'Individual' : /^\d{11}$/.test(n) ? 'Empresa' : (recalcular ? '' : ins[iT].value);
+    const val = nm => (ins[cols.findIndex(c => c.nombre === nm)] || {}).value;
+    ins[iT].value = tipoProveedor(val('Nombre de la empresa'), val('Nombres'), val('Apellidos'), n) || (recalcular ? '' : ins[iT].value);
     if (ins[iT].value === 'Individual') completarNombresProv(tr, cols, ins, recalcular);
   }
   // Valores fijos de la plantilla (subsidiaria, ubicación): se ven en la grilla apenas la fila tiene datos
@@ -555,6 +558,11 @@
       const tr = i.closest('tr'); completarTipoProv(tr, true);
       autocompletarPorRuc([...tr.querySelectorAll('input')], msgs => estadoGrilla(msgs.join(' · '), '#b45309')).then(() => { guardar(); contadores(); });
     }
+    if (clave === 'proveedores' && col && ['Nombre de la empresa', 'Nombres', 'Apellidos'].includes(col.nombre)) {       // el tipo sigue a lo que se escribe: nombres/apellidos = Individual, nombre de empresa = Empresa
+      const cs = porClave.proveedores.columnas, ii = [...i.closest('tr').querySelectorAll('input')], v = nm => ii[cs.findIndex(c => c.nombre === nm)].value;
+      const t = tipoProveedor(v('Nombre de la empresa'), v('Nombres'), v('Apellidos'), v('Latam - Tax Reg Number'));
+      if (t) { ii[cs.findIndex(c => c.nombre === 'Tipo')].value = t; if (t === 'Individual') completarNombresProv(i.closest('tr'), cs, ii); }
+    }
     aplicarDefectos(clave, i.closest('tr'), i); guardar();
   });
 
@@ -712,6 +720,8 @@
       const sinDefecto = new Set(sinUbigeo ? ['Dirección 1', 'Latam - PE Ubigeo', 'Ciudad', 'Estado', 'Código ZIP'].map(ix) : []);       // sin ubigeo de SUNAT el servidor pondría Jaén: no se aplica
       f.fila.forEach((v, i) => { if (ins[i] && !sinDefecto.has(i) && !ins[i].value.trim() && v) { if (ins[i].tagName === 'SELECT' && ![...ins[i].options].some(o => o.value === v)) ins[i].add(new Option(v, v)); ins[i].value = v; } });
     } catch (e) { /* sin servidor: queda lo que trajo SUNAT */ }
+    const tp = tipoProveedor((ins[ix('Nombre de la empresa')] || {}).value, (ins[ix('Nombres')] || {}).value, (ins[ix('Apellidos')] || {}).value, ruc);
+    if (tp && ins[ix('Tipo')]) ins[ix('Tipo')].value = tp;
     avisar(['SUNAT: ' + r.datos.razon + ' · ' + (r.datos.estado || '—') + ' / ' + (r.datos.condicion || '—')].concat(r.avisos), !r.avisos.length);
   }
   // Formulario de Proveedores: campos agrupados (primero el RUC) y consulta a SUNAT al escribirlo
@@ -740,6 +750,13 @@
       const ul = document.getElementById('mf-problemas'); ul.innerHTML = '';
       msgs.forEach(m => { const li = document.createElement('li'); li.style.color = ok ? '#15803d' : '#b45309'; li.textContent = m; ul.appendChild(li); });
     }));
+    const tipoModal = () => {       // el Tipo sigue a lo que se escribe en el formulario
+      const v = nm => (cont.querySelector('[data-col="' + cols.findIndex(c => c.nombre === nm) + '"]') || {}).value || '';
+      const t = tipoProveedor(v('Nombre de la empresa'), v('Nombres'), v('Apellidos'), v('Latam - Tax Reg Number'));
+      const sel = cont.querySelector('[data-col="' + cols.findIndex(c => c.nombre === 'Tipo') + '"]');
+      if (t && sel) sel.value = t;
+    };
+    ['Nombre de la empresa', 'Nombres', 'Apellidos'].forEach(nm => cont.querySelector('[data-col="' + cols.findIndex(c => c.nombre === nm) + '"]').addEventListener('input', tipoModal));
     campo.focus();
   }
   async function refrescarPadron(seguir) {
