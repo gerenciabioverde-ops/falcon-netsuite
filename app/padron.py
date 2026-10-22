@@ -34,10 +34,10 @@ DIR_PERIODOS = RAIZ / "datos_usuario" / "periodos"
 _RUC = re.compile(r"^(10|15|17|20)\d{9}$")
 _CAB = {"razon": "nombre o razon social", "estado": "estado del contribuyente", "condicion": "condicion de domicilio",
         "ubigeo": "ubigeo", "tipo_via": "tipo de via", "nombre_via": "nombre de via", "cod_zona": "codigo de zona",
-        "tipo_zona": "tipo de zona", "numero": "numero", "interior": "interior", "lote": "lote", "manzana": "manzana",
+        "tipo_zona": "tipo de zona", "numero": "numero", "interior": "interior", "lote": "lote", "departamento": "departamento", "manzana": "manzana",
         "km": "kilometro"}
 _POS_DEFECTO = {"ruc": 0, "razon": 1, "estado": 2, "condicion": 3, "ubigeo": 4, "tipo_via": 5, "nombre_via": 6, "cod_zona": 7,
-                "tipo_zona": 8, "numero": 9, "interior": 10, "lote": 11, "manzana": 13, "km": 14}
+                "tipo_zona": 8, "numero": 9, "interior": 10, "lote": 11, "departamento": 12, "manzana": 13, "km": 14}
 
 _estado: dict = {"fase": "", "activo": False, "error": "", "leidas": 0, "encontrados": 0, "bytes": 0}
 _candado = threading.Lock()
@@ -82,6 +82,15 @@ def formatear_razon(ruc: str, razon: str) -> str:
     return razon
 
 
+_ETIQUETAS_DIR = {"Nro": "Nro.", "Dpto": "Dpto.", "Int": "Int.", "Lote": "Lt.", "Mza": "Mz.", "Km": "Km."}
+
+
+def formatear_direccion(texto: str) -> str:
+    """Dirección como las que ya tiene el sistema (Cal. Porta Nro. 170 Dpto. 610): inicial mayúscula y Nro./Mz./Lt./Km. con punto."""
+    t = re.sub(r"[A-ZÁÉÍÓÚÑÜ]+", lambda m: m.group(0).capitalize(), texto or "")
+    return " ".join(_ETIQUETAS_DIR.get(w, w) for w in t.split())
+
+
 def buscar(ruc: str) -> dict | None:
     """Datos del RUC en el padrón cargado, o None. Si no está, queda «pedido» para la próxima actualización."""
     ruc = str(ruc or "").strip()
@@ -93,7 +102,7 @@ def buscar(ruc: str) -> dict | None:
             c.execute("INSERT OR IGNORE INTO pedidos (ruc) VALUES (?)", (ruc,))
             return None
     return {"ruc": f[0], "razon": formatear_razon(f[0], f[1] or ""), "estado": f[2] or "", "condicion": f[3] or "", "ubigeo_codigo": f[4] or "",
-            "ubigeo": _ubigeos().get(f[4] or "", ""), "direccion": f[5] or ""}
+            "ubigeo": _ubigeos().get(f[4] or "", ""), "direccion": formatear_direccion(f[5] or "")}
 
 
 def estado() -> dict:
@@ -166,7 +175,7 @@ def _v(campos: list[str], pos: dict, clave: str) -> str:
 
 def _direccion(campos: list[str], pos: dict) -> str:
     partes = [_v(campos, pos, "tipo_via"), _v(campos, pos, "nombre_via")]
-    for etiqueta, clave in (("NRO", "numero"), ("INT", "interior"), ("LOTE", "lote"), ("MZA", "manzana"), ("KM", "km")):
+    for etiqueta, clave in (("NRO", "numero"), ("DPTO", "departamento"), ("INT", "interior"), ("LOTE", "lote"), ("MZA", "manzana"), ("KM", "km")):
         valor = _v(campos, pos, clave)
         if valor:
             partes.append(f"{etiqueta} {valor}")
