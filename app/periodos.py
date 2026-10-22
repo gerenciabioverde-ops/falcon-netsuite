@@ -131,13 +131,13 @@ def _col_hoja(hoja: str, nombre: str) -> int:
 
 
 def _subsidiaria_factura(datos: dict) -> dict:
-    """Factura de Proveedor: la subsidiaria «43» (ID interno) que NetSuite no aceptó pasa a «FCP» (nombre)."""
+    """Factura de Proveedor: la subsidiaria «FCP» (nombre, de una versión anterior) vuelve a ser el ID interno de FCP («43»)."""
     from . import esquema
     fp = (datos.get("hojas") or {}).get("factura de proveedor")
     if fp and fp.get("filas"):
         i = _col_hoja("factura de proveedor", "Subsidiaria")
         for f in fp["filas"]:
-            if len(f) > i and str(f[i]).strip() == esquema.SUBSIDIARIA:
+            if len(f) > i and str(f[i]).strip().upper() == "FCP":
                 f[i] = esquema.SUBSIDIARIA_FACTURA
     return datos
 
