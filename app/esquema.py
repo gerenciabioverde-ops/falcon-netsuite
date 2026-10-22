@@ -99,7 +99,7 @@ REGLAS: dict[str, dict] = {
 # Plantillas que no están en el Excel de plantillas y se definen en código.
 # Proveedores = hoja «Vendor» del libro Entity - Falcon Coffees - Perú - Legacy (ver app/proveedores.py).
 GASTOS_ENCABEZADOS = [
-    "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
+    "External ID", "Fecha Factura", "Fecha Pago", "Cod.Pago", "N° Operación", "RUC", "Razon Social", "Tipo Doc", "Serie-Numero", "Concepto",
     "Cuenta PCGE", "Cuenta NetSuite", "Descripción Gasto", "Moneda", "Sub-Total", "Igv", "Total", "Fecha Detr.", "N° Constancia", "N° Operación Detr.", "Monto Detr.", "Monto Pagado",
     "Area/Contrato", "Caja", "Met. Pago", "Departamento", "Clase",
     "Sujeto a Detracción", "Concepto Detracción", "% Detracción",

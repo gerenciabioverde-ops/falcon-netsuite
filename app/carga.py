@@ -39,12 +39,17 @@ def _texto(v) -> str:
     return str(v).strip()
 
 
+# nombres con que suelen venir ciertas columnas del reporte -> nombre de la columna de la grilla
+ALIAS_COLUMNAS = {"nro operacion": "n° operación", "nro. operacion": "n° operación", "n° operacion": "n° operación",
+                  "nro operación": "n° operación", "numero de operacion": "n° operación", "número de operación": "n° operación"}
+
+
 def _encabezados(filas: list[list], hoja: Hoja) -> tuple[int, dict[int, int]] | None:
     """(índice de la fila de encabezados, {columna de la grilla: columna del archivo}) o None."""
     objetivos = [norm(e) for e in hoja.encabezados]
     mejor: tuple[int, dict[int, int]] | None = None
     for i, fila in enumerate(filas[:25]):
-        presentes = [norm(c) for c in fila]
+        presentes = [ALIAS_COLUMNAS.get(norm(c), norm(c)) for c in fila]
         usados: set[int] = set()
         mapa: dict[int, int] = {}
         for g, nombre in enumerate(objetivos):  # duplicados (p. ej. «Memo» dos veces): se asignan en orden
