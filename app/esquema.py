@@ -118,6 +118,8 @@ BANCOS_MN_ENCABEZADOS = [
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
+# En Factura de Proveedor la subsidiaria va por nombre (NetSuite no aceptó el 43 en esa importación: «Clave de referencia "43" no válida subsidiary»)
+SUBSIDIARIA_FACTURA = "FCP"
 UBICACION = "FCP SOLES"
 # Cuenta por pagar (ID interno en NetSuite): 111 es la de las filas de ejemplo de la plantilla; los recibos por honorarios van a 424001 (500)
 CUENTA_POR_PAGAR = "111"
@@ -133,7 +135,7 @@ def cuenta_pagar_por_tipo(tipo: str) -> str:
         return ""
     return next((v for k, v in PAGAR_POR_TIPO.items() if k != "_otros" and t.startswith(k)), PAGAR_POR_TIPO["_otros"])
 _POR_DEFECTO = {
-    "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION,
+    "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA_FACTURA, "Ubicación": UBICACION,
                              "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe")},
     "Factura de Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Nota de credito Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},

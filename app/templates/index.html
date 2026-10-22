@@ -272,7 +272,7 @@
       ins[i].value = valor;
     });
   }
-  const SUBSIDIARIA = '{{ subsidiaria }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
+  const SUBSIDIARIA = '{{ subsidiaria }}', SUBSIDIARIA_FACTURA = '{{ subsidiaria_factura }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
   const PAGAR_TIPO = {{ pagar_por_tipo | tojson }};
   const COL_PAG = 'Cuenta por Pagar PCGE', COL_PAGNS = 'Cuenta por Pagar NetSuite';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
@@ -614,7 +614,7 @@
     const poner = (n, val) => { fila[iF(n)] = val; };
     poner('EXTERNAL ID', id); poner('Proveedor', idNetSuite(ruc));
     poner('Cuenta', v(COL_PAGNS) || (/honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR));       // cuenta por pagar: número del COA de Gastos (42100); si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
-    poner('Subsidiaria', SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
+    poner('Subsidiaria', SUBSIDIARIA_FACTURA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
     poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || tipoTransaccionOtros(v('Tipo Doc'))) : '');       
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));

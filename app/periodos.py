@@ -1,6 +1,7 @@
 """Datos por período contable (mes): cada período guarda sus propias grillas en datos_usuario/periodos/AAAA-MM.json."""
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -123,6 +124,24 @@ def _id_nuevo(valor) -> str:
     return "VENDB_" + m.group(1).replace("-", "") + m.group(2).replace("-", "") if m else valor
 
 
+@functools.lru_cache(maxsize=1)
+def _col_subsidiaria_factura() -> int:
+    from . import esquema
+    return esquema.cargar_plantilla().hojas["factura de proveedor"].encabezados.index("Subsidiaria")
+
+
+def _subsidiaria_factura(datos: dict) -> dict:
+    """Factura de Proveedor: la subsidiaria «43» (ID interno) que NetSuite no aceptó pasa a «FCP» (nombre)."""
+    from . import esquema
+    fp = (datos.get("hojas") or {}).get("factura de proveedor")
+    if fp and fp.get("filas"):
+        i = _col_subsidiaria_factura()
+        for f in fp["filas"]:
+            if len(f) > i and str(f[i]).strip() == esquema.SUBSIDIARIA:
+                f[i] = esquema.SUBSIDIARIA_FACTURA
+    return datos
+
+
 def _migrar_ids(datos: dict) -> dict:
     """IDs de Gastos / Factura de Proveedor: formato sin separadores y de largo fijo (VENDB_RUC + serie de 4 + número de 8)."""
     from . import esquema, ids
@@ -146,7 +165,7 @@ def _migrar_ids(datos: dict) -> dict:
 
 def leer(periodo: str) -> dict:
     try:
-        return _migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8"))))
+        return _subsidiaria_factura(_migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8")))))
     except (FileNotFoundError, ValueError):
         return {"actualizado": "", "hojas": {}}
 
