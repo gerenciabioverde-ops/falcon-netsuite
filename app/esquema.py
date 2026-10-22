@@ -167,7 +167,6 @@ REGLAS["Proveedores"] = {
     "documento": {"tipo": proveedores.C_TIPO_DOC, "numero": proveedores.C_NUMERO},
     "cinco_digitos": [proveedores.C_ZIP],
     "unico_id": True,
-    "id_auto": {"prefijo": "VEND", "campos": [proveedores.C_NUMERO]},
     "completar": "proveedores",
     "por_defecto": {proveedores.C_SUBS: SUBSIDIARIA},
     "nota": proveedores.NOTA,

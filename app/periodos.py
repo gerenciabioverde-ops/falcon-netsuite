@@ -54,7 +54,10 @@ _DEPARTAMENTOS_ANTES = {"gerencia general": "Administrativos", "gerencia finanza
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     pr = (datos.get("hojas") or {}).get("proveedores")
-    if pr and pr.get("filas"):       # Proveedores tenía 26 columnas: se quitaron Etiqueta (2), Dirección 2 (4) y Default Tax Reg. (10)
+    if pr and pr.get("filas"):
+        for f in pr["filas"]:       # el External ID de un proveedor es el ID de NetSuite: el VEND_<número> que se generaba antes se quita
+            if f and str(f[0]).upper().startswith("VEND_"):
+                f[0] = ""       # Proveedores tenía 26 columnas: se quitaron Etiqueta (2), Dirección 2 (4) y Default Tax Reg. (10)
         pr["filas"] = [[c for i, c in enumerate(f) if i not in (2, 4, 10)] if len(f) == 26 else f for f in pr["filas"]]
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):

@@ -38,11 +38,11 @@ DIRECCION_DEFECTO = "JAEN - CAJAMARCA"
 # Subsidiaria principal del proveedor (ID interno de Falcon Perú en NetSuite, la misma de las demás hojas)
 SUBSIDIARIA = "43"
 
-REQUERIDOS = [C_ID, C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
+REQUERIDOS = [C_NOMBRE, C_DIR1, C_CIUDAD, C_ESTADO, C_PAIS, C_UBIGEO, C_PAIS_SUB, C_PAIS_ENT,
               C_PERSONA, C_TIPO_DOC, C_NUMERO, C_SUBS]
 
 NOTA = ("Mínimo por proveedor: Nombre, Dirección 1, Ubigeo, Tipo de doc. de identidad y Número. Se completan solos si "
-        "los dejas vacíos: External ID (VEND_ + número), Ciudad y Estado (desde el ubigeo), Código ZIP, País = Peru, "
+        "los dejas vacíos: Ciudad y Estado (desde el ubigeo), Código ZIP, País = Peru, "
         "Tipo de Persona, Dígito Verificador (último dígito del RUC), las casillas T/F en F, Tipo (8 dígitos = Individual, "
         "11 dígitos = Empresa) y Subsidiaria (43).")
 
@@ -226,7 +226,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
         salida.append([
-            FORMULARIO, g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
+            FORMULARIO, "" if g(C_ID).upper().startswith("VEND_") else g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), "FCP",       # Buyer ID = RUC (o DNI); Subsidiaria principal = FCP (en NetSuite se asigna con valor fijo)
             "T", "T",       # Envío y Facturación predeterminada (casillas: T/F)
             _cortar(g(C_DIR1)),
