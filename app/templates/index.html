@@ -35,6 +35,8 @@
   .bloque-cuenta-nota { font-size: 12px; color: #475569; margin-top: 8px; }
   .cuenta-destino { margin-top: 4px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; min-height: 38px; }
   #mf-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; padding: 12px 16px; overflow: auto; }
+  #mf-campos .mf-seccion { grid-column: 1 / -1; font-weight: 600; font-size: 13px; color: #1e3a8a; border-bottom: 1px solid #bfdbfe; padding-top: 6px; }
+  #mf-campos .mf-nota { grid-column: 1 / -1; font-size: 12px; color: #0f766e; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 4px; padding: 6px 10px; }
   #mf-campos label { display: block; font-size: 12px; color: #475569; }
   #mf-campos input, #mf-campos select { display: block; width: 100%; margin-top: 2px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #0f172a; }
   #mf-campos input:focus, #mf-campos select:focus { outline: 2px solid #1d4ed8; outline-offset: -1px; }
@@ -106,7 +108,10 @@
           {% if p.clave == 'gastos' %}<button type="button" id="btn-proponer" class="border rounded px-3 py-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100" title="Propone la cuenta PCGE y el departamento según el Concepto en los gastos que no los tienen (para que los revises)">💡 Proponer cuenta y departamento</button>
           {% if p.clave == 'gastos' %}<button type="button" id="btn-constancias" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube las constancias de depósito de detracción (.html de SUNAT): se relacionan por RUC + Serie-Número y llenan Fecha Detr., N° Constancia, N° Operación y Monto Detr.">📎 Subir constancias de detracción (HTML)</button><input type="file" id="archivos-constancias" accept=".html,.htm" multiple class="hidden">{% endif %}
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
-          {% if p.clave == 'proveedores' %}<button type="button" id="btn-ids-ns" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): cada proveedor se relaciona por nombre y su ID interno se guarda en External ID; las facturas usan ese ID como Proveedor">🔗 Cargar ID de NetSuite (CSV)</button><input type="file" id="archivo-ids-ns" accept=".csv,.txt" class="hidden">{% endif %}
+          {% if p.clave == 'proveedores' %}<button type="button" id="btn-ids-ns" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): cada proveedor se relaciona por nombre y su ID interno se guarda en External ID; las facturas usan ese ID como Proveedor">🔗 Cargar ID de NetSuite (CSV)</button><input type="file" id="archivo-ids-ns" accept=".csv,.txt" class="hidden">
+          <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
+          <button type="button" id="btn-padron-zip" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Si la descarga falla: baja padron_reducido_ruc.zip de SUNAT y súbelo aquí">⬆ Subir ZIP del padrón</button><input type="file" id="archivo-padron" accept=".zip,.txt" class="hidden">
+          <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' %}<button type="button" id="btn-pasar-pagos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
@@ -547,7 +552,10 @@
     if (!(i instanceof HTMLInputElement) || !i.closest('.grilla')) return;
     const clave = i.closest('.panel').dataset.hoja, col = porClave[clave].columnas[+i.dataset.col];
     if (col && col.fecha) i.value = fechaExcel(i.value);
-    if (clave === 'proveedores' && col && col.nombre === 'Latam - Tax Reg Number') completarTipoProv(i.closest('tr'), true);
+    if (clave === 'proveedores' && col && col.nombre === 'Latam - Tax Reg Number') {
+      const tr = i.closest('tr'); completarTipoProv(tr, true);
+      autocompletarPorRuc([...tr.querySelectorAll('input')], msgs => estadoGrilla(msgs.join(' · '), '#b45309')).then(() => { guardar(); contadores(); });
+    }
     aplicarDefectos(clave, i.closest('tr'), i); guardar();
   });
 
@@ -674,6 +682,82 @@
     aplicarSincronizacion(r);
     alert('Listo: ' + r.nuevas.length + ' nuevas y ' + r.cambios.length + ' actualizadas.');
   });
+
+  // ---- Padrón SUNAT: al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo ----
+  const DIRECCION_DEFECTO = 'JAEN - CAJAMARCA', UBIGEO_DEFECTO = 'CAJAMARCA-JAEN-JAEN';       // lo que se pone cuando SUNAT no traía dirección
+  // ins: los campos de una fila de Proveedores en orden de columna (de la grilla o del formulario); avisar(lista de textos, ok)
+  async function autocompletarPorRuc(ins, avisar) {
+    const cols = porClave.proveedores.columnas, ix = n => cols.findIndex(c => c.nombre === n);
+    const ruc = (ins[ix('Latam - Tax Reg Number')].value || '').trim();
+    if (!/^\d{11}$/.test(ruc)) return;
+    let r; try { r = await (await fetch('/padron/ruc/' + ruc)).json(); } catch (e) { return; }
+    if (!r.encontrado) { avisar([r.mensaje], false); return; }
+    const poner = (n, v, tambienSi) => {
+      const e = ins[ix(n)]; if (!v || !e) return false;
+      if (e.value.trim() && !(tambienSi && tambienSi(e.value.trim()))) return false;
+      if (e.tagName === 'SELECT' && ![...e.options].some(o => o.value === v)) e.add(new Option(v, v));
+      e.value = v; return true;
+    };
+    const c = r.campos;
+    poner('Nombre de la empresa', c['Nombre de la empresa']);
+    poner('Dirección 1', c['Dirección 1'], t => t === DIRECCION_DEFECTO);
+    if (poner('Latam - PE Ubigeo', c['Latam - PE Ubigeo'], t => t === UBIGEO_DEFECTO)) ['Ciudad', 'Estado', 'Código ZIP'].forEach(n => { ins[ix(n)].value = ''; });       // se recalculan con el ubigeo real
+    poner('Latam - Tipo de doc. de identidad', c['Latam - Tipo de doc. de identidad']);
+    try {       // el resto (ciudad, estado, ZIP, tipo de persona, dígito verificador…) lo completa el servidor, como «Autocompletar»
+      const f = await (await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hoja: 'proveedores', fila: ins.map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value, periodo }) })).json();
+      f.fila.forEach((v, i) => { if (ins[i] && !ins[i].value.trim() && v) { if (ins[i].tagName === 'SELECT' && ![...ins[i].options].some(o => o.value === v)) ins[i].add(new Option(v, v)); ins[i].value = v; } });
+    } catch (e) { /* sin servidor: queda lo que trajo SUNAT */ }
+    avisar(['SUNAT: ' + r.datos.razon + ' · ' + (r.datos.estado || '—') + ' / ' + (r.datos.condicion || '—')].concat(r.avisos), !r.avisos.length);
+  }
+  // Formulario de Proveedores: campos agrupados (primero el RUC) y consulta a SUNAT al escribirlo
+  function prepararModalProveedor(cont) {
+    const cols = porClave.proveedores.columnas, etiq = {};
+    [...cont.querySelectorAll('label')].forEach(l => { etiq[cols[+l.querySelector('[data-col]').dataset.col].nombre] = l; });
+    const grupos = [
+      ['1 · Identificación', ['Latam - Tipo de doc. de identidad', 'Latam - Tax Reg Number', 'Nombre de la empresa', 'Nombres', 'Apellidos', 'Tipo']],
+      ['2 · Dirección', ['Dirección 1', 'Latam - PE Ubigeo', 'Ciudad', 'Estado', 'País', 'Código ZIP']],
+      ['3 · Datos tributarios (LatamReady)', ['Latam - Tipo de Persona', 'Latam - Dígito Verificador', 'Latam - Es buen contribuyente?', 'Latam - Es agente retención?', 'Latam - Es agente percepción?', 'Latam - Es una Entidad Extranjera?', 'LATAM PE - CtaCte Detracción', 'Latam - País de la subsidiaria', 'Latam - País de la entidad']],
+      ['4 · NetSuite', ['External ID', 'Subsidiaria']],
+    ];
+    cont.innerHTML = '';
+    const nota = document.createElement('div'); nota.className = 'mf-nota';
+    nota.textContent = '🏛️ Escribe el RUC (11 dígitos) y se consulta el padrón de SUNAT: se completan nombre, dirección, ubigeo, ciudad, estado y ZIP. Lo que ya escribiste no se pisa.';
+    cont.appendChild(nota);
+    grupos.forEach(([titulo, nombres]) => {
+      const h = document.createElement('div'); h.className = 'mf-seccion'; h.textContent = titulo; cont.appendChild(h);
+      nombres.forEach(n => { if (etiq[n]) { cont.appendChild(etiq[n]); delete etiq[n]; } });
+    });
+    Object.values(etiq).forEach(l => cont.appendChild(l));
+    const iN = cols.findIndex(c => c.nombre === 'Latam - Tax Reg Number');
+    const campo = cont.querySelector('[data-col="' + iN + '"]');
+    campo.addEventListener('change', () => autocompletarPorRuc(camposModal(), (msgs, ok) => {
+      const ul = document.getElementById('mf-problemas'); ul.innerHTML = '';
+      msgs.forEach(m => { const li = document.createElement('li'); li.style.color = ok ? '#15803d' : '#b45309'; li.textContent = m; ul.appendChild(li); });
+    }));
+    campo.focus();
+  }
+  async function refrescarPadron(seguir) {
+    let e; try { e = await (await fetch('/padron/estado')).json(); } catch (x) { return; }
+    const p = e.proceso || {}, el = $id('padron-estado');
+    if (el) el.textContent = 'Padrón SUNAT: ' + e.cargados + ' RUC' + (e.actualizado ? ' · ' + e.actualizado : ' · sin cargar') + (e.pendientes ? ' · ' + e.pendientes + ' consultados sin datos' : '');
+    if (p.activo) {
+      estadoGrilla((p.fase || '') + (p.bytes ? ' ' + Math.round(p.bytes / 1048576) + ' MB' : '') + (p.leidas ? ' · ' + p.leidas.toLocaleString('en-US') + ' filas leídas · ' + p.encontrados + ' RUC encontrados' : ''), '#1d4ed8');
+      setTimeout(() => refrescarPadron(true), 2000);
+    } else if (seguir) {
+      estadoGrilla(p.error ? p.error : 'Padrón actualizado: ' + p.encontrados + ' RUC encontrados.', p.error ? '#b91c1c' : '#15803d');
+    }
+  }
+  async function actualizarPadron(archivo) {
+    const fd = new FormData(); if (archivo) fd.append('archivo', archivo);
+    const r = await (await fetch('/padron/actualizar', { method: 'POST', body: fd })).json();
+    if (!r.ok) { estadoGrilla(r.mensaje || 'No se pudo iniciar.', '#b91c1c'); return; }
+    refrescarPadron(true);
+  }
+  $id('btn-padron').addEventListener('click', () => { if (confirm('Se descarga el padrón reducido de RUC de SUNAT (unos 150 MB; puede tardar unos minutos) y se guardan solo los RUC de tus gastos, proveedores y bancos. ¿Continuar?')) actualizarPadron(null); });
+  $id('btn-padron-zip').addEventListener('click', () => $id('archivo-padron').click());
+  $id('archivo-padron').addEventListener('change', ev => { const a = ev.target.files[0]; ev.target.value = ''; if (a) actualizarPadron(a); });
+  refrescarPadron(false);
 
   // ---- Bancos MN -> Pago Proveedor: un pago por cada egreso del banco que corresponde a una factura declarada en Factura de Proveedor ----
   const PG = 'pago proveedor', BA = 'bancos mn';
@@ -1136,6 +1220,7 @@
       inp.dataset.col = i;
       lab.appendChild(inp); cont.appendChild(lab);
     });
+    if (clave === 'proveedores') prepararModalProveedor(cont);
     if (clave === 'gastos') {      // la cuenta contable va en un bloque aparte, justo debajo del External ID
       const etiq = cont.querySelectorAll('label'), lP = etiq[colG(COL_PCGE)], lN = etiq[colG(COL_NS)], lPP = etiq[colG(COL_PAG)], lPN = etiq[colG(COL_PAGNS)];
       const bloque = document.createElement('div'), rejilla = document.createElement('div'), lD = document.createElement('label'), dest = document.createElement('div');
