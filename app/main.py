@@ -232,9 +232,12 @@ def guardar_periodo(periodo: str, request: Request, datos: dict = Body(...)):
         total += len(filas)
         limpias[clave] = {"filas": filas, "bloqueadas": [int(i) for i in (h.get("bloqueadas") or []) if isinstance(i, int)]}
         if clave == "proveedores":       # diseño 2: Nombres y Apellidos junto a «Nombre de la empresa»; una página abierta con el diseño anterior se convierte al guardar
-            if h.get("disenio") != 2:
+            d = h.get("disenio") or 1
+            if d < 2:
                 limpias[clave]["filas"] = periodos.proveedores_a_diseno2(filas)
-            limpias[clave]["disenio"] = 2
+            if d < 3:
+                limpias[clave]["filas"] = periodos.proveedores_a_diseno3(limpias[clave]["filas"])
+            limpias[clave]["disenio"] = 3
     if total > 50000:
         raise HTTPException(413, "Demasiadas filas")
     return {"ok": True, "actualizado": periodos.guardar(periodo, limpias)}

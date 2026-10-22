@@ -56,6 +56,20 @@ def proveedores_a_diseno2(filas: list) -> list:
     return [f[:2] + f[-2:] + f[2:-2] if len(f) == 23 else f for f in filas]
 
 
+def proveedores_a_diseno3(filas: list) -> list:
+    """Diseño 3: en Proveedores la dirección por defecto de Jaén ya no se guarda (el CSV la sigue poniendo al generarlo): se vacían Dirección 1,
+    Ubigeo, Ciudad, Estado y ZIP de las filas que tenían exactamente ese valor por defecto."""
+    from . import proveedores as pv
+    e = pv.ENCABEZADOS
+    iD, iU = e.index(pv.C_DIR1), e.index(pv.C_UBIGEO)
+    otros = [e.index(c) for c in (pv.C_CIUDAD, pv.C_ESTADO, pv.C_ZIP)]
+    for f in filas:
+        if len(f) == len(e) and str(f[iD]).strip() == pv.DIRECCION_DEFECTO and str(f[iU]).strip() == pv.UBIGEO_DEFECTO:
+            for i in (iD, iU, *otros):
+                f[i] = ""
+    return filas
+
+
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     pr = (datos.get("hojas") or {}).get("proveedores")
@@ -66,6 +80,8 @@ def _migrar(datos: dict) -> dict:
         pr["filas"] = [[c for i, c in enumerate(f) if i not in (2, 4, 10)] if len(f) == 26 else f for f in pr["filas"]]
     if pr and pr.get("filas") and (pr.get("disenio") or 1) < 2:
         pr["filas"], pr["disenio"] = proveedores_a_diseno2(pr["filas"]), 2
+    if pr and pr.get("filas") and (pr.get("disenio") or 1) < 3:
+        pr["filas"], pr["disenio"] = proveedores_a_diseno3(pr["filas"]), 3
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 38) else f for f in g["filas"]]
