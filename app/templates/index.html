@@ -291,7 +291,7 @@
       hojas[p.clave] = {
         filas: leer(p.clave, true),
         bloqueadas: [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0),
-        ...(p.clave === 'proveedores' ? { disenio: 3 } : {}),       // marca del orden de columnas de Proveedores (Nombres y Apellidos junto al nombre)
+        ...(p.clave === 'proveedores' ? { disenio: 4 } : {}),       // marca del orden de columnas de Proveedores (tipo y número de documento tras External ID; Nombres y Apellidos junto al nombre)
       };
     }
     return { hojas };
