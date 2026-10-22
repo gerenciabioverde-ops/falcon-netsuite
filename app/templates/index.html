@@ -906,7 +906,7 @@
   });
 
   // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
-  const GRUPO_INFO = ['gastos', 'proveedores', 'csvprov', 'cuentas'];
+  const GRUPO_INFO = ['gastos', 'bancos mn', 'proveedores', 'csvprov', 'cuentas'];
   let ultimaInfo = 'gastos';
   GRUPO_INFO.forEach(k => { const b = document.querySelector('.tab[data-tab="' + k + '"]'); if (b) { b.classList.remove('ml-auto', 'border-l'); document.getElementById('subtabs').appendChild(b); } });
   document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
@@ -1005,8 +1005,8 @@
       const excel = (document.querySelector('input[name="formato-salida"]:checked') || {}).value === 'xlsx';
       const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
-      // un CSV por plantilla de NetSuite; «Gastos» es solo de trabajo y no se descarga
-      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos');
+      // un CSV por plantilla de NetSuite; «Gastos» y «Bancos MN» son solo de trabajo y no se descargan
+      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN');
       csvs.forEach((x, i) => setTimeout(() => { const l = document.createElement('a'); l.href = x.a.getAttribute('href'); l.download = ''; document.body.appendChild(l); l.click(); l.remove(); }, i * 600));
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
