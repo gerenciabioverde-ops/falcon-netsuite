@@ -63,6 +63,33 @@ def _encabezados(filas: list[list], hoja: Hoja) -> tuple[int, dict[int, int]] | 
     return mejor
 
 
+def _numero(t: str):
+    try:
+        return Decimal(str(t).replace(",", "").strip())
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _completar_bancos(cabecera: list[list], filas: list[list[str]], hoja: Hoja) -> None:
+    """Reporte del banco: entidad y cuenta salen del encabezado del archivo; la columna Saldos viene como fórmula (=(Q8+O9)) y se
+    calcula aquí: saldo anterior + ingreso − egreso (la fila del saldo inicial trae su valor)."""
+    datos = {}
+    for f in cabecera:
+        if len(f) >= 2 and norm(f[0]).rstrip(":") in ("entidad financiera", "código de la cuenta", "codigo de la cuenta"):
+            datos["entidad" if norm(f[0]).startswith("entidad") else "cuenta"] = f[1].strip()
+    i_ent, i_cta = hoja.idx("Entidad Financiera"), hoja.idx("Cuenta bancaria")
+    i_ing, i_egr, i_sal = hoja.idx("Ingreso"), hoja.idx("Egreso"), hoja.idx("Saldos")
+    saldo = Decimal(0)
+    for c in filas:
+        c[i_ent], c[i_cta] = datos.get("entidad", ""), datos.get("cuenta", "")
+        actual = _numero(c[i_sal]) if not c[i_sal].startswith("=") else None
+        if actual is None:
+            saldo = saldo + (_numero(c[i_ing]) or 0) - (_numero(c[i_egr]) or 0)
+            c[i_sal] = format(saldo.quantize(Decimal("0.01")), "f")
+        else:
+            saldo = actual
+
+
 def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[list[str]] | None:
     enc = _encabezados(filas, hoja)
     if enc is None:
@@ -78,6 +105,8 @@ def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[li
                 celdas[g] = _texto(fila[j])
         if any(celdas):
             salida.append(celdas)
+    if hoja.nombre == "Bancos MN":
+        _completar_bancos(filas[:inicio], salida, hoja)
     if hoja.nombre == "Proveedores":  # «No encontrado» (resultado del XLOOKUP del libro) no es un código postal
         i = hoja.idx("Código ZIP")
         for c in salida:

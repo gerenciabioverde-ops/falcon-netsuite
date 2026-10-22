@@ -107,6 +107,13 @@ GASTOS_ENCABEZADOS = [
     "Cuenta por Pagar PCGE", "Cuenta por Pagar NetSuite",
     "% Retención", "Monto Retención", "Código de impuesto",      # al final para no mover las demás columnas de los datos guardados
 ]
+# Movimientos del banco en soles («Bancos_MN_AAAAMM.xls», reporte «Detalle de los movimientos de la cuenta corriente»); las dos primeras
+# columnas salen del encabezado del reporte (entidad y cuenta). Es una pestaña de trabajo: no genera CSV para NetSuite.
+BANCOS_MN_ENCABEZADOS = [
+    "Entidad Financiera", "Cuenta bancaria", "Fecha operación", "Fecha cobro", "Numero de movimiento", "Tipo pago", "Número de Cheque",
+    "Tipo de comprobante", "Serie y número comprobante", "Concepto", "Descripción de la operación", "Contrato", "Categoría", "Area",
+    "Número de RUC", "Nombre o Razón social", "Ingreso", "Egreso", "Saldos",
+]
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
@@ -141,7 +148,7 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
                     "Nota de credito Cliente": "Fecha", "Pago de factura de cliente": "DATE"}.items():
     REGLAS[_hoja]["fecha_periodo"] = _col
 
-HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS}
+HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
 LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
@@ -163,6 +170,12 @@ REGLAS["Proveedores"] = {
     "completar": "proveedores",
     "por_defecto": {proveedores.C_SUBS: SUBSIDIARIA},
     "nota": proveedores.NOTA,
+}
+
+REGLAS["Bancos MN"] = {
+    "requeridos": ["Concepto"],
+    "fechas": ["Fecha operación", "Fecha cobro"],
+    "numericos": ["Ingreso", "Egreso", "Saldos"],
 }
 
 # Reporte de gastos (reporte_gastos_AAAA-MM-DD.xls): una fila por comprobante de gasto.
