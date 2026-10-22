@@ -377,6 +377,9 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                     texto = _fecha(v).strftime(fmt_out)
                 else:
                     texto = str(v).strip()
+                if r.get("bill_interno") and nom == r["bill_interno"] and texto.startswith("VENDB_"):
+                    res.problemas.append(Problema("error", nro, nom, "BILL todavía es el External ID de la factura: cargue el export de facturas de NetSuite "
+                                                  "(🔗 Cargar ID de facturas de NetSuite) para poner su Internal ID"))
                 if i == col_periodo and not _PERIODO.match(texto):
                     raise ValueError(f"«{texto}» no tiene el formato de periodo «Oct 2026»")
                 lista = hoja.listas.get(i)

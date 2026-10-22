@@ -48,6 +48,7 @@ REGLAS: dict[str, dict] = {
         "lineas_desde": "BILL",
         "cuentas": ["A/P ACCOUNT", "ACCOUNT"],
         "id_auto": {"prefijo": "BP_PE", "campos": ["Beneficiario", "BILL", "DATE"]},
+        "bill_interno": "BILL",       # BILL debe ser el Internal ID de la factura (no su External ID VENDB_…)
     },
     "Asiento": {
         "requeridos": ["EXTERNAL ID", "Date", "POSTING PERIOD", "Subsidiary", "Currency", "Exchange Rate", "Account"],
