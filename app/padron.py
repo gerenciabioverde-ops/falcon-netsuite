@@ -74,6 +74,14 @@ def _conexion() -> sqlite3.Connection:
 
 # ---------- consulta ----------
 
+def formatear_razon(ruc: str, razon: str) -> str:
+    """SUNAT escribe todo en mayúsculas. Una persona (RUC 10/15/17) se pone con la inicial en mayúscula, como los demás
+    proveedores personas del sistema (Torres Nuñez Sadith); las empresas se dejan como las trae SUNAT."""
+    if str(ruc)[:2] in ("10", "15", "17") and razon.isupper():
+        return re.sub(r"[A-ZÁÉÍÓÚÑÜ]+", lambda m: m.group(0).capitalize(), razon)
+    return razon
+
+
 def buscar(ruc: str) -> dict | None:
     """Datos del RUC en el padrón cargado, o None. Si no está, queda «pedido» para la próxima actualización."""
     ruc = str(ruc or "").strip()
@@ -84,7 +92,7 @@ def buscar(ruc: str) -> dict | None:
         if f is None:
             c.execute("INSERT OR IGNORE INTO pedidos (ruc) VALUES (?)", (ruc,))
             return None
-    return {"ruc": f[0], "razon": f[1] or "", "estado": f[2] or "", "condicion": f[3] or "", "ubigeo_codigo": f[4] or "",
+    return {"ruc": f[0], "razon": formatear_razon(f[0], f[1] or ""), "estado": f[2] or "", "condicion": f[3] or "", "ubigeo_codigo": f[4] or "",
             "ubigeo": _ubigeos().get(f[4] or "", ""), "direccion": f[5] or ""}
 
 
