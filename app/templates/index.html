@@ -97,7 +97,7 @@
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado y el gasto no pasa a Factura de Proveedor">ID Proveedor</th>{% endif %}
-              {% for c in p.columnas %}<th{% if p.clave == 'gastos' and c.nombre == 'RUC' %} title="Escribe el RUC seguido de + para crear ese proveedor"{% endif %}>{{ ({'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco'}.get(c.nombre, c.nombre)) if p.clave == 'gastos' else c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
+              {% for c in p.columnas %}<th{% if p.clave == 'gastos' and c.nombre == 'RUC' %} title="Escribe el RUC seguido de + para crear ese proveedor"{% endif %}>{{ ({'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco'}.get(c.nombre, c.nombre)) if p.clave == 'gastos' else ('Cuenta NetSuite' if p.clave == 'factura de proveedor' and c.nombre == 'Cuenta' else c.nombre) }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% if p.clave == 'factura de proveedor' and c.nombre == 'Cuenta' %}<th title="Solo para ver: ID interno de NetSuite de la cuenta (según «Cuentas homologadas»). Es el que va al CSV. «sin ID» = esa cuenta no está homologada y NetSuite no la va a reconocer">ID Interno Cta</th>{% endif %}{% endfor %}
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -377,6 +377,7 @@
       inp.value = (valores && valores[i]) ? (c.fecha ? fechaExcel(valores[i]) : valores[i]) : '';
       if (bloqueada) { inp.readOnly = true; inp.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; }
       td.appendChild(inp); tr.appendChild(td);
+      if (clave === 'factura de proveedor' && c.nombre === 'Cuenta') { const ic = document.createElement('td'); ic.className = 'idcta'; ic.style.cssText = 'white-space:nowrap;min-width:6rem;text-align:center;font-size:.8rem;padding:0 6px'; tr.appendChild(ic); }
     });
     if (bloqueada) tr.dataset.bloqueada = '1';
     tb.appendChild(tr);
@@ -415,6 +416,15 @@
       if (!porClave.gastos || !porClave.hasOwnProperty || !document.getElementById('panel-gastos')) return;
       const ids = new Set([...cuerpo('factura de proveedor').rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
       const iTd = colF('Latam - Tipo de Documento Fiscal'), iSe = colF('Latam - Serie CxP'), iNu = colF('Latam - Número Preimpreso');
+      const iCta = porClave['factura de proveedor'].columnas.findIndex(c => c.nombre === 'Cuenta'), idsCta = new Set(tablaCuentas.map(f => String(f.netsuite)));
+      [...cuerpo('factura de proveedor').rows].forEach(tr => {       // ID Interno Cta (solo vista): ID de NetSuite de la cuenta, el que va al CSV
+        const ic = tr.querySelector('td.idcta'); if (!ic) return;
+        const cta = (tr.querySelectorAll('input')[iCta].value || '').trim();
+        const f = cta && (tablaCuentas.find(x => coaDe(x) === cta) || filaCuenta(cta)), id = f ? String(f.netsuite) : (cta && idsCta.has(cta) ? cta : '');
+        if (!cta) { ic.textContent = ''; ic.title = ''; ic.style.background = ''; }
+        else if (id) { ic.textContent = id; ic.style.color = '#15803d'; ic.style.background = ''; ic.title = 'ID interno de la cuenta ' + cta + ' (va al CSV)'; }
+        else { ic.textContent = '⚠ sin ID'; ic.style.color = '#b45309'; ic.style.background = '#fef3c7'; ic.title = 'La cuenta ' + cta + ' no está en «Cuentas homologadas»: agréguela con su ID interno de NetSuite'; }
+      });
       [...cuerpo('factura de proveedor').rows].forEach(tr => {       // N° Referencia (solo vista): FA E001-1258
         const rf = tr.querySelector('td.refn'); if (!rf) return;
         const w = [...tr.querySelectorAll('input')].map(i => i.value);
@@ -1293,7 +1303,7 @@
     cont.innerHTML = '';
     p.columnas.forEach((c, i) => {
       const lab = document.createElement('label'), actual = valores[i] || '';
-      lab.append(((mClave === 'gastos' && ETIQUETAS_GASTOS[c.nombre] || c.nombre) + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
+      lab.append(((mClave === 'gastos' && ETIQUETAS_GASTOS[c.nombre] || (mClave === 'factura de proveedor' && c.nombre === 'Cuenta' ? 'Cuenta NetSuite' : c.nombre)) + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
       let inp;
       if (c.opciones.length) {       // columnas con tabla/lista: desplegable con TODAS las opciones (no filtrado por lo que ya está escrito)
         inp = document.createElement('select');
@@ -1520,7 +1530,7 @@
     try {
       const d = await (await fetch('/homologacion')).json();
       tablaCuentas = d.filas;
-      pintarOpcionesCuentas(); resincronizarCuentas();
+      pintarOpcionesCuentas(); resincronizarCuentas(); vistoBuenoFactura();
       const hay = d.cantidad > 0;
       $('estado-cuentas').className = 'text-sm ' + (hay ? 'text-green-700' : 'text-slate-500');
       $('estado-cuentas').textContent = hay ? d.cantidad + ' cuentas cargadas (' + d.archivo + ', ' + d.actualizado + ').' : 'Todavía no hay cuentas cargadas.';
