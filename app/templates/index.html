@@ -273,7 +273,7 @@
       ins[i].value = valor;
     });
   }
-  const SUBSIDIARIA = '{{ subsidiaria }}', SUBSIDIARIA_FACTURA = '{{ subsidiaria_factura }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
+  const SUBSIDIARIA = '{{ subsidiaria }}', SUBSIDIARIA_FACTURA = '{{ subsidiaria_factura }}', PAIS_SUBSIDIARIA = '{{ pais_subsidiaria }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
   const PAGAR_TIPO = {{ pagar_por_tipo | tojson }};
   const COL_PAG = 'Cuenta por Pagar PCGE', COL_PAGNS = 'Cuenta por Pagar NetSuite';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
@@ -625,7 +625,7 @@
   const tipoTransaccionOtros = t => { const k = quitarTildes(t); return TIPO_OTROS[k] || (k.startsWith('liquidaci') ? 'Liquidaciones Varias' : 'Boleta de Venta'); };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '');       // solo letras y números: FA01-00018047 -> FA0100018047
   const GF = 'gastos', FP = 'factura de proveedor';
-  const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Ubicación', 'Gastos: Ubicación'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
+  const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Latam - Subsidiaria País', 'Ubicación', 'Gastos: Ubicación'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
   // Fila de Factura de Proveedor que corresponde a una fila de Gastos (o null si no tiene RUC y Serie-Número)
   function facturaDeGasto(g) {
     const ig = n => porClave[GF].columnas.findIndex(c => c.nombre === n), iF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
@@ -636,7 +636,7 @@
     const poner = (n, val) => { fila[iF(n)] = val; };
     poner('EXTERNAL ID', id); poner('Proveedor', idNetSuite(ruc));
     poner('Cuenta', cuentaNS(PAGAR_TIPO.factura) || CUENTA_POR_PAGAR);       // cuenta de la cabecera = siempre la cuenta por pagar de las facturas (42100): NetSuite solo admite cuentas de tipo «Cuentas por pagar» ahí, no las de honorarios (2400.08) ni otros pasivos (2420). Si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
-    poner('Subsidiaria', SUBSIDIARIA_FACTURA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
+    poner('Subsidiaria', SUBSIDIARIA_FACTURA); poner('Latam - Subsidiaria País', PAIS_SUBSIDIARIA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
     poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || tipoTransaccionOtros(v('Tipo Doc'))) : '');       
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));

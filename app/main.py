@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, padron, periodos, proveedores
-from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, SUBSIDIARIA_FACTURA, UBICACION, cargar_plantilla, norm
+from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, SUBSIDIARIA_FACTURA, PAIS_SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, reporte_errores_xlsx, validar_hoja
 
 BASE = Path(__file__).parent
@@ -99,6 +99,7 @@ def inicio(request: Request):
         "formatos": list(FORMATOS_FECHA),
         "subsidiaria": SUBSIDIARIA,
         "subsidiaria_factura": SUBSIDIARIA_FACTURA,
+        "pais_subsidiaria": PAIS_SUBSIDIARIA,
         "ubicacion": UBICACION,
         "pagar_por_tipo": PAGAR_POR_TIPO,
         "cuenta_por_pagar": CUENTA_POR_PAGAR,
