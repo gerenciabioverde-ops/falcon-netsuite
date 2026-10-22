@@ -75,9 +75,9 @@ def _conexion() -> sqlite3.Connection:
 # ---------- consulta ----------
 
 def formatear_razon(ruc: str, razon: str) -> str:
-    """SUNAT escribe todo en mayúsculas. Una persona (RUC 10/15/17) se pone con la inicial en mayúscula, como los demás
-    proveedores personas del sistema (Torres Nuñez Sadith); las empresas se dejan como las trae SUNAT."""
-    if str(ruc)[:2] in ("10", "15", "17") and razon.isupper():
+    """SUNAT escribe todo en mayúsculas. Personas y empresas se ponen con inicial mayúscula, como los demás proveedores del
+    sistema (Torres Nuñez Sadith, Vkasa Group Sac, Xinzhujiang E.I.R.L.); las siglas de una sola letra (E.I.R.L., S.A.C.) se conservan."""
+    if razon.isupper():
         return re.sub(r"[A-ZÁÉÍÓÚÑÜ]+", lambda m: m.group(0).capitalize(), razon)
     return razon
 
