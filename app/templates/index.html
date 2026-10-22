@@ -73,9 +73,11 @@
         {% if p.clave == 'proveedores' %}<button type="button" data-tab="csvprov" class="tab px-4 py-2.5 border-b-2" title="Vista previa del CSV de proveedores tal como se envía a NetSuite">CSV Proveedor
         <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
       {% endfor %}
+      <button type="button" id="tab-info" class="tab-grupo px-4 py-2.5 border-b-2 ml-auto border-l" title="Gastos, Proveedores, CSV Proveedor y Cuentas homologadas: la información de trabajo de donde salen las plantillas de NetSuite">Información</button>
       <button type="button" data-tab="cuentas" class="tab px-4 py-2.5 border-b-2 ml-auto border-l">Cuentas homologadas
         <span id="cuentas-contador" class="ml-1 text-xs bg-green-100 text-green-800 rounded-full px-1.5 hidden"></span></button>
     </nav>
+    <nav id="subtabs" class="hidden border-b text-sm bg-slate-50" role="tablist" aria-label="Información"></nav>
 
     <div class="p-3">
       {% for p in pestanas %}
@@ -903,6 +905,11 @@
       (tablaCuentas.length ? '' : '\n\nNota: no hay «Cuentas homologadas» cargadas, por eso no hay cuentas propuestas.'));
   });
 
+  // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
+  const GRUPO_INFO = ['gastos', 'proveedores', 'csvprov', 'cuentas'];
+  let ultimaInfo = 'gastos';
+  GRUPO_INFO.forEach(k => { const b = document.querySelector('.tab[data-tab="' + k + '"]'); if (b) { b.classList.remove('ml-auto', 'border-l'); document.getElementById('subtabs').appendChild(b); } });
+  document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
   function activar(clave) {
     document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + clave));
     document.querySelectorAll('.tab').forEach(b => {
@@ -910,6 +917,11 @@
       b.classList.toggle('border-blue-700', on); b.classList.toggle('text-blue-800', on);
       b.classList.toggle('font-semibold', on); b.classList.toggle('border-transparent', !on);
     });
+    const enInfo = GRUPO_INFO.includes(clave), bi = document.getElementById('tab-info');
+    const sub = document.getElementById('subtabs');
+    sub.classList.toggle('hidden', !enInfo); sub.classList.toggle('flex', enInfo); sub.classList.toggle('flex-wrap', enInfo);
+    ['border-blue-700', 'text-blue-800', 'font-semibold'].forEach(c => bi.classList.toggle(c, enInfo)); bi.classList.toggle('border-transparent', !enInfo);
+    if (enInfo) ultimaInfo = clave;
     document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov');
     if (vistasCsv[clave]) vistasCsv[clave]();
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
