@@ -120,6 +120,10 @@ BANCOS_MN_ENCABEZADOS = [
 SUBSIDIARIA = "43"
 # En Factura de Proveedor la subsidiaria va por nombre (NetSuite no aceptó el 43 en esa importación: «Clave de referencia "43" no válida subsidiary»)
 SUBSIDIARIA_FACTURA = "FCP"
+# Latam - Subsidiaria País (custbody_lmry_subsidiary_country): NetSuite lo rellena solo al elegir la subsidiaria en pantalla, pero en una importación llega vacío
+# y de él dependen el tipo de documento fiscal y el concepto de detracción; va como columna nueva (al final) de Factura de Proveedor
+PAIS_SUBSIDIARIA = "Perú"
+COL_PAIS_SUBSIDIARIA = "Latam - Subsidiaria País"
 UBICACION = "FCP SOLES"
 # Cuenta por pagar (ID interno en NetSuite): 111 es la de las filas de ejemplo de la plantilla; los recibos por honorarios van a 424001 (500)
 CUENTA_POR_PAGAR = "111"
@@ -135,7 +139,7 @@ def cuenta_pagar_por_tipo(tipo: str) -> str:
         return ""
     return next((v for k, v in PAGAR_POR_TIPO.items() if k != "_otros" and t.startswith(k)), PAGAR_POR_TIPO["_otros"])
 _POR_DEFECTO = {
-    "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA_FACTURA, "Ubicación": UBICACION,
+    "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA_FACTURA, COL_PAIS_SUBSIDIARIA: PAIS_SUBSIDIARIA, "Ubicación": UBICACION,
                              "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe")},
     "Factura de Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Nota de credito Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
@@ -350,6 +354,8 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
             if lt and norm(extra) not in lt.valores:
                 lt.valores.add(norm(extra))
                 lt.opciones.append(extra)
+    if h_fp and COL_PAIS_SUBSIDIARIA not in h_fp.encabezados:       # columna nueva al final: lo ya guardado (por posición) no se corre
+        h_fp.encabezados.append(COL_PAIS_SUBSIDIARIA)
     for nombre, enc in HOJAS_EXTRA.items():
         listas_extra = proveedores.listas() if nombre == "Proveedores" else LISTAS_EXTRA.get(nombre, {})
         hojas.setdefault(norm(nombre), Hoja(
