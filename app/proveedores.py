@@ -114,6 +114,16 @@ def tipo_entidad(numero: str) -> str:
     return "Individual" if n.isdigit() and len(n) == 8 else "Empresa" if n.isdigit() and len(n) == 11 else ""
 
 
+def tipo_por_datos(numero: str, nombre: str, nombres: str, apellidos: str) -> str:
+    """Individual si hay Nombres o Apellidos (o el documento es un DNI); Empresa si hay Nombre de la empresa; si no, según el número."""
+    if _t(nombres) or _t(apellidos):
+        return "Individual"
+    n = _t(numero)
+    if n.isdigit() and len(n) == 8:
+        return "Individual"
+    return "Empresa" if _t(nombre) else tipo_entidad(numero)
+
+
 def completar(fila: list, idx) -> list:
     """Rellena (en una copia) lo que se deja vacío; devuelve avisos para quien llama (texto, o (columna, texto))."""
     avisos: list[str] = []
@@ -150,7 +160,7 @@ def completar(fila: list, idx) -> list:
         poner(c, "F")
 
     tipo, numero = g(C_TIPO_DOC), g(C_NUMERO)
-    poner(C_TIPO, tipo_entidad(numero))
+    poner(C_TIPO, tipo_por_datos(numero, g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS)))
     poner(C_SUBS, SUBSIDIARIA)
     if g(C_TIPO) == "Individual":
         nombres, apellidos = dividir_nombre(g(C_NOMBRE))
