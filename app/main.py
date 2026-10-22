@@ -239,7 +239,9 @@ def guardar_periodo(periodo: str, request: Request, datos: dict = Body(...)):
                 limpias[clave]["filas"] = periodos.proveedores_a_diseno3(limpias[clave]["filas"])
             if d < 4:
                 limpias[clave]["filas"] = periodos.proveedores_a_diseno4(limpias[clave]["filas"])
-            limpias[clave]["disenio"] = 4
+            if d < 5:
+                limpias[clave]["filas"] = periodos.proveedores_a_diseno5(limpias[clave]["filas"])
+            limpias[clave]["disenio"] = 5
     if total > 50000:
         raise HTTPException(413, "Demasiadas filas")
     return {"ok": True, "actualizado": periodos.guardar(periodo, limpias)}
