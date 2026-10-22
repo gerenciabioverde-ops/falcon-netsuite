@@ -125,8 +125,8 @@
         <div class="flex flex-wrap items-center gap-3 text-sm">
           <button type="button" id="cp-actualizar" class="border rounded px-3 py-1.5 hover:bg-slate-50">🔄 Actualizar vista</button>
           <a id="cp-csv" class="border rounded px-3 py-1.5 bg-green-700 text-white hidden" href="#">⬇ Descargar CSV completo</a>
-          <a id="cp-csv-ok" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hidden" href="#">⬇ Descargar solo los proveedores sin errores</a>
-          <a id="cp-excel" class="border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hidden" href="#">📄 Reporte de errores (Excel)</a>
+          <a id="cp-csv-nuevos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hidden" href="#" title="Solo los proveedores sin errores y SIN ID de NetSuite: para crearlos en NetSuite">⬇ CSV proveedores nuevos (sin ID)</a>
+          <a id="cp-csv-actualizar" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hidden" href="#" title="Solo los proveedores sin errores y CON ID de NetSuite: para actualizar en NetSuite los datos que modificaste">⬇ CSV proveedores con ID (actualizar)</a>
           <label class="flex items-center gap-1"><input type="checkbox" id="cp-solo-errores"> Solo con errores</label>
           <span id="cp-estado" class="text-slate-600"></span>
         </div>
@@ -1196,8 +1196,11 @@
       const sinErr = total - malas.size, cont = $id(tab + '-contador');
       cont.textContent = malas.size; cont.classList.toggle('hidden', !malas.size);
       $id(pf + '-csv').classList.toggle('hidden', !(total && !d.errores)); $id(pf + '-csv').href = '/descargar/' + d.token + '/' + archivo + '.csv';
-      $id(pf + '-csv-ok').classList.toggle('hidden', !(sinErr && d.errores)); $id(pf + '-csv-ok').href = '/descargar/' + d.token + '/' + archivo + '_sin_errores.csv';
-      $id(pf + '-excel').classList.toggle('hidden', !(d.errores || d.avisos)); $id(pf + '-excel').href = '/descargar/' + d.token + '/errores.xlsx';
+      const iId = d.encabezados.indexOf('External ID'), buenos = d.filas.filter((f, i) => !malas.has(d.numeros[i]));
+      const conId = buenos.filter(f => String(f[iId] || '').trim()).length, sinId = buenos.length - conId;
+      [['-csv-nuevos', sinId, '_nuevos.csv', 'CSV proveedores nuevos (sin ID)'], ['-csv-actualizar', conId, '_actualizar.csv', 'CSV proveedores con ID (actualizar)']].forEach(([id, n, suf, txt]) => {
+        const a = $id(pf + id); a.classList.toggle('hidden', !n); a.href = '/descargar/' + d.token + '/' + archivo + suf; a.textContent = '⬇ ' + txt + ': ' + n;
+      });
       est.textContent = total ? total + ' proveedores · ' + sinErr + ' sin errores · ' + malas.size + ' con errores (' + d.errores + ' errores)' : 'No hay proveedores' + ' en este período.';
       est.style.color = malas.size ? '#b45309' : '#15803d';
       const tb = document.createElement('table'); tb.className = 'text-xs'; tb.style.borderCollapse = 'collapse';
