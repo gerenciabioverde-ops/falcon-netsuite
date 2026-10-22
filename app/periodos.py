@@ -75,6 +75,20 @@ def proveedores_a_diseno4(filas: list) -> list:
     return [f[:1] + f[13:15] + f[1:13] + f[15:] if len(f) == 23 else f for f in filas]
 
 
+def proveedores_a_diseno5(filas: list) -> list:
+    """Diseño 5: Nombre de la empresa, Nombres y Apellidos escritos todo en MAYÚSCULAS pasan a inicial mayúscula (Torres Nuñez Sadith);
+    las siglas de una sola letra (E.I.R.L., S.A.C.) se conservan y lo que ya tiene minúsculas no se toca."""
+    from . import proveedores as pv
+    e = pv.ENCABEZADOS
+    idx = [e.index(c) for c in (pv.C_NOMBRE, pv.C_NOMBRES, pv.C_APELLIDOS)]
+    for f in filas:
+        if len(f) == len(e):
+            for i in idx:
+                if str(f[i]).isupper():
+                    f[i] = re.sub(r"[A-ZÁÉÍÓÚÑÜ]+", lambda m: m.group(0).capitalize(), f[i])
+    return filas
+
+
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     pr = (datos.get("hojas") or {}).get("proveedores")
@@ -89,6 +103,8 @@ def _migrar(datos: dict) -> dict:
         pr["filas"], pr["disenio"] = proveedores_a_diseno3(pr["filas"]), 3
     if pr and pr.get("filas") and (pr.get("disenio") or 1) < 4:
         pr["filas"], pr["disenio"] = proveedores_a_diseno4(pr["filas"]), 4
+    if pr and pr.get("filas") and (pr.get("disenio") or 1) < 5:
+        pr["filas"], pr["disenio"] = proveedores_a_diseno5(pr["filas"]), 5
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 38) else f for f in g["filas"]]
