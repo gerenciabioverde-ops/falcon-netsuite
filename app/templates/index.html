@@ -700,13 +700,18 @@
     };
     const c = r.campos;
     poner('Nombre de la empresa', c['Nombre de la empresa']);
-    poner('Dirección 1', c['Dirección 1'], t => t === DIRECCION_DEFECTO);
-    if (poner('Latam - PE Ubigeo', c['Latam - PE Ubigeo'], t => t === UBIGEO_DEFECTO)) ['Ciudad', 'Estado', 'Código ZIP'].forEach(n => { ins[ix(n)].value = ''; });       // se recalculan con el ubigeo real
+    // Si SUNAT no trae dirección o ubigeo, Dirección 1, Ciudad y Estado quedan en blanco (no se pone Jaén); el CSV sí usa Jaén al generar, con aviso
+    const limpiar = n => { if (ins[ix(n)]) ins[ix(n)].value = ''; };
+    if (c['Dirección 1']) poner('Dirección 1', c['Dirección 1'], t => t === DIRECCION_DEFECTO); else if (ins[ix('Dirección 1')].value.trim() === DIRECCION_DEFECTO) limpiar('Dirección 1');
+    const sinUbigeo = !c['Latam - PE Ubigeo'];
+    if (sinUbigeo) { if (ins[ix('Latam - PE Ubigeo')].value.trim() === UBIGEO_DEFECTO) ['Latam - PE Ubigeo', 'Ciudad', 'Estado', 'Código ZIP'].forEach(limpiar); }
+    else if (poner('Latam - PE Ubigeo', c['Latam - PE Ubigeo'], t => t === UBIGEO_DEFECTO)) ['Ciudad', 'Estado', 'Código ZIP'].forEach(limpiar);       // se recalculan con el ubigeo real
     poner('Latam - Tipo de doc. de identidad', c['Latam - Tipo de doc. de identidad']);
     try {       // el resto (ciudad, estado, ZIP, tipo de persona, dígito verificador…) lo completa el servidor, como «Autocompletar»
       const f = await (await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hoja: 'proveedores', fila: ins.map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value, periodo }) })).json();
-      f.fila.forEach((v, i) => { if (ins[i] && !ins[i].value.trim() && v) { if (ins[i].tagName === 'SELECT' && ![...ins[i].options].some(o => o.value === v)) ins[i].add(new Option(v, v)); ins[i].value = v; } });
+      const sinDefecto = new Set(sinUbigeo ? ['Dirección 1', 'Latam - PE Ubigeo', 'Ciudad', 'Estado', 'Código ZIP'].map(ix) : []);       // sin ubigeo de SUNAT el servidor pondría Jaén: no se aplica
+      f.fila.forEach((v, i) => { if (ins[i] && !sinDefecto.has(i) && !ins[i].value.trim() && v) { if (ins[i].tagName === 'SELECT' && ![...ins[i].options].some(o => o.value === v)) ins[i].add(new Option(v, v)); ins[i].value = v; } });
     } catch (e) { /* sin servidor: queda lo que trajo SUNAT */ }
     avisar(['SUNAT: ' + r.datos.razon + ' · ' + (r.datos.estado || '—') + ' / ' + (r.datos.condicion || '—')].concat(r.avisos), !r.avisos.length);
   }
