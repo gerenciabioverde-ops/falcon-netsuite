@@ -732,6 +732,7 @@
     const iN = cols.findIndex(c => c.nombre === 'Latam - Tax Reg Number');
     const campo = cont.querySelector('[data-col="' + iN + '"]');
     campo.addEventListener('change', () => autocompletarPorRuc(camposModal(), (msgs, ok) => {
+      nota.textContent = '🏛️ ' + msgs.join(' · '); nota.style.color = ok ? '#15803d' : '#b45309'; nota.style.borderColor = ok ? '#99f6e4' : '#fcd34d'; nota.style.background = ok ? '#f0fdfa' : '#fffbeb';       // arriba, a la vista
       const ul = document.getElementById('mf-problemas'); ul.innerHTML = '';
       msgs.forEach(m => { const li = document.createElement('li'); li.style.color = ok ? '#15803d' : '#b45309'; li.textContent = m; ul.appendChild(li); });
     }));
