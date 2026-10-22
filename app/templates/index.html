@@ -110,7 +110,6 @@
           <button type="button" id="btn-pasar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Factura de Proveedor» una fila por cada gasto, con el mismo External ID">➜ Pasar a Factura de Proveedor</button>{% endif %}
           {% if p.clave == 'proveedores' %}<button type="button" id="btn-ids-ns" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): cada proveedor se relaciona por nombre y su ID interno se guarda en External ID; las facturas usan ese ID como Proveedor">🔗 Cargar ID de NetSuite (CSV)</button><input type="file" id="archivo-ids-ns" accept=".csv,.txt" class="hidden">
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
-          <button type="button" id="btn-padron-zip" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Si la descarga falla: baja padron_reducido_ruc.zip de SUNAT y súbelo aquí">⬆ Subir ZIP del padrón</button><input type="file" id="archivo-padron" accept=".zip,.txt" class="hidden">
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' %}<button type="button" id="btn-pasar-pagos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
@@ -754,15 +753,12 @@
       estadoGrilla(p.error ? p.error : 'Padrón actualizado: ' + p.encontrados + ' RUC encontrados.', p.error ? '#b91c1c' : '#15803d');
     }
   }
-  async function actualizarPadron(archivo) {
-    const fd = new FormData(); if (archivo) fd.append('archivo', archivo);
-    const r = await (await fetch('/padron/actualizar', { method: 'POST', body: fd })).json();
+  async function actualizarPadron() {
+    const r = await (await fetch('/padron/actualizar', { method: 'POST' })).json();
     if (!r.ok) { estadoGrilla(r.mensaje || 'No se pudo iniciar.', '#b91c1c'); return; }
     refrescarPadron(true);
   }
-  $id('btn-padron').addEventListener('click', () => { if (confirm('Se descarga el padrón reducido de RUC de SUNAT (unos 150 MB; puede tardar unos minutos) y se guardan solo los RUC de tus gastos, proveedores y bancos. ¿Continuar?')) actualizarPadron(null); });
-  $id('btn-padron-zip').addEventListener('click', () => $id('archivo-padron').click());
-  $id('archivo-padron').addEventListener('change', ev => { const a = ev.target.files[0]; ev.target.value = ''; if (a) actualizarPadron(a); });
+  $id('btn-padron').addEventListener('click', () => { if (confirm('Se descarga el padrón reducido de RUC de SUNAT (unos 150 MB; puede tardar unos minutos) y se guardan solo los RUC de tus gastos, proveedores y bancos. ¿Continuar?')) actualizarPadron(); });
   refrescarPadron(false);
 
   // ---- Bancos MN -> Pago Proveedor: un pago por cada egreso del banco que corresponde a una factura declarada en Factura de Proveedor ----

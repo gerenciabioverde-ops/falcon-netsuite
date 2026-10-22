@@ -229,9 +229,9 @@ def _descargar(destino: str) -> None:
                 f.write(trozo)
                 _estado["bytes"] += len(trozo)
     except OSError as e:
-        raise PadronError(f"No se pudo descargar el padrón de SUNAT ({e}). Descárguelo desde {URL_PADRON} y súbalo con «Subir ZIP».") from e
+        raise PadronError(f"No se pudo descargar el padrón de SUNAT ({e}). Revise la conexión a internet del equipo y vuelva a intentarlo.") from e
     if not zipfile.is_zipfile(destino):
-        raise PadronError("Lo descargado no es un ZIP válido (SUNAT pudo bloquear la descarga). Descárguelo a mano y súbalo con «Subir ZIP».")
+        raise PadronError("Lo descargado no es un ZIP válido (SUNAT pudo bloquear la descarga). Vuelva a intentarlo en unos minutos.")
 
 
 def _trabajo(ruta_subida: str | None) -> None:
