@@ -97,7 +97,7 @@
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado y el gasto no pasa a Factura de Proveedor">ID Proveedor</th>{% endif %}
-              {% for c in p.columnas %}<th>{{ ({'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco'}.get(c.nombre, c.nombre)) if p.clave == 'gastos' else c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
+              {% for c in p.columnas %}<th{% if p.clave == 'gastos' and c.nombre == 'RUC' %} title="Escribe el RUC seguido de + para crear ese proveedor"{% endif %}>{{ ({'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco'}.get(c.nombre, c.nombre)) if p.clave == 'gastos' else c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -962,8 +962,32 @@
     otras.forEach(r => { const ins = r.querySelectorAll('input'); ins[iP].value = cod; ins[iP].classList.remove('propuesta'); sincronizarNS(r); });
     guardar(); contadores();
   }
+  // ---- Atajo en Gastos: escribir el RUC seguido de «+» abre el formulario para crear ese proveedor ----
+  const RUC_MAS = /^\s*(\d{8}|\d{11})\s*\+\s*$/;
+  let retornoFila = null;       // si se llegó desde el formulario de un gasto, al cerrar el del proveedor se vuelve a ese gasto
+  async function nuevoProveedorDesdeGasto(ruc, razon, retorno) {
+    const cs = porClave.proveedores.columnas, ix = n => cs.findIndex(c => c.nombre === n);
+    let tr = [...cuerpo('proveedores').rows].find(t => t.querySelectorAll('input')[ix('Latam - Tax Reg Number')].value.trim() === ruc);
+    if (tr) estadoGrilla('El proveedor ' + ruc + ' ya está en Proveedores: se abre su ficha.', '#1d4ed8');
+    else {
+      tr = [...cuerpo('proveedores').rows].find(t => ![...t.querySelectorAll('input')].some(i => i.value.trim())) || nuevaFila('proveedores');
+      const ins = [...tr.querySelectorAll('input')];
+      ins[ix('Latam - Tax Reg Number')].value = ruc;
+      if (razon) ins[ix('Nombre de la empresa')].value = razon;       // la razón social del gasto, si el padrón no la trae
+      completarTipoProv(tr, true);
+      await autocompletarPorRuc(ins, msgs => estadoGrilla(msgs.join(' · '), '#b45309'));
+      renumerar('proveedores'); guardar(); contadores();
+    }
+    retornoFila = retorno || null;
+    abrirFila('proveedores', [...cuerpo('proveedores').rows].indexOf(tr));
+  }
   $id('panel-gastos').addEventListener('change', ev => {
     const i = ev.target;
+    if (i instanceof HTMLInputElement && +i.dataset.col === colG('RUC') && RUC_MAS.test(i.value)) {       // «RUC+» -> crear el proveedor
+      const ruc = RUC_MAS.exec(i.value)[1], tr = i.closest('tr'); i.value = ruc;
+      completarIdGasto(tr); guardar();
+      nuevoProveedorDesdeGasto(ruc, tr.querySelectorAll('input')[colG('Razon Social')].value.trim(), null); return;
+    }
     if (i instanceof HTMLInputElement && [colG('RUC'), colG('Serie-Numero'), colG('Caja')].includes(+i.dataset.col)) { completarIdGasto(i.closest('tr')); guardar(); return; }
     if (i instanceof HTMLInputElement && +i.dataset.col === colG('Tipo Doc')) { completarCuentaPagar(i.closest('tr'), true); completarImpuesto(i.closest('tr'), false); guardar(); return; }
     if (i instanceof HTMLInputElement && +i.dataset.col === colG(COL_RET)) { completarImpuesto(i.closest('tr'), true); guardar(); return; }
@@ -1241,6 +1265,16 @@
       lab.appendChild(inp); cont.appendChild(lab);
     });
     if (clave === 'proveedores') prepararModalProveedor(cont);
+    if (clave === 'gastos') {       // RUC + «+» también en el formulario del gasto
+      const cr = cont.querySelector('[data-col="' + colG('RUC') + '"]');
+      cr.title = 'Escribe el RUC seguido de + para crear ese proveedor';
+      cr.addEventListener('change', () => {
+        const m = RUC_MAS.exec(cr.value); if (!m) return;
+        cr.value = m[1];
+        const rz = ((cont.querySelector('[data-col="' + colG('Razon Social') + '"]') || {}).value || '').trim(), idx = mIdx;
+        guardarFila(); nuevoProveedorDesdeGasto(m[1], rz, { clave: 'gastos', idx });
+      });
+    }
     if (clave === 'gastos') {      // la cuenta contable va en un bloque aparte, justo debajo del External ID
       const etiq = cont.querySelectorAll('label'), lP = etiq[colG(COL_PCGE)], lN = etiq[colG(COL_NS)], lPP = etiq[colG(COL_PAG)], lPN = etiq[colG(COL_PAGNS)];
       const bloque = document.createElement('div'), rejilla = document.createElement('div'), lD = document.createElement('label'), dest = document.createElement('div');
@@ -1330,6 +1364,12 @@
     antesDC.forEach(([n, v0]) => { if (ins[colG(n)].value !== v0) ofrecerAplicarCol(tr, n); });
   }
   function cerrarFila() { modal.style.display = 'none'; mClave = null; }
+  function terminarFila(guardarAntes) {       // cierra el formulario; si era el de un proveedor creado desde un gasto, vuelve a ese gasto
+    const volver = mClave === 'proveedores' ? retornoFila : null;
+    if (guardarAntes) guardarFila();
+    cerrarFila(); retornoFila = null;
+    if (volver) abrirFila(volver.clave, volver.idx);
+  }
   async function consultarFila() {
     const r = await fetch('/fila', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hoja: mClave, fila: camposModal().map(i => i.value), formato_fecha: document.getElementById('formato-grilla').value, periodo }) });
@@ -1348,8 +1388,8 @@
     const i = ev.target;
     if (i instanceof HTMLInputElement && i.readOnly && i.closest('.grilla')) abrirFila(i.closest('.panel').dataset.hoja, i.closest('tr').rowIndex - 1);
   });
-  document.getElementById('mf-guardar').addEventListener('click', () => { guardarFila(); cerrarFila(); });
-  document.getElementById('mf-cancelar').addEventListener('click', cerrarFila);
+  document.getElementById('mf-guardar').addEventListener('click', () => terminarFila(true));
+  document.getElementById('mf-cancelar').addEventListener('click', () => terminarFila(false));
   document.getElementById('mf-ant').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx - 1); });
   document.getElementById('mf-sig').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx + 1); });
   document.getElementById('mf-auto').addEventListener('click', async () => {
