@@ -124,10 +124,10 @@ def _id_nuevo(valor) -> str:
     return "VENDB_" + m.group(1).replace("-", "") + m.group(2).replace("-", "") if m else valor
 
 
-@functools.lru_cache(maxsize=1)
-def _col_subsidiaria_factura() -> int:
+@functools.lru_cache(maxsize=None)
+def _col_hoja(hoja: str, nombre: str) -> int:
     from . import esquema
-    return esquema.cargar_plantilla().hojas["factura de proveedor"].encabezados.index("Subsidiaria")
+    return esquema.cargar_plantilla().hojas[hoja].encabezados.index(nombre)
 
 
 def _subsidiaria_factura(datos: dict) -> dict:
@@ -135,10 +135,36 @@ def _subsidiaria_factura(datos: dict) -> dict:
     from . import esquema
     fp = (datos.get("hojas") or {}).get("factura de proveedor")
     if fp and fp.get("filas"):
-        i = _col_subsidiaria_factura()
+        i = _col_hoja("factura de proveedor", "Subsidiaria")
         for f in fp["filas"]:
             if len(f) > i and str(f[i]).strip() == esquema.SUBSIDIARIA:
                 f[i] = esquema.SUBSIDIARIA_FACTURA
+    return datos
+
+
+def _cuenta_pagar_factura(datos: dict) -> dict:
+    """Factura de Proveedor (cuenta de la cabecera) y Pago Proveedor (A/P ACCOUNT, la misma cuenta): NetSuite solo admite cuentas de tipo
+    «Cuentas por pagar» ahí. Las que la app ponía para honorarios (2400.08) y otros pasivos (2420) pasan a la cuenta por pagar de las
+    facturas (42100); una cuenta puesta a mano no se toca."""
+    hojas = datos.get("hojas") or {}
+    if not any((hojas.get(k) or {}).get("filas") for k in ("factura de proveedor", "pago proveedor")):
+        return datos
+    from . import esquema, homologacion
+    coa, mapa = homologacion.coa(), homologacion.mapa()
+    n = homologacion.normalizar
+    destino = coa.get(n("421201"))
+    if not destino:
+        return datos
+    antiguas = {esquema.CUENTA_POR_PAGAR_RHE} | {v for k in ("424001", "469901") for v in (coa.get(n(k)), mapa.get(n(k))) if v}
+    antiguas.discard(destino)
+    for clave, col in (("factura de proveedor", "Cuenta"), ("pago proveedor", "A/P ACCOUNT")):
+        h = hojas.get(clave)
+        if not (h and h.get("filas")):
+            continue
+        i = _col_hoja(clave, col)
+        for f in h["filas"]:
+            if len(f) > i and str(f[i]).strip() in antiguas:
+                f[i] = destino
     return datos
 
 
@@ -165,7 +191,7 @@ def _migrar_ids(datos: dict) -> dict:
 
 def leer(periodo: str) -> dict:
     try:
-        return _subsidiaria_factura(_migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8")))))
+        return _cuenta_pagar_factura(_subsidiaria_factura(_migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8"))))))
     except (FileNotFoundError, ValueError):
         return {"actualizado": "", "hojas": {}}
 

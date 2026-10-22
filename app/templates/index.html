@@ -635,7 +635,7 @@
     const cortar = sn.indexOf('-'), fila = new Array(porClave[FP].columnas.length).fill('');
     const poner = (n, val) => { fila[iF(n)] = val; };
     poner('EXTERNAL ID', id); poner('Proveedor', idNetSuite(ruc));
-    poner('Cuenta', v(COL_PAGNS) || (/honorarios/i.test(v('Tipo Doc')) ? CUENTA_POR_PAGAR_RHE : CUENTA_POR_PAGAR));       // cuenta por pagar: número del COA de Gastos (42100); si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
+    poner('Cuenta', cuentaNS(PAGAR_TIPO.factura) || CUENTA_POR_PAGAR);       // cuenta de la cabecera = siempre la cuenta por pagar de las facturas (42100): NetSuite solo admite cuentas de tipo «Cuentas por pagar» ahí, no las de honorarios (2400.08) ni otros pasivos (2420). Si no está homologada, el ID de la plantilla. El CSV la cambia por su ID interno
     poner('Subsidiaria', SUBSIDIARIA_FACTURA); poner('Ubicación', UBICACION); poner('Gastos: Ubicación', UBICACION);
     poner('Moneda', MONEDA_NS[v('Moneda').toUpperCase()] || v('Moneda')); poner('Fecha', fechaExcel(v('Fecha Factura')));
     poner('Latam - Tipo de Transacción', v('Tipo Doc') ? (TIPO_TRANSACCION[v('Tipo Doc').toLowerCase()] || tipoTransaccionOtros(v('Tipo Doc'))) : '');       
@@ -651,7 +651,7 @@
   function sincronizarFactura(modo, aplicar) {
     const existentes = new Map([...cuerpo(FP).rows].map(tr => [tr.querySelector('input').value.trim(), tr]).filter(([id]) => id));
     const iCuentaFP = porClave[FP].columnas.findIndex(c => c.nombre === 'Cuenta');
-    const idsPagarAuto = new Set([CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, ...['421201', '424001', '469901'].map(cuentaID).filter(Boolean)]);       // IDs que puso la app en versiones anteriores
+    const idsPagarAuto = new Set([CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, ...['421201', '424001', '469901'].flatMap(c => [cuentaID(c), cuentaNS(c)]).filter(Boolean)]);       // IDs que puso la app en versiones anteriores
     const colsFijas = new Set(FIJOS_FACTURA.map(n => porClave[FP].columnas.findIndex(c => c.nombre === n)));
     const r = { nuevas: [], cambios: [], vinculadas: [], sinCambios: 0, sinId: 0, sinCuenta: 0, incompletas: [] };
     leer(GF).forEach(g => {
@@ -667,7 +667,7 @@
       const ins = tr.querySelectorAll('input'), dif = [];
       f.fila.forEach((val, k) => {
         const actual = ins[k].value.trim();
-        // la cuenta por pagar por defecto (111) se puede cambiar a la que corresponde al tipo de documento (honorarios = 500); una cuenta puesta a mano no se toca
+        // la cuenta por pagar que puso la app (111, 500, 2400.08, 2420…) se cambia a la de las facturas (42100); una cuenta puesta a mano no se toca
         const defectoCambiable = k === iCuentaFP && idsPagarAuto.has(actual) && val !== actual;
         if (val && (!actual || defectoCambiable || (modo === 'actualizar' && !colsFijas.has(k) && actual !== val))) dif.push([k, val, actual]);
       });
