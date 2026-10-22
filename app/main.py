@@ -372,8 +372,10 @@ def padron_ruc(ruc: str):
         return {"encontrado": False, "mensaje": "Escriba un RUC de 11 dígitos para consultar SUNAT."}
     d = padron.buscar(ruc)
     if d is None:
-        return {"encontrado": False, "cargado": padron.estado()["cargados"],
-                "mensaje": "Ese RUC no está en el padrón cargado: use «🏛️ Actualizar padrón SUNAT» (queda anotado para la próxima actualización)."}
+        n = padron.estado()["cargados"]
+        return {"encontrado": False, "cargado": n,
+                "mensaje": ("El padrón de SUNAT aún no está cargado en este equipo: pulse «🏛️ Actualizar padrón SUNAT» en Proveedores y vuelva a escribir el RUC."
+                            if not n else "Ese RUC no está en el padrón cargado (queda anotado): pulse «🏛️ Actualizar padrón SUNAT» para traerlo y vuelva a escribir el RUC.")}
     campos = {proveedores.C_NOMBRE: d["razon"], proveedores.C_DIR1: d["direccion"], proveedores.C_UBIGEO: d["ubigeo"],
               proveedores.C_TIPO_DOC: "REGISTRO ÚNICO DE CONTRIBUYENTES", proveedores.C_NUMERO: d["ruc"]}
     avisos = []
