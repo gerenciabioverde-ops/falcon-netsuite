@@ -15,8 +15,8 @@ from pathlib import Path
 RUTA = Path(__file__).resolve().parent.parent / "data" / "proveedores_listas.json"
 
 ENCABEZADOS = [
-    "External ID", "Nombre de la empresa", "Etiqueta", "Dirección 1", "Dirección 2", "Ciudad", "Estado", "País",
-    "Código ZIP", "Latam - PE Ubigeo", "Default Tax Reg.", "Latam - País de la subsidiaria",
+    "External ID", "Nombre de la empresa", "Dirección 1", "Ciudad", "Estado", "País",
+    "Código ZIP", "Latam - PE Ubigeo", "Latam - País de la subsidiaria",
     "Latam - País de la entidad", "Latam - Tipo de Persona", "Latam - Tipo de doc. de identidad",
     "Latam - Tax Reg Number", "Latam - Dígito Verificador", "Latam - Es buen contribuyente?",
     "Latam - Es agente retención?", "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?",
@@ -175,7 +175,7 @@ FORMULARIO = "Falcon Vendor Form - Latam Peru"
 SALIDA = [
     "Formulario personalizado", "External ID", "Individual", "Nombre de la empresa", "Nombre", "Apellidos",
     "Buyer ID", "Subsidiaria principal",
-    "Envío predeterminado", "Facturación predeterminada", "Etiqueta", "Dirección 1",
+    "Envío predeterminado", "Facturación predeterminada", "Dirección 1",
     "Ciudad", "County", "Estado", "Zip",
     "Latam Entidad - Sunat País",
     "Latam - Tipo de Documento de Identidad",
@@ -228,7 +228,7 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
         salida.append([
             FORMULARIO, g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), "FCP",       # Buyer ID = RUC (o DNI); Subsidiaria principal = FCP (en NetSuite se asigna con valor fijo)
-            "T", "T", _cortar(g(C_DIR1)),       # Envío y Facturación predeterminada (casillas: T/F); Etiqueta = la dirección, como en NetSuite
+            "T", "T",       # Envío y Facturación predeterminada (casillas: T/F)
             _cortar(g(C_DIR1)),
             g(C_CIUDAD), g(C_ESTADO), pais, g(C_ZIP),
             "PERU" if pais.lower() in ("peru", "perú") else pais.upper(),
