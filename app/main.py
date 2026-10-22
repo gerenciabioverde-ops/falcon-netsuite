@@ -438,14 +438,20 @@ def descargar(token: str, archivo: str):
         return Response(reporte_errores_xlsx(resultados, periodos.etiqueta(periodo) if periodo else ""),
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         headers={"Content-Disposition": f'attachment; filename="errores_{periodo or "validacion"}.xlsx"'})
-    if archivo.endswith("_sin_errores.csv"):       # solo las filas sin errores (para subir ya los que están completos)
+    for sufijo in ("_sin_errores.csv", "_nuevos.csv", "_actualizar.csv"):
+        if not archivo.endswith(sufijo):
+            continue
+        # solo las filas sin errores; «_nuevos» = sin ID de NetSuite (para crearlos), «_actualizar» = con ID (para actualizarlos en NetSuite)
         for r in resultados:
-            if r.archivo == archivo.replace("_sin_errores.csv", ".csv"):
+            if r.archivo == archivo.replace(sufijo, ".csv"):
                 malas = {p.fila for p in r.problemas if p.nivel == "error"}
-                buenas = [f for n, f in zip(r.numeros_fila, r.filas) if n not in malas]
-                if not buenas:
-                    raise HTTPException(409, "Ninguna fila está libre de errores.")
-                sub = ResultadoHoja(nombre=r.nombre, encabezados=r.encabezados, filas=buenas)
+                filas = [f for n, f in zip(r.numeros_fila, r.filas) if n not in malas]
+                if sufijo != "_sin_errores.csv":
+                    i = r.encabezados.index("External ID")
+                    filas = [f for f in filas if bool(str(f[i]).strip()) == (sufijo == "_actualizar.csv")]
+                if not filas:
+                    raise HTTPException(409, "Ninguna fila cumple (sin errores" + ("" if sufijo == "_sin_errores.csv" else ", " + ("con" if sufijo == "_actualizar.csv" else "sin") + " ID de NetSuite") + ").")
+                sub = ResultadoHoja(nombre=r.nombre, encabezados=r.encabezados, filas=filas)
                 return Response(sub.csv_bytes(), media_type="text/csv; charset=utf-8",
                                 headers={"Content-Disposition": f'attachment; filename="{archivo}"'})
     for r in resultados:
