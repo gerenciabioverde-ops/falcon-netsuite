@@ -427,7 +427,10 @@
         if (ip) {
           if (!ruc) { ip.textContent = ''; ip.title = ''; }
           else if (idsProv[ruc]) { ip.textContent = idsProv[ruc]; ip.style.color = '#15803d'; ip.style.background = ''; ip.title = 'ID de NetSuite del proveedor'; }
-          else { ip.textContent = '⚠ sin ID'; ip.style.color = '#b45309'; ip.style.background = '#fef3c7'; ip.title = ruc in idsProv ? 'El proveedor está en la pestaña Proveedores pero sin ID de NetSuite (cargue el export con «Cargar ID de NetSuite»)' : 'Este RUC/DNI no está en la pestaña Proveedores'; }
+          else if (ruc in idsProv) { ip.textContent = '⚠ sin ID'; ip.style.color = '#b45309'; ip.style.background = '#fef3c7'; ip.title = 'El proveedor está en la pestaña Proveedores pero sin ID de NetSuite (cargue el export con «Cargar ID de NetSuite»)'; }
+          else { ip.textContent = '⚠ no registrado'; ip.style.color = '#b91c1c'; ip.style.background = '#fee2e2'; ip.title = 'Este RUC/DNI no está en la pestaña Proveedores: clic para crear el proveedor'; }
+          const falta = !idsProv[ruc] && !(ruc in idsProv) && ruc;
+          ip.style.cursor = falta ? 'pointer' : ''; ip.onclick = falta ? () => nuevoProveedorDesdeGasto(ruc, ((tr.querySelectorAll('input')[colG('Razon Social')] || {}).value || '').trim(), null) : null;
         }
         const vb = tr.querySelector('td.vb'); if (!vb) return;
         const vals = [...tr.querySelectorAll('input')].map(i => i.value), id = (vals[0] || '').trim();
@@ -1268,6 +1271,16 @@
     if (clave === 'gastos') {       // RUC + «+» también en el formulario del gasto
       const cr = cont.querySelector('[data-col="' + colG('RUC') + '"]');
       cr.title = 'Escribe el RUC seguido de + para crear ese proveedor';
+      const aviso = document.createElement('div'); aviso.style.cssText = 'font-size:.75rem;margin-top:.15rem'; cr.parentNode.appendChild(aviso);
+      const avisarProveedor = () => {
+        const r = cr.value.trim(), iR = porClave.proveedores.columnas.findIndex(c => c.nombre === 'Latam - Tax Reg Number');
+        const hay = r && [...cuerpo('proveedores').rows].some(t => t.querySelectorAll('input')[iR].value.trim() === r);
+        aviso.innerHTML = ''; if (!r || hay || RUC_MAS.test(r)) return;
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Crear proveedor'; b.style.cssText = 'margin-left:.4rem;text-decoration:underline;color:#1d4ed8';
+        b.onclick = () => { const rz = ((cont.querySelector('[data-col="' + colG('Razon Social') + '"]') || {}).value || '').trim(), idx = mIdx; guardarFila(); nuevoProveedorDesdeGasto(r, rz, { clave: 'gastos', idx }); };
+        aviso.append(Object.assign(document.createElement('span'), { textContent: '⚠ Este RUC/DNI no está en la pestaña Proveedores.', style: 'color:#b91c1c' }), b);
+      };
+      cr.addEventListener('input', avisarProveedor); avisarProveedor();
       cr.addEventListener('change', () => {
         const m = RUC_MAS.exec(cr.value); if (!m) return;
         cr.value = m[1];
