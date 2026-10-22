@@ -95,7 +95,7 @@
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado y el gasto no pasa a Factura de Proveedor">ID Proveedor</th>{% endif %}
-              {% for c in p.columnas %}<th>{{ 'ID Comprobante' if (p.clave == 'gastos' and c.nombre == 'External ID') else c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
+              {% for c in p.columnas %}<th>{{ ({'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco'}.get(c.nombre, c.nombre)) if p.clave == 'gastos' else c.nombre }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% endfor %}
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -989,6 +989,8 @@
       (tablaCuentas.length ? '' : '\n\nNota: no hay «Cuentas homologadas» cargadas, por eso no hay cuentas propuestas.'));
   });
 
+  // Nombres que se ven en Gastos (por dentro las columnas siguen con su nombre original: el reporte las trae así)
+  const ETIQUETAS_GASTOS = { 'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco' };
   // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
   const GRUPO_INFO = ['gastos', 'bancos mn', 'proveedores', 'csvprov', 'cuentas'];
   let ultimaInfo = 'gastos';
@@ -1122,7 +1124,7 @@
     cont.innerHTML = '';
     p.columnas.forEach((c, i) => {
       const lab = document.createElement('label'), actual = valores[i] || '';
-      lab.append(((mClave === 'gastos' && c.nombre === 'External ID' ? 'ID Comprobante' : c.nombre) + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
+      lab.append(((mClave === 'gastos' && ETIQUETAS_GASTOS[c.nombre] || c.nombre) + (c.requerida ? ' *' : '') + (c.auto ? ' (automático)' : '')) + ' ');
       let inp;
       if (c.opciones.length) {       // columnas con tabla/lista: desplegable con TODAS las opciones (no filtrado por lo que ya está escrito)
         inp = document.createElement('select');
