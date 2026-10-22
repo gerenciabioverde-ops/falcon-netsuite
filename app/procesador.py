@@ -335,6 +335,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
     mapa_h = homologacion.mapa() if cuentas else {}
     coa_h = homologacion.coa_a_id() if cuentas else {}
     traducidas: dict[tuple, list[int]] = {}
+    sin_id: dict[tuple, list[int]] = {}
+    ids_cuenta = set(coa_h.values()) | set(mapa_h.values())
     ids_vistos: dict[str, int] = {}
     claves_vistas: dict[tuple, int] = {}
 
@@ -367,6 +369,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                     if nuevo is not None and nuevo != str(v).strip():
                         traducidas.setdefault((nom, str(v).strip(), nuevo), []).append(nro)
                         v = nuevo
+                    elif nuevo is None and str(v).strip() not in ids_cuenta:
+                        sin_id.setdefault((nom, str(v).strip()), []).append(nro)
                 if i in fechas:
                     texto = _fecha(v).strftime(fmt_out)
                 elif i in numericos:
@@ -553,6 +557,8 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
         res.filas.append(salida)
         res.numeros_fila.append(nro)
 
+    for (col, origen), nros in sin_id.items():
+        res.problemas.append(Problema("aviso", nros[0], col, f"La cuenta {origen} no está en «Cuentas homologadas» (no tiene ID interno de NetSuite): se envía tal cual y NetSuite puede rechazarla ({len(nros)} fila{'s' if len(nros) > 1 else ''})"))
     for (col, origen, destino), nros in traducidas.items():
         res.problemas.append(Problema("aviso", nros[0], col,
                                       f"Cuenta {origen} → {destino} (homologada, {len(nros)} fila{'s' if len(nros) > 1 else ''})"))
