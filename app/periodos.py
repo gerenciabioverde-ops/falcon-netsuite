@@ -51,6 +51,11 @@ _DEPARTAMENTOS_ANTES = {"gerencia general": "Administrativos", "gerencia finanza
                         "gerencia sostenibilidad": "Sostenibilidad", "gerencia operaciones": "Operaciones"}
 
 
+def proveedores_a_diseno2(filas: list) -> list:
+    """Proveedores: Nombres y Apellidos pasaron de ser las 2 últimas columnas a ir justo después de «Nombre de la empresa» (diseño 2)."""
+    return [f[:2] + f[-2:] + f[2:-2] if len(f) == 23 else f for f in filas]
+
+
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     pr = (datos.get("hojas") or {}).get("proveedores")
@@ -59,6 +64,8 @@ def _migrar(datos: dict) -> dict:
             if f and str(f[0]).upper().startswith("VEND_"):
                 f[0] = ""       # Proveedores tenía 26 columnas: se quitaron Etiqueta (2), Dirección 2 (4) y Default Tax Reg. (10)
         pr["filas"] = [[c for i, c in enumerate(f) if i not in (2, 4, 10)] if len(f) == 26 else f for f in pr["filas"]]
+    if pr and pr.get("filas") and (pr.get("disenio") or 1) < 2:
+        pr["filas"], pr["disenio"] = proveedores_a_diseno2(pr["filas"]), 2
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 38) else f for f in g["filas"]]
