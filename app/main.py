@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, padron, periodos, proveedores
-from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, SUBSIDIARIA_FACTURA, SUBSIDIARIAS_ANTERIORES_FACTURA, PAIS_SUBSIDIARIA, UBICACION, cargar_plantilla, norm
+from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, SUBSIDIARIA_FACTURA, SUBSIDIARIAS_ANTERIORES_FACTURA, DEPARTAMENTO_NS, CLASE_NS, PAIS_SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, reporte_errores_xlsx, validar_hoja
 
 BASE = Path(__file__).parent
@@ -100,6 +100,8 @@ def inicio(request: Request):
         "subsidiaria": SUBSIDIARIA,
         "subsidiaria_factura": SUBSIDIARIA_FACTURA,
         "pais_subsidiaria": PAIS_SUBSIDIARIA,
+        "departamento_ns": DEPARTAMENTO_NS,
+        "clase_ns": CLASE_NS,
         "ubicacion": UBICACION,
         "pagar_por_tipo": PAGAR_POR_TIPO,
         "cuenta_por_pagar": CUENTA_POR_PAGAR,
@@ -345,6 +347,8 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
             i = hoja.idx("Subsidiaria")
             armado = [(p, [SUBSIDIARIA_FACTURA if k == i and str(c).strip().upper() in SUBSIDIARIAS_ANTERIORES_FACTURA else c for k, c in enumerate(f)]) if p > 1 else (p, f)
                       for p, f in armado]
+        if clave in ("factura de proveedor", "pago proveedor"):       # departamento / clase de NetSuite aunque la página abierta traiga los de Falcon
+            periodos.valores_ns_departamento_clase({clave: {"filas": [c for p, c in armado if p > 1]}})
         armados[clave] = armado
     armados = {k: v for k, v in armados.items() if len(v) > 1}
     if not armados:

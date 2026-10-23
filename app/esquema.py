@@ -123,6 +123,10 @@ SUBSIDIARIA = "43"
 # En Factura de Proveedor la subsidiaria es «FCP», igual que la «Subsidiaria principal» del CSV de Proveedores (a pedido del usuario).
 # Valores de versiones anteriores que se convierten a ella: 43, Peru.
 SUBSIDIARIA_FACTURA = "FCP"
+# Departamento y clase de las líneas de gasto en NetSuite (los de la plantilla de ejemplo: «Accounting & Finance» / «BIB»). Los departamentos de
+# la pestaña Gastos (Operaciones, Finanzas…) son de uso interno de Falcon y NetSuite no los reconoce (department no válido).
+DEPARTAMENTO_NS = "Accounting & Finance"
+CLASE_NS = "BIB"
 SUBSIDIARIAS_ANTERIORES_FACTURA = ("43", "PERU", "PERÚ")
 # Latam - Subsidiaria País (custbody_lmry_subsidiary_country): NetSuite lo rellena solo al elegir la subsidiaria en pantalla, pero en una importación llega vacío
 # y de él dependen el tipo de documento fiscal y el concepto de detracción; va como columna nueva (al final) de Factura de Proveedor
@@ -144,7 +148,8 @@ def cuenta_pagar_por_tipo(tipo: str) -> str:
     return next((v for k, v in PAGAR_POR_TIPO.items() if k != "_otros" and t.startswith(k)), PAGAR_POR_TIPO["_otros"])
 _POR_DEFECTO = {
     "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA_FACTURA, COL_PAIS_SUBSIDIARIA: PAIS_SUBSIDIARIA, "Ubicación": UBICACION,
-                             "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe")},
+                             "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe"),
+                             "Gastos: Departamento": (DEPARTAMENTO_NS, "Gastos: Importe"), "Gastos: Clase": (CLASE_NS, "Gastos: Importe")},
     "Factura de Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Nota de credito Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Pago Proveedor": {"A/P ACCOUNT": CUENTA_POR_PAGAR, "SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
