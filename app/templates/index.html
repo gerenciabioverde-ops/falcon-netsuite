@@ -126,7 +126,7 @@
           {% if p.clave == 'proveedores' %}<button type="button" id="btn-ids-ns" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): cada proveedor se relaciona por nombre y su ID interno se guarda en External ID; las facturas usan ese ID como Proveedor">🔗 Cargar ID de NetSuite (CSV)</button><input type="file" id="archivo-ids-ns" accept=".csv,.txt" class="hidden">
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
-          {% if p.clave == 'bancos mn' %}<button type="button" id="btn-pasar-pagos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
+          {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
@@ -868,12 +868,12 @@
   refrescarPadron(false);
 
   // ---- Bancos MN -> Pago Proveedor: un pago por cada egreso del banco que corresponde a una factura declarada en Factura de Proveedor ----
-  const PG = 'pago proveedor', BA = 'bancos mn';
-  const colB = n => porClave[BA].columnas.findIndex(c => c.nombre === n), colPg = n => porClave[PG].columnas.findIndex(c => c.nombre === n), colF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
+  const PG = 'pago proveedor';
+  const colPg = n => porClave[PG].columnas.findIndex(c => c.nombre === n), colF = n => porClave[FP].columnas.findIndex(c => c.nombre === n);
   const MESES_PAGO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   // Cuenta del banco en NetSuite: se busca en «Cuentas homologadas» (cuentas 104…) por el nombre de la entidad y la moneda (soles = PEN)
-  function cuentaBanco(entidad, cuenta) {
-    const e = quitarTildes(entidad), dolares = /dolar|usd/.test(quitarTildes(cuenta)), mon = dolares ? /usd|dolar/ : /pen|sol/;
+  function cuentaBanco(entidad, cuenta, enDolares) {
+    const e = quitarTildes(entidad), dolares = enDolares || /dolar|usd/.test(quitarTildes(cuenta)), mon = dolares ? /usd|dolar/ : /pen|sol/;
     const f = tablaCuentas.find(x => /^104/.test(String(x.falcon)) && e && quitarTildes(x.nombre_falcon || '').includes(e) && mon.test(quitarTildes(x.nombre_falcon || '')));
     return f ? (coaDe(f) || String(f.netsuite)) : '';
   }
@@ -881,7 +881,8 @@
     const t = quitarTildes(tipo), op = porClave[PG].columnas[colPg('LATAM - PAYMENT METHOD')].opciones, de = ini => op.find(o => o.startsWith(ini)) || '';
     return t.startsWith('transfer') ? de('PE - TRANSFERENCIA DE FONDOS') : t.startsWith('cheque') ? de('PE - CHEQUES CON LA CL') : t.startsWith('efectivo') ? de('PE - EFECTIVO, EN LOS DEM') : '';
   }
-  $id('btn-pasar-pagos').addEventListener('click', () => {
+  document.querySelectorAll('.btn-pasar-pagos').forEach(btn => btn.addEventListener('click', () => {
+    const BA = btn.dataset.hoja, esME = BA === 'bancos me', colB = n => porClave[BA].columnas.findIndex(c => c.nombre === n);
     const facturas = new Map();
     [...cuerpo(FP).rows].forEach(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); if (v[0].trim()) facturas.set(v[0].trim(), v); });
     // un movimiento del banco puede pagar varias facturas: varias filas con el mismo ExternalID forman un solo pago; lo que ya estaba en Pago Proveedor no se repite
@@ -893,7 +894,7 @@
       if (!(numero(g('Egreso')) > 0)) return;
       const f = facturas.get(idComprobante(g('Número de RUC'), g('Serie y número comprobante')));
       if (!f) { if (g('Número de RUC') && g('Serie y número comprobante')) r.sinFactura++; return; }
-      const fv = n => (f[colF(n)] || '').trim(), banco = cuentaBanco(g('Entidad Financiera'), g('Cuenta bancaria')), fecha = g('Fecha operación') || g('Fecha cobro');
+      const fv = n => (f[colF(n)] || '').trim(), banco = cuentaBanco(g('Entidad Financiera'), g('Cuenta bancaria'), esME), fecha = g('Fecha operación') || g('Fecha cobro');
       const ult4 = (g('Cuenta bancaria').replace(/\D/g, '').slice(-4) || '0000'), id = 'BP_PE_' + ult4 + '_' + (g('Numero de movimiento') || 'S' + (k + 2));
       const hechas = nuevasPorId.get(id) || 0; nuevasPorId.set(id, hechas + 1);
       if (hechas < (previas.get(id) || 0)) { r.yaEstan++; return; }
@@ -919,7 +920,7 @@
       (r.sinBanco.size ? '\n\n⚠ Sin cuenta de banco en «Cuentas homologadas» (ACCOUNT queda vacío): ' + [...r.sinBanco].join('; ') : '') +
       (r.usd ? '\n\n⚠ ' + r.usd + ' pagos de facturas en USD: complete el EXCHANGE RATE.' : '') +
       (nuevas.length ? '\n\nBILL lleva el External ID de la factura: use «🔗 Cargar ID de facturas de NetSuite (CSV)» en Pago Proveedor para poner su Internal ID.' : ''));
-  });
+  }));
   // En Pago Proveedor: export de facturas de NetSuite (ID interno + ID externo) -> Internal ID en BILL
   $id('btn-ids-facturas').addEventListener('click', () => $id('archivo-ids-facturas').click());
   $id('archivo-ids-facturas').addEventListener('change', async ev => {
