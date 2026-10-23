@@ -237,6 +237,8 @@ def guardar_periodo(periodo: str, request: Request, datos: dict = Body(...)):
         limpias[clave] = {"filas": filas, "bloqueadas": [int(i) for i in (h.get("bloqueadas") or []) if isinstance(i, int)]}
         if clave == "gastos" and isinstance(h.get("ids_factura"), dict):       # ID interno de NetSuite de cada factura {ID comprobante: ID interno}
             limpias[clave]["ids_factura"] = {str(k)[:60]: str(v)[:20] for k, v in list(h["ids_factura"].items())[:60000] if str(v).strip().isdigit()}
+        if clave == "gastos" and isinstance(h.get("ids_factura_num"), dict):       # número de transacción (VENDBILL…) de cada factura
+            limpias[clave]["ids_factura_num"] = {str(k)[:60]: str(v)[:40] for k, v in list(h["ids_factura_num"].items())[:60000] if str(v).strip()}
         if clave == "proveedores":       # diseño 2: Nombres y Apellidos junto a «Nombre de la empresa»; una página abierta con el diseño anterior se convierte al guardar
             d = h.get("disenio") or 1
             if d < 2:
