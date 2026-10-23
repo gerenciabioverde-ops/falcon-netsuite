@@ -341,6 +341,10 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
             celdas = [(c.strip() if isinstance(c, str) and c.strip() else None) for c in (fila + [""] * n)[:n]]
             if any(c is not None for c in celdas):
                 armado.append((pos, celdas))
+        if clave == "factura de proveedor":       # una página abierta con la subsidiaria anterior (43 / FCP) igual genera «Peru»
+            i = hoja.idx("Subsidiaria")
+            armado = [(p, [SUBSIDIARIA_FACTURA if k == i and str(c).strip().upper() in ("FCP", SUBSIDIARIA) else c for k, c in enumerate(f)]) if p > 1 else (p, f)
+                      for p, f in armado]
         armados[clave] = armado
     armados = {k: v for k, v in armados.items() if len(v) > 1}
     if not armados:
