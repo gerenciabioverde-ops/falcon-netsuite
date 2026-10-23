@@ -262,6 +262,7 @@
   // Proveedores: Tipo según el Tax Reg Number (8 dígitos = DNI = Individual, 11 dígitos = RUC = Empresa)
   function completarNombresProv(tr, cols, ins, recalcular) {       // persona: NetSuite pide Nombre y Apellidos por separado
     const iNo = cols.findIndex(c => c.nombre === 'Nombres'), iA = cols.findIndex(c => c.nombre === 'Apellidos'), iE = cols.findIndex(c => c.nombre === 'Nombre de la empresa');
+    if (iNo >= 0 && iA >= 0 && iE >= 0 && !ins[iE].value.trim()) ins[iE].value = (ins[iNo].value.trim() + ' ' + ins[iA].value.trim()).trim();       // solo para verse: la persona también muestra su nombre completo en «Nombre de la empresa» (el CSV no lo envía)
     if (iNo < 0 || iA < 0 || (!recalcular && (ins[iNo].value.trim() || ins[iA].value.trim()))) return;
     const [no, ap] = dividirNombre(ins[iE].value); ins[iNo].value = no; ins[iA].value = ap;
   }

@@ -114,6 +114,12 @@ def _migrar(datos: dict) -> dict:
         pr["filas"], pr["disenio"] = proveedores_a_diseno5(pr["filas"]), 5
     if pr and pr.get("filas") and (pr.get("disenio") or 1) < 6:
         pr["filas"], pr["disenio"] = proveedores_a_diseno6(pr["filas"]), 6
+    if pr and pr.get("filas"):       # una persona (Nombres/Apellidos) muestra su nombre completo en «Nombre de la empresa» (solo para verse: el CSV no lo envía)
+        from . import proveedores as pv
+        iE, iN, iA = (pv.ENCABEZADOS.index(c) for c in (pv.C_NOMBRE, pv.C_NOMBRES, pv.C_APELLIDOS))
+        for f in pr["filas"]:
+            if len(f) == len(pv.ENCABEZADOS) and not str(f[iE]).strip() and (str(f[iN]).strip() or str(f[iA]).strip()):
+                f[iE] = (str(f[iN]).strip() + " " + str(f[iA]).strip()).strip()
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 38) else f for f in g["filas"]]
