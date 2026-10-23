@@ -574,7 +574,9 @@ def procesar(datos: dict[str, list], plantilla: Plantilla, formato_fecha: str, p
         res = validar_hoja(plantilla.hojas[k], filas, formato_fecha, periodo)
         if plantilla.hojas[k].reglas.get("completar") == "proveedores" and res.filas:
             # el CSV de proveedores sale con las columnas del formulario de NetSuite (las validaciones siguen sobre las de la pestaña)
-            res.filas = proveedores.a_salida(res.encabezados, res.filas)
+            res.filas, cuantas = proveedores.a_salida(res.encabezados, res.filas)
+            if len(cuantas) == len(res.numeros_fila):       # una fila por moneda: el número de fila de la pestaña se repite
+                res.numeros_fila = [n for n, c in zip(res.numeros_fila, cuantas) for _ in range(c)]
             res.encabezados_origen, res.encabezados = res.encabezados, list(proveedores.SALIDA)
         resultados.append(res)
     return resultados

@@ -14,13 +14,16 @@ from pathlib import Path
 
 RUTA = Path(__file__).resolve().parent.parent / "data" / "proveedores_listas.json"
 
-ENCABEZADOS = [
+ENCABEZADOS_V5 = [       # columnas hasta el diseño 5 (las migraciones de periodos.py trabajan con este orden)
     "External ID", "Latam - Tipo de doc. de identidad", "Latam - Tax Reg Number", "Nombre de la empresa", "Nombres", "Apellidos",
     "Dirección 1", "Ciudad", "Estado", "País", "Código ZIP", "Latam - PE Ubigeo", "Latam - País de la subsidiaria",
     "Latam - País de la entidad", "Latam - Tipo de Persona", "Latam - Dígito Verificador", "Latam - Es buen contribuyente?",
     "Latam - Es agente retención?", "Latam - Es agente percepción?", "Latam - Es una Entidad Extranjera?",
     "LATAM PE - CtaCte Detracción", "Tipo", "Subsidiaria",
 ]
+C_MONEDAS = "Monedas"
+MONEDAS_DEFECTO = "SOL, USD"       # todo proveedor nuevo se crea con las dos monedas (la moneda del proveedor en NetSuite es una sublista: sin USD no se le puede facturar en dólares)
+ENCABEZADOS = ENCABEZADOS_V5 + [C_MONEDAS]
 C_ID, C_NOMBRE, C_DIR1 = "External ID", "Nombre de la empresa", "Dirección 1"
 C_CIUDAD, C_ESTADO, C_PAIS, C_ZIP, C_UBIGEO = "Ciudad", "Estado", "País", "Código ZIP", "Latam - PE Ubigeo"
 C_PAIS_SUB, C_PAIS_ENT = "Latam - País de la subsidiaria", "Latam - País de la entidad"
@@ -163,6 +166,7 @@ def completar(fila: list, idx) -> list:
     tipo, numero = g(C_TIPO_DOC), g(C_NUMERO)
     poner(C_TIPO, tipo_por_datos(numero, g(C_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS)))
     poner(C_SUBS, SUBSIDIARIA)
+    poner(C_MONEDAS, MONEDAS_DEFECTO)
     if g(C_TIPO) == "Individual":
         nombres, apellidos = dividir_nombre(g(C_NOMBRE))
         poner(C_NOMBRES, nombres)
@@ -192,6 +196,7 @@ SALIDA = [
     "Latam - Tipo de Documento de Identidad",
     "Latam - Nro de Registro de Contribuyente", "Latam - Es buen contribuyente?", "Latam - ¿Agente de retención?",
     "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción",
+    "Moneda",       # sublista Monedas: una fila por moneda del proveedor (SOL, USD); las filas de un mismo proveedor repiten sus datos
 ]
 CODIGO_SUNAT_PERU = "9589"
 # Catálogo SUNAT N.° 6 (tipo de documento de identidad)
@@ -230,14 +235,24 @@ def tipo_doc_por_numero(numero: str, actual: str = "") -> str:
     return actual
 
 
-def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
-    """Convierte filas (ya completadas, con las columnas de la pestaña Proveedores) a las columnas del CSV para NetSuite."""
+def monedas_de(texto: str) -> list[str]:
+    """Monedas de la celda «Monedas» («SOL, USD», «soles y dólares»…) como códigos de NetSuite; vacía = las dos por defecto."""
+    t = _t(texto).upper()
+    if not t:
+        return ["SOL", "USD"]
+    return [m for m, patron in (("SOL", r"SOL|PEN|S/"), ("USD", r"USD|DOLAR|DÓLAR|\$")) if re.search(patron, t)] or ["SOL", "USD"]
+
+
+def a_salida(encabezados: list[str], filas: list[list]) -> tuple[list[list[str]], list[int]]:
+    """Convierte filas (ya completadas, con las columnas de la pestaña Proveedores) a las columnas del CSV para NetSuite.
+    Cada moneda del proveedor es una fila (misma información + «Moneda»); devuelve también cuántas filas salieron por cada fila de origen."""
     pos = {c: i for i, c in enumerate(encabezados)}
     salida = []
+    cuantas = []
     for f in filas:
         g = lambda n: _t(f[pos[n]]) if n in pos and pos[n] < len(f) else ""  # noqa: E731
         pais = g(C_PAIS)
-        salida.append([
+        base = ([
             FORMULARIO, "" if g(C_ID).upper().startswith("VEND_") else g(C_ID), _t_f(g(C_TIPO)), "" if g(C_TIPO) == "Individual" else _cortar(g(C_NOMBRE), MAX_NOMBRE), g(C_NOMBRES), g(C_APELLIDOS),
             g(C_NUMERO), "FCP",       # Buyer ID = RUC (o DNI); Subsidiaria principal = FCP (en NetSuite se asigna con valor fijo)
             "T", "T",       # Envío y Facturación predeterminada (casillas: T/F)
@@ -248,5 +263,8 @@ def a_salida(encabezados: list[str], filas: list[list]) -> list[list[str]]:
             g(C_NUMERO), _si_no(g(C_CHECKS[0])), _si_no(g(C_CHECKS[1])),
             _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"),
         ])
-    return salida
+        monedas = monedas_de(g(C_MONEDAS))
+        salida.extend(base + [m] for m in monedas)
+        cuantas.append(len(monedas))
+    return salida, cuantas
 
