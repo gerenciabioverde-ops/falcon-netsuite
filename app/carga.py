@@ -105,7 +105,7 @@ def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[li
                 celdas[g] = _texto(fila[j])
         if any(celdas):
             salida.append(celdas)
-    if hoja.nombre == "Bancos MN":
+    if hoja.nombre in ("Bancos MN", "Bancos ME"):
         _completar_bancos(filas[:inicio], salida, hoja)
     if hoja.nombre == "Proveedores":  # «No encontrado» (resultado del XLOOKUP del libro) no es un código postal
         i = hoja.idx("Código ZIP")

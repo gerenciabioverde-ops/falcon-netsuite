@@ -122,7 +122,7 @@ def _rucs_de_los_periodos() -> set[str]:
     salida: set[str] = set()
     for ruta in DIR_PERIODOS.glob("*.json"):
         hojas = periodos.leer(ruta.stem).get("hojas") or {}
-        for clave, i in (("gastos", iG), ("bancos mn", iB), ("proveedores", iP)):
+        for clave, i in (("gastos", iG), ("bancos mn", iB), ("bancos me", iB), ("proveedores", iP)):
             for f in (hojas.get(clave) or {}).get("filas") or []:
                 if len(f) > i and es_ruc(f[i]):
                     salida.add(str(f[i]).strip())
