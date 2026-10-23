@@ -127,7 +127,7 @@ def _id_nuevo(valor) -> str:
 @functools.lru_cache(maxsize=None)
 def _col_hoja(hoja: str, nombre: str) -> int:
     from . import esquema
-    return esquema.cargar_plantilla().hojas[hoja].encabezados.index(nombre)
+    return [e.strip() for e in esquema.cargar_plantilla().hojas[hoja].encabezados].index(nombre)
 
 
 def _subsidiaria_factura(datos: dict) -> dict:
@@ -168,6 +168,33 @@ def _cuenta_pagar_factura(datos: dict) -> dict:
     return datos
 
 
+def valores_ns_departamento_clase(hojas: dict) -> None:
+    """Departamento y clase de las líneas en NetSuite: los de Falcon (Operaciones, Finanzas…, o vacío) pasan a «Accounting & Finance» / «BIB»;
+    un valor puesto a mano que no sea de Falcon no se toca. Factura de Proveedor (Gastos: Departamento / Gastos: Clase, con importe) y
+    Pago Proveedor (DEPARTMENT / CLASS, con pago). Modifica las filas en el lugar."""
+    from . import esquema
+    propios = {n.lower() for n in esquema.DEPARTAMENTOS} | set(_DEPARTAMENTOS_ANTES) | {n.lower() for n in _DEPARTAMENTOS_ANTES.values()}
+    for clave, c_dep, c_cla, c_imp in (("factura de proveedor", "Gastos: Departamento", "Gastos: Clase", "Gastos: Importe"),
+                                       ("pago proveedor", "DEPARTMENT", "CLASS", "PAYMENT")):
+        h = hojas.get(clave)
+        if not (h and h.get("filas")):
+            continue
+        iD, iC, iI = _col_hoja(clave, c_dep), _col_hoja(clave, c_cla), _col_hoja(clave, c_imp)
+        vacio = lambda v: v is None or not str(v).strip()  # noqa: E731
+        for f in h["filas"]:
+            if len(f) <= max(iD, iC, iI) or vacio(f[iI]):
+                continue
+            if vacio(f[iD]) or str(f[iD]).strip().lower() in propios:
+                f[iD] = esquema.DEPARTAMENTO_NS
+            if vacio(f[iC]):
+                f[iC] = esquema.CLASE_NS
+
+
+def _departamento_clase_ns(datos: dict) -> dict:
+    valores_ns_departamento_clase(datos.get("hojas") or {})
+    return datos
+
+
 def _migrar_ids(datos: dict) -> dict:
     """IDs de Gastos / Factura de Proveedor: formato sin separadores y de largo fijo (VENDB_RUC + serie de 4 + número de 8)."""
     from . import esquema, ids
@@ -191,7 +218,7 @@ def _migrar_ids(datos: dict) -> dict:
 
 def leer(periodo: str) -> dict:
     try:
-        return _cuenta_pagar_factura(_subsidiaria_factura(_migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8"))))))
+        return _departamento_clase_ns(_cuenta_pagar_factura(_subsidiaria_factura(_migrar_ids(_migrar(json.loads(_ruta(periodo).read_text(encoding="utf-8")))))))
     except (FileNotFoundError, ValueError):
         return {"actualizado": "", "hojas": {}}
 

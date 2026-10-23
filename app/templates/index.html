@@ -279,7 +279,7 @@
       ins[i].value = valor;
     });
   }
-  const SUBSIDIARIA = '{{ subsidiaria }}', SUBSIDIARIA_FACTURA = '{{ subsidiaria_factura }}', PAIS_SUBSIDIARIA = '{{ pais_subsidiaria }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
+  const SUBSIDIARIA = '{{ subsidiaria }}', SUBSIDIARIA_FACTURA = '{{ subsidiaria_factura }}', PAIS_SUBSIDIARIA = '{{ pais_subsidiaria }}', DEPARTAMENTO_NS = '{{ departamento_ns }}', CLASE_NS = '{{ clase_ns }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
   const PAGAR_TIPO = {{ pagar_por_tipo | tojson }};
   const COL_PAG = 'Cuenta por Pagar PCGE', COL_PAGNS = 'Cuenta por Pagar NetSuite';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
@@ -671,7 +671,8 @@
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : (sn ? '0000' : '')); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);       // sin serie (planilla de movilidad, declaración jurada): serie 0000
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno
     poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
-    poner('Gastos: Departamento', v('Departamento')); poner('Gastos: Clase', v('Clase')); poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco
+    poner('Gastos: Departamento', DEPARTAMENTO_NS); poner('Gastos: Clase', CLASE_NS);       // los de NetSuite (el departamento de Gastos es interno de Falcon)
+    poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco
     poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Código de impuesto', v('Código de impuesto') || (numero(v('Igv')) > 0 ? 'VAT_PE:S-PE' : 'VAT_PE:E-PE')); poner('Gastos: Nota', v('Descripción Gasto'));
     return { id, fila, sinCuenta: !v(COL_NS) };
   }
