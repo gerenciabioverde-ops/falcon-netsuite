@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import carga, gastos_cuentas, homologacion, padron, periodos, proveedores
-from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, SUBSIDIARIA_FACTURA, PAIS_SUBSIDIARIA, UBICACION, cargar_plantilla, norm
+from .esquema import CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, DETRACCIONES, PAGAR_POR_TIPO, RUTA_PLANTILLA, SUBSIDIARIA, SUBSIDIARIA_FACTURA, SUBSIDIARIAS_ANTERIORES_FACTURA, PAIS_SUBSIDIARIA, UBICACION, cargar_plantilla, norm
 from .procesador import FORMATOS_FECHA, ResultadoHoja, empaquetar_zip, leer_csv, leer_xlsx, procesar, reporte_errores_xlsx, validar_hoja
 
 BASE = Path(__file__).parent
@@ -341,9 +341,9 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
             celdas = [(c.strip() if isinstance(c, str) and c.strip() else None) for c in (fila + [""] * n)[:n]]
             if any(c is not None for c in celdas):
                 armado.append((pos, celdas))
-        if clave == "factura de proveedor":       # una página abierta con la subsidiaria anterior (43 / FCP) igual genera «Peru»
+        if clave == "factura de proveedor":       # una página abierta con una subsidiaria anterior (43 / Peru) igual genera «FCP»
             i = hoja.idx("Subsidiaria")
-            armado = [(p, [SUBSIDIARIA_FACTURA if k == i and str(c).strip().upper() in ("FCP", SUBSIDIARIA) else c for k, c in enumerate(f)]) if p > 1 else (p, f)
+            armado = [(p, [SUBSIDIARIA_FACTURA if k == i and str(c).strip().upper() in SUBSIDIARIAS_ANTERIORES_FACTURA else c for k, c in enumerate(f)]) if p > 1 else (p, f)
                       for p, f in armado]
         armados[clave] = armado
     armados = {k: v for k, v in armados.items() if len(v) > 1}

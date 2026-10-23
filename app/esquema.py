@@ -118,8 +118,10 @@ BANCOS_MN_ENCABEZADOS = [
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
-# En Factura de Proveedor la subsidiaria va por nombre: «Peru» (a pedido del usuario; el 43 y «FCP» no resolvieron en la importación de NetSuite).
-SUBSIDIARIA_FACTURA = "Peru"
+# En Factura de Proveedor la subsidiaria es «FCP», igual que la «Subsidiaria principal» del CSV de Proveedores (a pedido del usuario).
+# Valores de versiones anteriores que se convierten a ella: 43, Peru.
+SUBSIDIARIA_FACTURA = "FCP"
+SUBSIDIARIAS_ANTERIORES_FACTURA = ("43", "PERU", "PERÚ")
 # Latam - Subsidiaria País (custbody_lmry_subsidiary_country): NetSuite lo rellena solo al elegir la subsidiaria en pantalla, pero en una importación llega vacío
 # y de él dependen el tipo de documento fiscal y el concepto de detracción; va como columna nueva (al final) de Factura de Proveedor
 PAIS_SUBSIDIARIA = "Perú"
