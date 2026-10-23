@@ -169,7 +169,7 @@ def _cuenta_pagar_factura(datos: dict) -> dict:
 
 
 def valores_ns_departamento_clase(hojas: dict) -> None:
-    """Departamento y clase de las líneas en NetSuite: los de Falcon (Operaciones, Finanzas…, o vacío) pasan a «Accounting & Finance» / «BIB»;
+    """Departamento y clase de las líneas en NetSuite: los de Falcon (Operaciones, Finanzas…, o vacío) pasan al departamento de NetSuite y la clase «BIB» de una versión anterior se vacía;
     un valor puesto a mano que no sea de Falcon no se toca. Factura de Proveedor (Gastos: Departamento / Gastos: Clase, con importe) y
     Pago Proveedor (DEPARTMENT / CLASS, con pago). Modifica las filas en el lugar."""
     from . import esquema
@@ -186,7 +186,7 @@ def valores_ns_departamento_clase(hojas: dict) -> None:
                 continue
             if vacio(f[iD]) or str(f[iD]).strip().lower() in propios or str(f[iD]).strip() in esquema.DEPARTAMENTOS_NS_ANTERIORES:
                 f[iD] = esquema.DEPARTAMENTO_NS
-            if vacio(f[iC]):
+            if not vacio(f[iC]) and str(f[iC]).strip() in esquema.CLASES_NS_ANTERIORES:       # la clase «BIB» de una versión anterior se deja en blanco
                 f[iC] = esquema.CLASE_NS
 
 

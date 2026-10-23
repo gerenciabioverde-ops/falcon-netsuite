@@ -127,7 +127,8 @@ SUBSIDIARIA_FACTURA = "FCP"
 # la pestaña Gastos (Operaciones, Finanzas…) son de uso interno de Falcon y NetSuite no los reconoce (department no válido).
 DEPARTAMENTO_NS = "Falcon : Falcon Coffees"       # nombre completo (padre : hijo), como se ve en la factura de NetSuite
 DEPARTAMENTOS_NS_ANTERIORES = ("Accounting & Finance", "Accounting &amp; Finance")       # versiones anteriores, se convierten al actual
-CLASE_NS = "BIB"
+CLASE_NS = ""       # la clase va en blanco (a pedido del usuario); antes «BIB»
+CLASES_NS_ANTERIORES = ("BIB",)       # versiones anteriores: se vacían
 SUBSIDIARIAS_ANTERIORES_FACTURA = ("43", "PERU", "PERÚ")
 # Latam - Subsidiaria País (custbody_lmry_subsidiary_country): NetSuite lo rellena solo al elegir la subsidiaria en pantalla, pero en una importación llega vacío
 # y de él dependen el tipo de documento fiscal y el concepto de detracción; va como columna nueva (al final) de Factura de Proveedor
@@ -150,7 +151,7 @@ def cuenta_pagar_por_tipo(tipo: str) -> str:
 _POR_DEFECTO = {
     "Factura de Proveedor": {"Cuenta": CUENTA_POR_PAGAR, "Subsidiaria": SUBSIDIARIA_FACTURA, COL_PAIS_SUBSIDIARIA: PAIS_SUBSIDIARIA, "Ubicación": UBICACION,
                              "Artículos: Ubicación": (UBICACION, "Artículos: Importe"), "Gastos: Ubicación": (UBICACION, "Gastos: Importe"),
-                             "Gastos: Departamento": (DEPARTAMENTO_NS, "Gastos: Importe"), "Gastos: Clase": (CLASE_NS, "Gastos: Importe")},
+                             "Gastos: Departamento": (DEPARTAMENTO_NS, "Gastos: Importe")},
     "Factura de Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Nota de credito Cliente": {"Subsidiaria": SUBSIDIARIA, "Ubicación": UBICACION, "Artículos: Ubicación": (UBICACION, "Artículos: Importe")},
     "Pago Proveedor": {"A/P ACCOUNT": CUENTA_POR_PAGAR, "SUBSIDIARY": SUBSIDIARIA, "LOCATION": UBICACION},
