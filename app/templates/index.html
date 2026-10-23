@@ -93,6 +93,10 @@
           {% if p.nombre.startswith('Factura') or p.nombre.startswith('Nota') %}«Artículos: Importe» se calcula solo (cantidad × tarifa) si lo dejas vacío.{% endif %}
           {% if p.nota %}<br><strong>{{ p.nota }}</strong>{% endif %}
         </p>{% endif %}
+        <div class="flex items-center gap-2 text-sm mb-1">
+          <input type="search" class="buscar-grilla border rounded px-3 py-1.5 w-96 max-w-full" placeholder="🔎 Buscar en {{ p.nombre }}: escribe cualquier dato (RUC, nombre, serie, importe, ID…)" title="Muestra solo las filas que contienen todas las palabras escritas (sin distinguir mayúsculas ni tildes). Solo cambia lo que ves: no afecta a lo que se genera">
+          <span class="buscar-estado text-xs text-slate-500"></span>
+        </div>
         <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;">
           <table class="grilla border-collapse text-left">
             <thead><tr>
@@ -423,6 +427,21 @@
     const t = quitarTildes(tipo), k = Object.keys(PREFIJO_REF).find(x => t.startsWith(x)), serie = String(sn || '').trim().replace(/\s*-\s*/g, '-');
     return serie ? ((k ? PREFIJO_REF[k] + ' ' : '') + serie) : '';
   };
+  // Buscador de cada hoja: muestra solo las filas que contienen todas las palabras escritas (cualquier columna, sin mayúsculas ni tildes)
+  const normBusqueda = t => quitarTildes(String(t || '').toLowerCase());
+  const textoFila = tr => normBusqueda([...tr.querySelectorAll('input')].map(i => i.value).join(' ') + ' ' + [...tr.querySelectorAll('td.vb,td.idp,td.idf,td.ntr,td.refn,td.idcta,td.idfi,td.ntri')].map(td => td.textContent).join(' '));
+  function buscarEnGrilla(panel) {
+    const clave = panel.dataset.hoja, q = normBusqueda(panel.querySelector('.buscar-grilla').value).split(/\s+/).filter(Boolean), filas = [...cuerpo(clave).rows];
+    let n = 0;
+    filas.forEach(tr => { const ok = !q.length || (t => q.every(w => t.includes(w)))(textoFila(tr)); tr.dataset.busq = ok ? '' : 'no'; if (ok) n++; if (clave !== 'factura de proveedor') tr.style.display = ok ? '' : 'none'; });
+    if (clave === 'factura de proveedor') aplicarFiltrosFactura();
+    panel.querySelector('.buscar-estado').textContent = q.length ? n + ' de ' + filas.length + ' filas' : '';
+  }
+  let buscarTemporizador = null;
+  document.addEventListener('input', ev => {
+    if (!(ev.target.classList && ev.target.classList.contains('buscar-grilla'))) return;
+    const panel = ev.target.closest('.panel'); clearTimeout(buscarTemporizador); buscarTemporizador = setTimeout(() => buscarEnGrilla(panel), 150);
+  });
   // Filtros de Factura de Proveedor (fila bajo el encabezado): ocultan las filas que no coinciden y el CSV baja solo con las visibles
   const FILTROS_FP = ['Latam - Tipo de Transacción', 'Moneda', 'Latam - Concepto Detracción'];
   const VACIO_FP = '(en blanco)';
@@ -440,7 +459,7 @@
     document.querySelectorAll('select.flt-fp').forEach(sel => sel.classList.toggle('activo', !!sel.value));
     [...cuerpo('factura de proveedor').rows].forEach(tr => {
       const v = [...tr.querySelectorAll('input')].map(i => i.value);
-      tr.style.display = fl.every(([i, val]) => valorFiltroFP(v, +i) === val) && (!idf || tieneIdf(v) === idf) ? '' : 'none';
+      tr.style.display = fl.every(([i, val]) => valorFiltroFP(v, +i) === val) && (!idf || tieneIdf(v) === idf) && tr.dataset.busq !== 'no' ? '' : 'none';
     });
   }
   function poblarFiltrosFactura() {
