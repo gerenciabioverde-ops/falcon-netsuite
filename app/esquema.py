@@ -120,16 +120,16 @@ BANCOS_ME_ENCABEZADOS = list(BANCOS_MN_ENCABEZADOS)
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
-# En Factura de Proveedor la subsidiaria es «FCP», igual que la «Subsidiaria principal» del CSV de Proveedores (a pedido del usuario).
-# Valores de versiones anteriores que se convierten a ella: 43, Peru.
-SUBSIDIARIA_FACTURA = "FCP"
+# En Factura de Proveedor la subsidiaria es el ID interno 43 (FCP), a pedido del usuario.
+# Valores de versiones anteriores que se convierten a ella: FCP, Peru.
+SUBSIDIARIA_FACTURA = "43"
 # Departamento y clase de las líneas de gasto en NetSuite («Falcon : Falcon Coffees», como en la factura de NetSuite del usuario; clase «BIB» de la plantilla). Los departamentos de
 # la pestaña Gastos (Operaciones, Finanzas…) son de uso interno de Falcon y NetSuite no los reconoce (department no válido).
 DEPARTAMENTO_NS = "Falcon : Falcon Coffees"       # nombre completo (padre : hijo), como se ve en la factura de NetSuite
 DEPARTAMENTOS_NS_ANTERIORES = ("Accounting & Finance", "Accounting &amp; Finance")       # versiones anteriores, se convierten al actual
 CLASE_NS = ""       # la clase va en blanco (a pedido del usuario); antes «BIB»
 CLASES_NS_ANTERIORES = ("BIB",)       # versiones anteriores: se vacían
-SUBSIDIARIAS_ANTERIORES_FACTURA = ("43", "PERU", "PERÚ")
+SUBSIDIARIAS_ANTERIORES_FACTURA = ("FCP", "PERU", "PERÚ")
 # Latam - Subsidiaria País (custbody_lmry_subsidiary_country): NetSuite lo rellena solo al elegir la subsidiaria en pantalla, pero en una importación llega vacío
 # y de él dependen el tipo de documento fiscal y el concepto de detracción; va como columna nueva (al final) de Factura de Proveedor
 PAIS_SUBSIDIARIA = "Perú"
