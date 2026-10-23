@@ -279,7 +279,7 @@
       ins[i].value = valor;
     });
   }
-  const SUBSIDIARIA = '{{ subsidiaria }}', SUBSIDIARIA_FACTURA = '{{ subsidiaria_factura }}', PAIS_SUBSIDIARIA = '{{ pais_subsidiaria }}', DEPARTAMENTO_NS = '{{ departamento_ns }}', CLASE_NS = '{{ clase_ns }}', UBICACION = '{{ ubicacion }}', CUENTA_POR_PAGAR = '{{ cuenta_por_pagar }}', CUENTA_POR_PAGAR_RHE = '{{ cuenta_por_pagar_rhe }}';
+  const SUBSIDIARIA = {{ subsidiaria | tojson }}, SUBSIDIARIA_FACTURA = {{ subsidiaria_factura | tojson }}, PAIS_SUBSIDIARIA = {{ pais_subsidiaria | tojson }}, DEPARTAMENTO_NS = {{ departamento_ns | tojson }}, CLASE_NS = {{ clase_ns | tojson }}, UBICACION = {{ ubicacion | tojson }}, CUENTA_POR_PAGAR = {{ cuenta_por_pagar | tojson }}, CUENTA_POR_PAGAR_RHE = {{ cuenta_por_pagar_rhe | tojson }};
   const PAGAR_TIPO = {{ pagar_por_tipo | tojson }};
   const COL_PAG = 'Cuenta por Pagar PCGE', COL_PAGNS = 'Cuenta por Pagar NetSuite';
   const COL_PCGE = 'Cuenta PCGE', COL_NS = 'Cuenta NetSuite';
