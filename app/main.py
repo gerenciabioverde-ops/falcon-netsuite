@@ -327,6 +327,20 @@ async def procesar_archivo(request: Request, archivo: UploadFile = File(...),
     })
 
 
+_PREFIJO_REF = {"factura": "FA", "boleta": "BV", "recibo por honorarios": "RH", "liquidacion de compra": "LC", "liquidacion compra": "LC",
+                "nota de debito": "ND", "nota de credito": "NC"}
+
+
+def _numero_referencia(tipo: str, serie: str, numero: str) -> str:
+    """«FA E001-1258»: abreviatura del tipo de documento + serie-número (mismo criterio que la columna «N° Referencia» de la pestaña)."""
+    serie, numero = str(serie or "").strip(), str(numero or "").strip()
+    if not (serie and numero):
+        return ""
+    t = norm(str(tipo or ""))
+    pref = next((v for k, v in _PREFIJO_REF.items() if t.startswith(k)), "")
+    return (pref + " " if pref else "") + f"{serie}-{numero}"
+
+
 @app.post("/procesar_grilla", response_class=HTMLResponse)
 def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo: str = "",
                     datos: dict[str, list[list[str]]] = Body(...)):
@@ -361,6 +375,12 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
     if periodo and not periodos.es_valido(periodo):
         raise HTTPException(400, "Período no válido (use AAAA-MM)")
     resultados = procesar(armados, PLANTILLA, formato_fecha, periodo or None)
+    for r in resultados:       # «N° Referencia» de la factura en NetSuite (tipo + serie-número, p. ej. «FA E001-1258»): columna al final del CSV de Factura de Proveedor
+        if r.nombre.strip() == "Factura de Proveedor" and r.encabezados and "N° Referencia" not in r.encabezados:
+            ix = {e.strip(): i for i, e in enumerate(r.encabezados)}
+            iT, iS, iN = ix["Latam - Tipo de Documento Fiscal"], ix["Latam - Serie CxP"], ix["Latam - Número Preimpreso"]
+            r.encabezados = list(r.encabezados) + ["N° Referencia"]
+            r.filas = [list(f) + [_numero_referencia(f[iT], f[iS], f[iN])] for f in r.filas]
     if ids_factura:
         for r in resultados:
             if r.nombre.strip() == "Factura de Proveedor" and r.encabezados:
