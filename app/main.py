@@ -235,6 +235,8 @@ def guardar_periodo(periodo: str, request: Request, datos: dict = Body(...)):
         filas = [[str(c) for c in f] for f in (h.get("filas") or []) if isinstance(f, list)]
         total += len(filas)
         limpias[clave] = {"filas": filas, "bloqueadas": [int(i) for i in (h.get("bloqueadas") or []) if isinstance(i, int)]}
+        if clave == "gastos" and isinstance(h.get("ids_factura"), dict):       # ID interno de NetSuite de cada factura {ID comprobante: ID interno}
+            limpias[clave]["ids_factura"] = {str(k)[:60]: str(v)[:20] for k, v in list(h["ids_factura"].items())[:60000] if str(v).strip().isdigit()}
         if clave == "proveedores":       # diseño 2: Nombres y Apellidos junto a «Nombre de la empresa»; una página abierta con el diseño anterior se convierte al guardar
             d = h.get("disenio") or 1
             if d < 2:
@@ -329,6 +331,7 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
     """Recibe las filas escritas en las pestañas: {clave_hoja: [[celda, ...], ...]}."""
     if formato_fecha not in FORMATOS_FECHA:
         raise HTTPException(400, "Formato de fecha no válido")
+    ids_factura = dict(par[:2] for par in (datos.pop("__ids_factura__", None) or []) if len(par) >= 2)       # {ID comprobante: ID interno}; si viene, el CSV de Factura de Proveedor lleva «ID Interno Factura» en lugar de EXTERNAL ID
     if sum(len(f) for f in datos.values()) > 20000:
         raise HTTPException(413, "Demasiadas filas")
     # el número de fila coincide con la posición en la pestaña (la primera fila de datos es la 2)
@@ -356,6 +359,11 @@ def procesar_grilla(request: Request, formato_fecha: str = "DD/MM/YYYY", periodo
     if periodo and not periodos.es_valido(periodo):
         raise HTTPException(400, "Período no válido (use AAAA-MM)")
     resultados = procesar(armados, PLANTILLA, formato_fecha, periodo or None)
+    if ids_factura:
+        for r in resultados:
+            if r.nombre.strip() == "Factura de Proveedor" and r.encabezados:
+                r.encabezados = ["ID Interno Factura"] + list(r.encabezados[1:])
+                r.filas = [[ids_factura.get(str(f[0]), "")] + list(f[1:]) for f in r.filas]
     return templates.TemplateResponse(request, "_resultado.html", {
         "token": _guardar(resultados, periodo), "resultados": resultados, "avisos": [], "error": None,
         "periodo_etiqueta": periodos.etiqueta(periodo) if periodo else "",
