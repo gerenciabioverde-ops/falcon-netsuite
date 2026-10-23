@@ -184,7 +184,7 @@ def valores_ns_departamento_clase(hojas: dict) -> None:
         for f in h["filas"]:
             if len(f) <= max(iD, iC, iI) or vacio(f[iI]):
                 continue
-            if vacio(f[iD]) or str(f[iD]).strip().lower() in propios or str(f[iD]).strip() == esquema.DEPARTAMENTO_NS.replace("&", "&amp;"):       # «&amp;»: error de una versión anterior
+            if vacio(f[iD]) or str(f[iD]).strip().lower() in propios or str(f[iD]).strip() in esquema.DEPARTAMENTOS_NS_ANTERIORES:
                 f[iD] = esquema.DEPARTAMENTO_NS
             if vacio(f[iC]):
                 f[iC] = esquema.CLASE_NS
