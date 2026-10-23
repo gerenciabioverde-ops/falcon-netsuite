@@ -198,6 +198,7 @@ SALIDA = [
     "Latam - ¿Agente de percepción?", "Latam Entity - PE CtaCte Detracción",
     "Moneda",       # sublista Monedas: una fila por moneda del proveedor (SOL, USD); las filas de un mismo proveedor repiten sus datos
 ]
+COLUMNAS_DIRECCION = ["Envío predeterminado", "Facturación predeterminada", "Dirección 1", "Ciudad", "County", "Estado", "Zip"]
 CODIGO_SUNAT_PERU = "9589"
 # Catálogo SUNAT N.° 6 (tipo de documento de identidad)
 CODIGO_TIPO_DOC = {"DOCUMENTO NACIONAL DE IDENTIDAD (DNI)": "1", "CARNET DE EXTRANJERIA": "4", "REGISTRO ÚNICO DE CONTRIBUYENTES": "6",
@@ -264,7 +265,12 @@ def a_salida(encabezados: list[str], filas: list[list]) -> tuple[list[list[str]]
             _si_no(g(C_CHECKS[2])), g("LATAM PE - CtaCte Detracción"),
         ])
         monedas = monedas_de(g(C_MONEDAS))
-        salida.extend(base + [m] for m in monedas)
+        for k, m in enumerate(monedas):
+            fila = base + [m]
+            if k:       # la dirección es otra sublista: en las filas de las monedas siguientes se deja vacía o NetSuite agregaría la misma dirección otra vez
+                for c in COLUMNAS_DIRECCION:
+                    fila[SALIDA.index(c)] = ""
+            salida.append(fila)
         cuantas.append(len(monedas))
     return salida, cuantas
 
