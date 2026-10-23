@@ -131,13 +131,13 @@ def _col_hoja(hoja: str, nombre: str) -> int:
 
 
 def _subsidiaria_factura(datos: dict) -> dict:
-    """Factura de Proveedor: la subsidiaria de versiones anteriores («43» o «FCP») pasa a la actual («Peru»)."""
+    """Factura de Proveedor: la subsidiaria de versiones anteriores («43» o «Peru») pasa a la actual («FCP»)."""
     from . import esquema
     fp = (datos.get("hojas") or {}).get("factura de proveedor")
     if fp and fp.get("filas"):
         i = _col_hoja("factura de proveedor", "Subsidiaria")
         for f in fp["filas"]:
-            if len(f) > i and str(f[i]).strip().upper() in ("FCP", esquema.SUBSIDIARIA):
+            if len(f) > i and str(f[i]).strip().upper() in esquema.SUBSIDIARIAS_ANTERIORES_FACTURA:
                 f[i] = esquema.SUBSIDIARIA_FACTURA
     return datos
 
