@@ -955,7 +955,7 @@
     if (iId < 0) { estadoGrilla('El CSV debe tener la columna «ID interno» (export de facturas de proveedor de NetSuite).', '#b91c1c'); return; }
     const gastos = [...cuerpo('gastos').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value)).filter(f => f.some(v => v.trim()));
     const cG = n => porClave.gastos.columnas.findIndex(c => c.nombre === n), cP = n => porClave.proveedores.columnas.findIndex(c => c.nombre === n);
-    const nuevos = {}, nuevosNum = {}; let ok = 0, sinCoin = 0, ambiguas = 0;
+    const nuevos = {}, nuevosNum = {}; let ok = 0, sinCoin = 0, ambiguas = 0, porOrden = 0;
     const filasNS = filas.slice(1).filter(f => /^\d+$/.test((f[iId] || '').trim()) && !(iEs >= 0 && /cancelad|void/i.test(f[iEs] || '')));
     if (iExt >= 0) {       // con «ID externo»: relación exacta por el ID del comprobante
       const mapa = {}; filasNS.forEach(f => { const ex = (f[iExt] || '').trim(); if (ex) mapa[ex] = { id: f[iId].trim(), num: iNt >= 0 ? (f[iNt] || '').trim() : '' }; });
@@ -977,6 +977,10 @@
         const c = ns[k] || [];
         if (!c.length) sinCoin += ids.length;
         else if (ids.length === 1 && c.length === 1) { nuevos[ids[0]] = c[0].id; nuevosNum[ids[0]] = c[0].num; ok++; }
+        else if (ids.length === c.length) {       // facturas iguales (mismo día, proveedor, importe y moneda) y la misma cantidad en NetSuite: se importaron en el orden de la hoja, así que el ID menor va a la primera fila, etc.
+          const ord = [...c].sort((a, b) => Number(a.id) - Number(b.id));
+          ids.forEach((id, k) => { nuevos[id] = ord[k].id; nuevosNum[id] = ord[k].num; ok++; porOrden++; });
+        }
         else ambiguas += ids.length;       // varias facturas iguales (mismo día, proveedor e importe): no se puede saber cuál es cuál sin el «ID externo»
       });
     }
@@ -988,7 +992,7 @@
       Object.keys(idsFacturaNS).forEach(k => { const n = numPorId[idsFacturaNS[k]]; if (n && numFacturaNS[k] !== n) { numFacturaNS[k] = n; completados++; } });
     }
     guardar(); vistoBuenoFactura();
-    estadoGrilla(ok + ' factura(s) con su ID interno' + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
+    estadoGrilla(ok + ' factura(s) con su ID interno' + (porOrden ? ' (' + porOrden + ' relacionadas por orden: facturas iguales el mismo día)' : '') + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
   });
 
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
