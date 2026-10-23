@@ -980,8 +980,15 @@
         else ambiguas += ids.length;       // varias facturas iguales (mismo día, proveedor e importe): no se puede saber cuál es cuál sin el «ID externo»
       });
     }
-    Object.assign(idsFacturaNS, nuevos); Object.assign(numFacturaNS, nuevosNum); guardar(); vistoBuenoFactura();
-    estadoGrilla(ok + ' factura(s) con su ID interno' + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
+    Object.assign(idsFacturaNS, nuevos); Object.assign(numFacturaNS, nuevosNum);
+    // los que ya tenían ID interno (de una carga anterior, sin N° de transacción o ambiguos ahora) completan el N° por su ID interno
+    let completados = 0;
+    if (iNt >= 0) {
+      const numPorId = {}; filasNS.forEach(f => { const n = (f[iNt] || '').trim(); if (n) numPorId[f[iId].trim()] = n; });
+      Object.keys(idsFacturaNS).forEach(k => { const n = numPorId[idsFacturaNS[k]]; if (n && numFacturaNS[k] !== n) { numFacturaNS[k] = n; completados++; } });
+    }
+    guardar(); vistoBuenoFactura();
+    estadoGrilla(ok + ' factura(s) con su ID interno' + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
   });
 
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
