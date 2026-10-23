@@ -123,9 +123,10 @@ SUBSIDIARIA = "43"
 # En Factura de Proveedor la subsidiaria es «FCP», igual que la «Subsidiaria principal» del CSV de Proveedores (a pedido del usuario).
 # Valores de versiones anteriores que se convierten a ella: 43, Peru.
 SUBSIDIARIA_FACTURA = "FCP"
-# Departamento y clase de las líneas de gasto en NetSuite (los de la plantilla de ejemplo: «Accounting & Finance» / «BIB»). Los departamentos de
+# Departamento y clase de las líneas de gasto en NetSuite («Falcon : Falcon Coffees», como en la factura de NetSuite del usuario; clase «BIB» de la plantilla). Los departamentos de
 # la pestaña Gastos (Operaciones, Finanzas…) son de uso interno de Falcon y NetSuite no los reconoce (department no válido).
-DEPARTAMENTO_NS = "Accounting & Finance"
+DEPARTAMENTO_NS = "Falcon : Falcon Coffees"       # nombre completo (padre : hijo), como se ve en la factura de NetSuite
+DEPARTAMENTOS_NS_ANTERIORES = ("Accounting & Finance", "Accounting &amp; Finance")       # versiones anteriores, se convierten al actual
 CLASE_NS = "BIB"
 SUBSIDIARIAS_ANTERIORES_FACTURA = ("43", "PERU", "PERÚ")
 # Latam - Subsidiaria País (custbody_lmry_subsidiary_country): NetSuite lo rellena solo al elegir la subsidiaria en pantalla, pero en una importación llega vacío
