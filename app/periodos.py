@@ -61,7 +61,7 @@ def proveedores_a_diseno3(filas: list) -> list:
     """Diseño 3: en Proveedores la dirección por defecto de Jaén ya no se guarda (el CSV la sigue poniendo al generarlo): se vacían Dirección 1,
     Ubigeo, Ciudad, Estado y ZIP de las filas que tenían exactamente ese valor por defecto."""
     from . import proveedores as pv
-    e = pv.ENCABEZADOS[:1] + pv.ENCABEZADOS[3:15] + pv.ENCABEZADOS[1:3] + pv.ENCABEZADOS[15:]       # orden de columnas del diseño 3 (antes de mover el tipo y número de documento)
+    e = pv.ENCABEZADOS_V5[:1] + pv.ENCABEZADOS_V5[3:15] + pv.ENCABEZADOS_V5[1:3] + pv.ENCABEZADOS_V5[15:]       # orden de columnas del diseño 3 (antes de mover el tipo y número de documento)
     iD, iU = e.index(pv.C_DIR1), e.index(pv.C_UBIGEO)
     otros = [e.index(c) for c in (pv.C_CIUDAD, pv.C_ESTADO, pv.C_ZIP)]
     for f in filas:
@@ -80,7 +80,7 @@ def proveedores_a_diseno5(filas: list) -> list:
     """Diseño 5: Nombre de la empresa, Nombres y Apellidos escritos todo en MAYÚSCULAS pasan a inicial mayúscula (Torres Nuñez Sadith);
     las siglas de una sola letra (E.I.R.L., S.A.C.) se conservan y lo que ya tiene minúsculas no se toca."""
     from . import proveedores as pv
-    e = pv.ENCABEZADOS
+    e = pv.ENCABEZADOS_V5
     idx = [e.index(c) for c in (pv.C_NOMBRE, pv.C_NOMBRES, pv.C_APELLIDOS)]
     for f in filas:
         if len(f) == len(e):
@@ -88,6 +88,12 @@ def proveedores_a_diseno5(filas: list) -> list:
                 if str(f[i]).isupper():
                     f[i] = re.sub(r"[A-ZÁÉÍÓÚÑÜ]+", lambda m: m.group(0).capitalize(), f[i])
     return filas
+
+
+def proveedores_a_diseno6(filas: list) -> list:
+    """Diseño 6: columna nueva «Monedas» al final; los proveedores ya guardados quedan con SOL, USD (las dos monedas)."""
+    from . import proveedores as pv
+    return [f + [pv.MONEDAS_DEFECTO] if len(f) == len(pv.ENCABEZADOS_V5) else f for f in filas]
 
 
 def _migrar(datos: dict) -> dict:
@@ -106,6 +112,8 @@ def _migrar(datos: dict) -> dict:
         pr["filas"], pr["disenio"] = proveedores_a_diseno4(pr["filas"]), 4
     if pr and pr.get("filas") and (pr.get("disenio") or 1) < 5:
         pr["filas"], pr["disenio"] = proveedores_a_diseno5(pr["filas"]), 5
+    if pr and pr.get("filas") and (pr.get("disenio") or 1) < 6:
+        pr["filas"], pr["disenio"] = proveedores_a_diseno6(pr["filas"]), 6
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 38) else f for f in g["filas"]]

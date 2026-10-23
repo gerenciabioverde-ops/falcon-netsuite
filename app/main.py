@@ -249,7 +249,9 @@ def guardar_periodo(periodo: str, request: Request, datos: dict = Body(...)):
                 limpias[clave]["filas"] = periodos.proveedores_a_diseno4(limpias[clave]["filas"])
             if d < 5:
                 limpias[clave]["filas"] = periodos.proveedores_a_diseno5(limpias[clave]["filas"])
-            limpias[clave]["disenio"] = 5
+            if d < 6:
+                limpias[clave]["filas"] = periodos.proveedores_a_diseno6(limpias[clave]["filas"])
+            limpias[clave]["disenio"] = 6
     if total > 50000:
         raise HTTPException(413, "Demasiadas filas")
     return {"ok": True, "actualizado": periodos.guardar(periodo, limpias)}
@@ -480,7 +482,7 @@ def descargar(token: str, archivo: str):
         return Response(reporte_errores_xlsx(resultados, periodos.etiqueta(periodo) if periodo else ""),
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         headers={"Content-Disposition": f'attachment; filename="errores_{periodo or "validacion"}.xlsx"'})
-    for sufijo in ("_sin_errores.csv", "_nuevos.csv", "_actualizar.csv"):
+    for sufijo in ("_sin_errores.csv", "_nuevos.csv", "_actualizar.csv", "_agregar_usd.csv"):
         if not archivo.endswith(sufijo):
             continue
         # solo las filas sin errores; «_nuevos» = sin ID de NetSuite (para crearlos), «_actualizar» = con ID (para actualizarlos en NetSuite)
@@ -490,10 +492,23 @@ def descargar(token: str, archivo: str):
                 filas = [f for n, f in zip(r.numeros_fila, r.filas) if n not in malas]
                 if sufijo != "_sin_errores.csv":
                     i = r.encabezados.index("External ID")
-                    filas = [f for f in filas if bool(str(f[i]).strip()) == (sufijo == "_actualizar.csv")]
+                    filas = [f for f in filas if bool(str(f[i]).strip()) == (sufijo != "_nuevos.csv")]
                 if not filas:
-                    raise HTTPException(409, "Ninguna fila cumple (sin errores" + ("" if sufijo == "_sin_errores.csv" else ", " + ("con" if sufijo == "_actualizar.csv" else "sin") + " ID de NetSuite") + ").")
+                    raise HTTPException(409, "Ninguna fila cumple (sin errores" + ("" if sufijo == "_sin_errores.csv" else ", " + ("sin" if sufijo == "_nuevos.csv" else "con") + " ID de NetSuite") + ").")
                 enc = list(r.encabezados)
+                if sufijo in ("_actualizar.csv", "_agregar_usd.csv") and "Moneda" in enc:
+                    iM, iN = enc.index("Moneda"), enc.index("Latam - Nro de Registro de Contribuyente")
+                    if sufijo == "_agregar_usd.csv":       # proveedores que ya existen en NetSuite: solo se les agrega la moneda USD (ID + Moneda)
+                        filas = [[f[i], f[iM]] for f in filas if f[iM] == "USD"]
+                        enc = [enc[i], "Moneda"]
+                    else:       # actualizar datos: un proveedor por fila y sin tocar sus monedas
+                        vistos, unicas = set(), []
+                        for f in filas:
+                            if f[iN] not in vistos:
+                                vistos.add(f[iN]); unicas.append(f[:iM] + f[iM + 1:])
+                        filas, enc = unicas, enc[:iM] + enc[iM + 1:]
+                    if not filas:
+                        raise HTTPException(409, "Ninguna fila cumple (con ID de NetSuite y la moneda USD).")
                 if sufijo == "_actualizar.csv":       # «Teléfono» vacío al final: con «Sobrescribir campos vacíos» limpia el teléfono que dejó una asignación equivocada
                     enc.append("Teléfono")
                     filas = [list(f) + [""] for f in filas]

@@ -141,6 +141,7 @@
           <a id="cp-csv" class="border rounded px-3 py-1.5 bg-green-700 text-white hidden" href="#">⬇ Descargar CSV completo</a>
           <a id="cp-csv-nuevos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hidden" href="#" title="Solo los proveedores sin errores y SIN ID de NetSuite: para crearlos en NetSuite">⬇ CSV proveedores nuevos (sin ID)</a>
           <a id="cp-csv-actualizar" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hidden" href="#" title="Solo los proveedores sin errores y CON ID de NetSuite: para actualizar en NetSuite los datos que modificaste">⬇ CSV proveedores con ID (actualizar)</a>
+          <a id="cp-csv-usd" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hidden" href="#" title="Solo ID + Moneda USD de los proveedores que YA existen en NetSuite: para agregarles la moneda USD (Moneda = USD en la hoja Proveedores)">⬇ Agregar USD</a>
           <label class="flex items-center gap-1"><input type="checkbox" id="cp-solo-errores"> Solo con errores</label>
           <span id="cp-estado" class="text-slate-600"></span>
         </div>
@@ -1341,11 +1342,13 @@
       cont.textContent = malas.size; cont.classList.toggle('hidden', !malas.size);
       $id(pf + '-csv').classList.toggle('hidden', !(total && !d.errores)); $id(pf + '-csv').href = '/descargar/' + d.token + '/' + archivo + '.csv';
       const iId = d.encabezados.indexOf('External ID'), buenos = d.filas.filter((f, i) => !malas.has(d.numeros[i]));
-      const conId = buenos.filter(f => String(f[iId] || '').trim()).length, sinId = buenos.length - conId;
-      [['-csv-nuevos', sinId, '_nuevos.csv', 'CSV proveedores nuevos (sin ID)'], ['-csv-actualizar', conId, '_actualizar.csv', 'CSV proveedores con ID (actualizar)']].forEach(([id, n, suf, txt]) => {
+      const iRuc = d.encabezados.indexOf('Latam - Nro de Registro de Contribuyente'), iMon = d.encabezados.indexOf('Moneda');
+      const provs = fs => new Set(fs.map(f => f[iRuc])).size;       // cada proveedor ocupa una fila por moneda
+      const conIdF = buenos.filter(f => String(f[iId] || '').trim()), conId = provs(conIdF), sinId = provs(buenos.filter(f => !String(f[iId] || '').trim()));
+      [['-csv-nuevos', sinId, '_nuevos.csv', 'CSV proveedores nuevos (sin ID)'], ['-csv-actualizar', conId, '_actualizar.csv', 'CSV proveedores con ID (actualizar)'], ['-csv-usd', conIdF.filter(f => f[iMon] === 'USD').length, '_agregar_usd.csv', 'Agregar USD a proveedores con ID']].forEach(([id, n, suf, txt]) => {
         const a = $id(pf + id); a.classList.toggle('hidden', !n); a.href = '/descargar/' + d.token + '/' + archivo + suf; a.textContent = '⬇ ' + txt + ': ' + n;
       });
-      est.textContent = total ? total + ' proveedores · ' + sinErr + ' sin errores · ' + malas.size + ' con errores (' + d.errores + ' errores)' : 'No hay proveedores' + ' en este período.';
+      est.textContent = total ? provs(d.filas) + ' proveedores (' + total + ' filas, una por moneda) · ' + (provs(d.filas) - malas.size) + ' sin errores · ' + malas.size + ' con errores (' + d.errores + ' errores)' : 'No hay proveedores' + ' en este período.';
       est.style.color = malas.size ? '#b45309' : '#15803d';
       const tb = document.createElement('table'); tb.className = 'text-xs'; tb.style.borderCollapse = 'collapse';
       const th = document.createElement('tr'); ['Fila', ...d.encabezados].forEach(h => { const c = document.createElement('th'); c.textContent = h; c.style.cssText = 'position:sticky;top:0;background:#f1f5f9;border:1px solid #e2e8f0;padding:4px 8px;white-space:nowrap;text-align:left'; th.appendChild(c); });
