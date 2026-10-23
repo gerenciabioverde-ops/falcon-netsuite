@@ -140,8 +140,6 @@
           <button type="button" id="cp-actualizar" class="border rounded px-3 py-1.5 hover:bg-slate-50">🔄 Actualizar vista</button>
           <a id="cp-csv" class="border rounded px-3 py-1.5 bg-green-700 text-white hidden" href="#">⬇ Descargar CSV completo</a>
           <a id="cp-csv-nuevos" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hidden" href="#" title="Solo los proveedores sin errores y SIN ID de NetSuite: para crearlos en NetSuite">⬇ CSV proveedores nuevos (sin ID)</a>
-          <a id="cp-csv-actualizar" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hidden" href="#" title="Solo los proveedores sin errores y CON ID de NetSuite: para actualizar en NetSuite los datos que modificaste">⬇ CSV proveedores con ID (actualizar)</a>
-          <a id="cp-csv-usd" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hidden" href="#" title="Solo ID + Moneda USD de los proveedores que YA existen en NetSuite: para agregarles la moneda USD (Moneda = USD en la hoja Proveedores)">⬇ Agregar USD</a>
           <label class="flex items-center gap-1"><input type="checkbox" id="cp-solo-errores"> Solo con errores</label>
           <span id="cp-estado" class="text-slate-600"></span>
         </div>
@@ -1346,7 +1344,7 @@
       const iRuc = d.encabezados.indexOf('Latam - Nro de Registro de Contribuyente'), iMon = d.encabezados.indexOf('Moneda');
       const provs = fs => new Set(fs.map(f => f[iRuc])).size;       // cada proveedor ocupa una fila por moneda
       const conIdF = buenos.filter(f => String(f[iId] || '').trim()), conId = provs(conIdF), sinId = provs(buenos.filter(f => !String(f[iId] || '').trim()));
-      [['-csv-nuevos', sinId, '_nuevos.csv', 'CSV proveedores nuevos (sin ID)'], ['-csv-actualizar', conId, '_actualizar.csv', 'CSV proveedores con ID (actualizar)'], ['-csv-usd', conIdF.filter(f => f[iMon] === 'USD').length, '_agregar_usd.csv', 'Agregar USD a proveedores con ID']].forEach(([id, n, suf, txt]) => {
+      [['-csv-nuevos', sinId, '_nuevos.csv', 'CSV proveedores nuevos (sin ID)']].forEach(([id, n, suf, txt]) => {
         const a = $id(pf + id); a.classList.toggle('hidden', !n); a.href = '/descargar/' + d.token + '/' + archivo + suf; a.textContent = '⬇ ' + txt + ': ' + n;
       });
       est.textContent = total ? provs(d.filas) + ' proveedores (' + total + ' filas, una por moneda) · ' + (provs(d.filas) - malas.size) + ' sin errores · ' + malas.size + ' con errores (' + d.errores + ' errores)' : 'No hay proveedores' + ' en este período.';
