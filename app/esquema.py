@@ -115,6 +115,8 @@ BANCOS_MN_ENCABEZADOS = [
     "Tipo de comprobante", "Serie y número comprobante", "Concepto", "Descripción de la operación", "Contrato", "Categoría", "Area",
     "Número de RUC", "Nombre o Razón social", "Ingreso", "Egreso", "Saldos",
 ]
+# Movimientos del banco en moneda extranjera («Bancos_ME_AAAAMM.xls»): el mismo reporte y las mismas columnas que Bancos MN.
+BANCOS_ME_ENCABEZADOS = list(BANCOS_MN_ENCABEZADOS)
 # Valores fijos de Falcon en NetSuite (como en las filas de ejemplo de la plantilla): se completan solos si la celda queda vacía.
 # Subsidiaria = ID interno; Ubicación = nombre. Las de línea (Artículos/Gastos) solo se completan si la línea tiene su importe.
 SUBSIDIARIA = "43"
@@ -157,7 +159,8 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
                     "Nota de credito Cliente": "Fecha", "Pago de factura de cliente": "DATE"}.items():
     REGLAS[_hoja]["fecha_periodo"] = _col
 
-HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS}
+HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
+                                    "Bancos ME": BANCOS_ME_ENCABEZADOS}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
 LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
@@ -185,6 +188,7 @@ REGLAS["Bancos MN"] = {
     "fechas": ["Fecha operación", "Fecha cobro"],
     "numericos": ["Ingreso", "Egreso", "Saldos"],
 }
+REGLAS["Bancos ME"] = dict(REGLAS["Bancos MN"])
 
 # Reporte de gastos (reporte_gastos_AAAA-MM-DD.xls): una fila por comprobante de gasto.
 REGLAS["Gastos"] = {
