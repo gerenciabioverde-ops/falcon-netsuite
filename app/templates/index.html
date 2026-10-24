@@ -988,7 +988,7 @@
     // un movimiento del banco puede pagar varias facturas: varias filas con el mismo ExternalID forman un solo pago; lo que ya estaba en Pago Proveedor no se repite
     const previas = new Map(), nuevasPorId = new Map();
     [...cuerpo(PG).rows].forEach(tr => { const id = tr.querySelector('input').value.trim(); if (id) previas.set(id, (previas.get(id) || 0) + 1); });
-    const nuevas = [], r = { yaEstan: 0, sinFactura: 0, sinBanco: new Set(), usd: 0, sinEgreso: 0 };
+    const nuevas = [], r = { yaEstan: 0, sinFactura: 0, sinBanco: new Set(), usd: 0, sinEgreso: 0, sinIdInterno: 0 };
     [...cuerpo(BA).rows].forEach((tr, k) => {
       const b = [...tr.querySelectorAll('input')].map(i => i.value), g = n => (b[colB(n)] || '').trim();
       if (!(numero(g('Egreso')) > 0)) return;
@@ -1007,7 +1007,7 @@
       poner('POSTING PERIOD', m ? MESES_PAGO[+m[2] - 1] + ' ' + m[3] : ''); poner('CHEQUE #', g('Número de Cheque') || g('Numero de movimiento'));
       poner('Nota', g('Descripción de la operación').slice(0, 250)); poner('SUBSIDIARY', SUBSIDIARIA); poner('DEPARTMENT', fv('Gastos: Departamento'));
       poner('CLASS', fv('Gastos: Clase')); poner('LOCATION', UBICACION); poner('LATAM - PAYMENT METHOD', metodoPagoBanco(g('Tipo pago')));
-      poner('BILL', f[0].trim()); poner('PAYMENT', fmt2(numero(g('Egreso'))));       // BILL = External ID de la factura hasta cargar el export de NetSuite (Internal ID)
+      const idi = idsFacturaNS[f[0].trim()]; if (!idi) r.sinIdInterno++; poner('BILL', idi || f[0].trim()); poner('PAYMENT', fmt2(numero(g('Egreso'))));       // BILL = ID interno de la factura (el cargado en Gastos desde el export de NetSuite); si aún no lo tiene, su External ID
       nuevas.push(fila);
     });
     if (nuevas.length) {
@@ -1019,7 +1019,7 @@
       r.sinFactura + ' egresos con comprobante no tienen factura en Factura de Proveedor (no pasan).' +
       (r.sinBanco.size ? '\n\n⚠ Sin cuenta de banco en «Cuentas homologadas» (ACCOUNT queda vacío): ' + [...r.sinBanco].join('; ') : '') +
       (r.usd ? '\n\n⚠ ' + r.usd + ' pagos de facturas en USD: complete el EXCHANGE RATE.' : '') +
-      (nuevas.length ? '\n\nBILL lleva el External ID de la factura: use «🔗 Cargar ID de facturas de NetSuite (CSV)» en Pago Proveedor para poner su Internal ID.' : ''));
+      (r.sinIdInterno ? '\n\n⚠ ' + r.sinIdInterno + ' pago(s) con BILL = External ID porque esa factura aún no tiene ID interno (cárguelo en Gastos con «🔗 Cargar ID interno de facturas» o use «🔗 Cargar ID de facturas de NetSuite (CSV)» en Pago Proveedor).' : (nuevas.length ? '\n\nBILL lleva el ID interno de cada factura (cargado en Gastos).' : '')));
   }));
   // En Pago Proveedor: export de facturas de NetSuite (ID interno + ID externo) -> Internal ID en BILL
   $id('btn-ids-facturas').addEventListener('click', () => $id('archivo-ids-facturas').click());
