@@ -73,7 +73,7 @@
   <section class="bg-white rounded-lg shadow">
     <nav id="tabs" class="flex flex-wrap border-b text-sm" role="tablist">
       {% for p in pestanas %}
-      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{% if p.clave not in ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'monedas proveedor', 'proveedores', 'cuentas'] %}CSV {% endif %}{{ p.nombre }}
+      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{% if p.clave not in ['gastos', 'bancos mn', 'bancos me', 'liquidaciones', 'anular proveedor', 'monedas proveedor', 'proveedores', 'cuentas'] %}CSV {% endif %}{{ p.nombre }}
         <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
         {% if p.clave == 'proveedores' %}<button type="button" data-tab="csvprov" class="tab px-4 py-2.5 border-b-2" title="Vista previa del CSV de proveedores tal como se envía a NetSuite">CSV Proveedor
         <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
@@ -149,6 +149,9 @@
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
+          {% if p.clave == 'liquidaciones' %}<label class="flex items-center gap-1 border rounded px-2 py-1 bg-amber-50 border-amber-300 text-amber-900" title="El reporte no trae la sede: elige de cuál es el archivo ANTES de «Cargar Excel / CSV». Cargar otra sede no borra las filas de la primera; volver a cargar la misma sede la reemplaza">Sede del archivo:
+            <select id="liq-sede" class="border rounded px-1 py-0.5 bg-white"><option value="">— elige —</option><option>Jaén</option><option>Moyobamba</option></select></label>
+          <button type="button" id="btn-pasar-liq" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Gastos» un gasto por cada liquidación de compra (varias recepciones de una misma L.C. se suman). Desde Gastos pasan a Factura de Proveedor con «➜ Pasar a Factura de Proveedor»">➜ Pasar a Gastos</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-limpiar-marcas" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Quita todas las marcas ☑ «Actualizar»">☐ Limpiar marcas</button>{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
@@ -632,6 +635,7 @@
     'pago proveedor': {mon: 'CURRENCY', imp: ['PAYMENT']},
     'pago de factura de cliente': {mon: 'CURRENCY', imp: ['Pago']},
     'asiento': {mon: 'Currency', imp: ['Debit']},
+    'liquidaciones': {fija: 'SOL', imp: ['S/ TOTAL L.C. Y/O FACTURAS'], doc: null},
     'bancos mn': {fija: 'SOL', imp: ['Ingreso', 'Egreso'], doc: null},
     'bancos me': {fija: 'USD', imp: ['Ingreso', 'Egreso'], doc: null},
   };
@@ -658,7 +662,7 @@
       const chip = document.createElement('span'), simb = m === 'USD' ? 'US$' : m === 'SOL' ? 'S/' : '';
       chip.className = 'border rounded px-2 py-1 ' + (m === 'USD' ? 'bg-sky-50 border-sky-300 text-sky-900' : m === 'SOL' ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-amber-50 border-amber-300 text-amber-900');
       const partes = cfg.imp.map((n, j) => (cfg.imp.length > 1 && k.startsWith('bancos') ? n + ' ' : '') + simb + ' ' + fmtMonto(tot[m][j])).filter((x, j) => k.startsWith('bancos') || j === 0 || tot[m][j]);
-      chip.innerHTML = '<strong>' + m + '</strong>: ' + docs[m].size + ' ' + (k.startsWith('bancos') ? 'movimientos' : 'documentos') + ' · ' + partes.join(' + ');
+      chip.innerHTML = '<strong>' + m + '</strong>: ' + docs[m].size + ' ' + (k.startsWith('bancos') ? 'movimientos' : k === 'liquidaciones' ? 'recepciones' : 'documentos') + ' · ' + partes.join(' + ');
       chip.title = 'Suma de las filas visibles (respeta filtros y búsqueda) en ' + m;
       box.appendChild(chip);
     });
@@ -859,7 +863,7 @@
     poner('Latam - Tipo de Documento Fiscal', v('Tipo Doc'));
     poner('Latam - Serie CxP', cortar > 0 ? sn.slice(0, cortar) : (sn ? '0000' : '')); poner('Latam - Número Preimpreso', cortar > 0 ? sn.slice(cortar + 1) : sn);       // sin serie (planilla de movilidad, declaración jurada): serie 0000
     poner('Gastos: Cuenta', v(COL_NS));       // número de la cuenta en el COA de NetSuite (6145.03); al generar el CSV se cambia por su ID interno
-    poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || '');
+    poner('Latam - Método de Pago', METODO_NS[v('Met. Pago')] || (/^cheque/i.test(v('Met. Pago')) ? (porClave[FP].columnas[iF('Latam - Método de Pago')].opciones.find(o => o.startsWith('PE - CHEQUES CON LA CL')) || '') : ''));
     poner('Gastos: Departamento', DEPARTAMENTO_NS); poner('Gastos: Clase', CLASE_NS);       // los de NetSuite (el departamento de Gastos es interno de Falcon)
     poner('Latam - Concepto Detracción', /^s[ií]$/i.test(v(COL_SUJ)) && v(COL_CDET) ? v(COL_CDET) : '');       // sin detracción = en blanco
     poner('Latam - PE Clasific.Bienes y Servicios', v(COL_CLAS)); poner('Latam - PE Tipo Operacion Sunat', v(COL_TOP)); poner('Gastos: Importe', v('Sub-Total')); poner('Gastos: Código de impuesto', v('Código de impuesto') || (numero(v('Igv')) > 0 ? 'VAT_PE:S-PE' : 'VAT_PE:E-PE')); poner('Gastos: Nota', v('Descripción Gasto'));
@@ -911,6 +915,41 @@
     r.nuevas.forEach(f => nuevaFila(FP, f, true));
     renumerar(FP); contadores(); guardar();
   }
+  // Liquidaciones de compra de café -> Gastos: una fila por L.C. (varias recepciones con la misma serie-número se suman; el total de la L.C. es el de la primera fila)
+  $id('btn-pasar-liq').addEventListener('click', () => {
+    const LQ = 'liquidaciones', colL = n => porClave[LQ].columnas.findIndex(c => c.nombre === n);
+    const grupos = new Map();
+    leer(LQ).forEach(l => { const sn = (l[colL('Serie y N° COMP.')] || '').trim(); if (sn) { if (!grupos.has(sn)) grupos.set(sn, []); grupos.get(sn).push(l); } });
+    if (!grupos.size) { alert('No hay liquidaciones cargadas: carga el reporte con «Cargar Excel / CSV».'); return; }
+    const yaEn = new Set(leer(GF).map(g => idComprobante(g[colG('RUC')], g[colG('Serie-Numero')]) + '|' + (g[colG('Serie-Numero')] || '').trim()));
+    const cuentaCafe = {}, nuevas = []; let yaEstan = 0, sinTotal = 0, sinDoc = 0;
+    grupos.forEach((ls, sn) => {
+      const l0 = ls[0], g = n => (l0[colL(n)] || '').trim(), ruc = limpiarId(g('DNI/RUC'));
+      if (!ruc) { sinDoc++; return; }
+      if (yaEn.has(idComprobante(ruc, sn) + '|' + sn)) { yaEstan++; return; }
+      const total = numero(ls.map(l => l[colL('S/ TOTAL L.C. Y/O FACTURAS')]).find(t => numero(t) > 0)) || ls.reduce((t, l) => t + numero(l[colL('TOTAL DOCUMENTO DE RECEPCION')]), 0);
+      if (!(total > 0)) { sinTotal++; return; }
+      const cafes = [...new Set(ls.map(l => (l[colL('TIPO DE CAFÉ')] || '').trim()).filter(Boolean))], recs = [...new Set(ls.map(l => (l[colL('Codigo Recepción')] || '').trim()).filter(Boolean))];
+      const qq = ls.reduce((t, l) => t + numero(l[colL('QQ NETOS')]), 0), pago = g('TIPO DE PAGO'), sede = g('Sede');
+      const fila = new Array(porClave[GF].columnas.length).fill(''), poner = (n, val) => { fila[colG(n)] = val; };
+      poner('External ID', idComprobante(ruc, sn)); poner('Fecha Factura', fechaExcel(g('Fecha Emision Y/o Pago'))); poner('Fecha Pago', fechaExcel(g('Fecha Emision Y/o Pago')));
+      poner('Cod.Pago', recs[0] || sn); poner('N° Operación', g('N° OPERACIÓN BANCO')); poner('RUC', g('DNI/RUC')); poner('Razon Social', g('NOMBRES Y APELLIDOS / RAZON SOCIAL'));
+      poner('Tipo Doc', 'Liquidacion compra'); poner('Serie-Numero', sn); poner('Concepto', cafes.join(' / '));
+      poner('Descripción Gasto', ('L.C. café ' + sede + ' · ' + recs.join(', ') + ' · ' + fmt2(qq) + ' QQ').slice(0, 250));
+      poner('Moneda', 'PEN'); poner('Sub-Total', fmt2(total)); poner('Igv', '0.00'); poner('Total', fmt2(total)); poner('Monto Detr.', '0.00'); poner('Monto Pagado', fmt2(total));
+      poner('Area/Contrato', sede); poner('Met. Pago', /^transfer/i.test(pago) ? 'Transferencia de Fondos' : /^cheque/i.test(pago) ? 'Cheque' : /^efectivo/i.test(pago) ? 'Efectivo' : '');
+      poner('Sujeto a Detracción', 'No'); poner('Clasificación Bienes y Servicios', 'MERCADERIA, MATERIA PRIMA, SUMINISTRO, ENVASES Y EMBALAJES'); poner('Neto a Pagar', fmt2(total));
+      nuevas.push(fila);
+    });
+    if (nuevas.length) {
+      [...cuerpo(GF).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
+      nuevas.forEach(f => nuevaFila(GF, f, true));
+      [...cuerpo(GF).rows].slice(-nuevas.length).forEach(completarIdGasto);
+      renumerar(GF); contadores(); guardar(); activar(GF);
+    }
+    alert(nuevas.length + ' liquidaciones nuevas en Gastos' + (yaEstan ? ' (' + yaEstan + ' ya estaban)' : '') + (sinDoc ? ' · ' + sinDoc + ' sin DNI/RUC' : '') + (sinTotal ? ' · ' + sinTotal + ' sin total' : '') + '.\n' +
+      (nuevas.length ? 'Siguiente: «Crear proveedores faltantes», «Proponer cuenta y departamento» (Cuenta PCGE del café) y luego «Pasar a Factura de Proveedor».' : ''));
+  });
   $id('btn-pasar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('completar');
     if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert(r.sinCambios ? 'Los ' + r.sinCambios + ' gastos ya están en Factura de Proveedor, sin nada nuevo que completar.' : 'No hay gastos completos con RUC y Serie-Número para pasar.') + textoIncompletas(r); return; }
@@ -1501,7 +1540,7 @@
   // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
   const HOJAS_ID = { 'anular proveedor': 'anular', 'monedas proveedor': 'mon' };
   const MONEDA_DEFECTO_ID = { 'monedas proveedor': 'USD' };
-  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'monedas proveedor', 'proveedores', 'cuentas'];       // «CSV Proveedor» y «CSV Anular Proveedor» quedan en la barra principal, al lado de «Pago de factura de cliente»
+  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'liquidaciones', 'anular proveedor', 'monedas proveedor', 'proveedores', 'cuentas'];       // «CSV Proveedor» y «CSV Anular Proveedor» quedan en la barra principal, al lado de «Pago de factura de cliente»
   let ultimaInfo = 'gastos';
   GRUPO_INFO.forEach(k => { const b = document.querySelector('.tab[data-tab="' + k + '"]'); if (b) { b.classList.remove('ml-auto', 'border-l'); document.getElementById('subtabs').appendChild(b); } });
   document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
@@ -1707,10 +1746,10 @@
       const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
       // un CSV por plantilla de NetSuite; «Gastos», «Bancos MN» y «Bancos ME» son solo de trabajo y no se descargan
-      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME' && x.nombre !== 'Anular proveedor' && x.nombre !== 'Monedas proveedor');
+      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME' && x.nombre !== 'Liquidaciones' && x.nombre !== 'Anular proveedor' && x.nombre !== 'Monedas proveedor');
       // solo se genera el archivo de la pestaña en la que estás (p. ej. Factura de Proveedor o Proveedores); Gastos, Bancos y Anular proveedor son pestañas de trabajo y no tienen CSV propio
       const activo = ((document.querySelector('.panel:not(.hidden)') || {}).id || '').replace(/^panel-/, ''), soloActivo = porClave[activo] ? porClave[activo].nombre : null;
-      const sinArchivoPropio = soloActivo && ['Gastos', 'Bancos MN', 'Bancos ME', 'Anular proveedor', 'Monedas proveedor'].includes(soloActivo);
+      const sinArchivoPropio = soloActivo && ['Gastos', 'Bancos MN', 'Bancos ME', 'Liquidaciones', 'Anular proveedor', 'Monedas proveedor'].includes(soloActivo);
       if (soloActivo) { const f = csvs.filter(x => x.nombre === soloActivo); csvs.length = 0; csvs.push(...f); const mios = sinCsv.filter(t => t.startsWith(soloActivo + ' (')); sinCsv.length = 0; sinCsv.push(...mios); }
       if (sinArchivoPropio) { estadoGrilla('«' + soloActivo + '» es una pestaña de trabajo y no genera CSV: ve a la pestaña de la plantilla (p. ej. Factura de Proveedor, Pago Proveedor, «CSV Proveedor» o «CSV Anular Proveedor») y genera desde ahí.', '#b45309'); return; }
       csvs.forEach((x, i) => setTimeout(() => { const l = document.createElement('a'); l.href = x.a.getAttribute('href'); l.download = ''; document.body.appendChild(l); l.click(); l.remove(); }, i * 600));
@@ -2031,12 +2070,18 @@
       const d = await r.json();
       if (!d.ok) { est.className = 'text-sm text-red-700'; est.textContent = d.mensaje || ('Error ' + r.status); return; }
       const claves = Object.keys(d.hojas);
-      const conDatos = claves.filter(k => leer(k).length);
+      const sedeLiq = ($('liq-sede') || {}).value || '';       // Liquidaciones: el reporte no trae la sede; se agrega a las filas y cada sede se reemplaza por separado
+      if (claves.includes('liquidaciones') && !sedeLiq) { est.className = 'text-sm text-red-700'; est.textContent = 'Elige primero la «Sede del archivo» (Jaén o Moyobamba) en la pestaña Liquidaciones y vuelve a cargar.'; return; }
+      const iSedeL = porClave.liquidaciones ? porClave.liquidaciones.columnas.findIndex(c => c.nombre === 'Sede') : -1;
+      const conDatos = claves.filter(k => k === 'liquidaciones' ? leer(k).some(f => f[iSedeL] === sedeLiq) : leer(k).length).map(k => k);
       if (conDatos.length && !confirm('Se reemplazarán las filas actuales de: ' + conDatos.map(k => d.nombres[k]).join(', ') + '. ¿Continuar?')) {
         est.textContent = ''; return;
       }
       claves.forEach(k => {
+        const otrasSedes = k === 'liquidaciones' ? leer(k).filter(f => f[iSedeL] !== sedeLiq) : [];
         cuerpo(k).innerHTML = '';
+        otrasSedes.forEach(fila => nuevaFila(k, fila, true));
+        if (k === 'liquidaciones') d.hojas[k].forEach(fila => { fila[iSedeL] = sedeLiq; });
         d.hojas[k].forEach(fila => nuevaFila(k, fila, true));
         if (k === 'gastos') [...cuerpo('gastos').rows].forEach(completarIdGasto);
         while (cuerpo(k).rows.length < FILAS_INICIALES) nuevaFila(k);
