@@ -738,11 +738,19 @@
     });
   });
 
+  let limpiezaLC = 0;
   function llenarDesde(datos) {
+    limpiezaLC = 0;
     esquema.forEach(p => {
       cuerpo(p.clave).innerHTML = '';
-      const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
-      (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
+      const h = (datos.hojas && datos.hojas[p.clave]) || {};
+      let filasP = h.filas || [], bloq = h.bloqueadas || [];
+      if (p.clave === 'gastos') {       // las liquidaciones de compra ya no se guardan en Gastos: se quitan las que se copiaron antes (las crea «L.C. café …» en la descripción)
+        const iT = p.columnas.findIndex(c => c.nombre === 'Tipo Doc'), iD = p.columnas.findIndex(c => c.nombre === 'Descripción Gasto'), keep = [], nb = [];
+        filasP.forEach((f, i) => { if (/^liquidacion compra$/.test(quitarTildes(f[iT])) && /^L\.C\. caf/i.test(String(f[iD] || ''))) { limpiezaLC++; return; } if (bloq.includes(i)) nb.push(keep.length); keep.push(f); });
+        filasP = keep; bloq = nb;
+      }
+      filasP.forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
       if (p.clave === 'gastos') { [...cuerpo('gastos').rows].forEach(completarIdGasto); resincronizarCuentas(); }
       if (p.clave === 'liquidaciones') aplicarDefectosLiq();       // completa las cuentas NetSuite de lo guardado
       if (p.clave === 'factura de proveedor') marcadasFP = new Set(Array.isArray(h.marcadas) ? h.marcadas : []);
@@ -752,6 +760,7 @@
       while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
     });
     contadores();
+    if (limpiezaLC) setTimeout(() => { guardar(); estadoGrilla('Se quitaron de Gastos ' + limpiezaLC + ' liquidaciones de compra copiadas antes: ahora viven solo en la pestaña Liquidaciones.', '#15803d'); }, 0);
   }
   const hayFilas = d => Object.values(d.hojas || {}).some(h => (h.filas || []).some(f => f.some(c => String(c).trim() !== '')));
   function borradorViejo() {          // formato anterior: {clave: filas, __bloqueadas: {clave: [i]}}
