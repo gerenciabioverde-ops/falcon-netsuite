@@ -437,7 +437,8 @@
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_PAG) inp.setAttribute('list', 'dl-cuentas-gasto');
-      if (clave === 'liquidaciones' && c.nombre === 'Cuenta PCGE') inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'liquidaciones' && (c.nombre === 'Cuenta PCGE' || c.nombre === 'Cuenta por Pagar PCGE')) inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'liquidaciones' && (c.nombre === 'Cuenta NetSuite' || c.nombre === 'Cuenta por Pagar NetSuite')) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
       if (clave === 'gastos' && c.nombre === COL_PAGNS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
       if (clave === 'gastos' && c.nombre === 'Monto Pagado') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − Monto Detr.'; }
       if (clave === 'gastos' && c.nombre === 'Monto Retención') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total × % Retención'; }
@@ -929,8 +930,27 @@
     const guardarDef = () => { try { localStorage.setItem(LLAVE_LIQ, JSON.stringify({ cuenta: el.cuenta.value.trim(), depto: el.depto.value, imp: el.imp.value })); } catch (e) {} };
     Object.values(el).forEach(x => { x.addEventListener('change', guardarDef); x.addEventListener('input', guardarDef); });
   })();
+  const defectosLiq = () => ({ cuenta: $id('liq-d-cuenta').value.trim(), depto: $id('liq-d-depto').value, imp: $id('liq-d-imp').value });
+  // Llena en cada liquidación las columnas que necesita Factura de Proveedor: lo escrito a mano no se toca; lo propuesto (valores por defecto) se actualiza al cambiarlos
+  function completarLiq(tr, def) {
+    const ins = tr.querySelectorAll('input'), c = n => ins[colL(n)];
+    if (!c('Serie y N° COMP.').value.trim()) return false;
+    let cambio = false;
+    const poner = (n, val) => { const i = c(n); if (!val || !(!i.value.trim() || i.classList.contains('propuesta'))) return; if (i.value !== val) { i.value = val; cambio = true; } i.classList.add('propuesta'); };
+    poner('Cuenta PCGE', def.cuenta); poner('Departamento', def.depto); poner('Código de impuesto', def.imp); poner('Cuenta por Pagar PCGE', pagarPorTipo('Liquidacion compra'));
+    [['Cuenta PCGE', 'Cuenta NetSuite'], ['Cuenta por Pagar PCGE', 'Cuenta por Pagar NetSuite']].forEach(([p, n]) => { const v = cuentaNS(c(p).value) || (c(p).value.trim() ? c(n).value : ''); if (c(n).value !== v) { c(n).value = v; cambio = true; } });
+    return cambio;
+  }
+  function aplicarDefectosLiq() { const def = defectosLiq(); let cambio = false; [...cuerpo(LQ).rows].forEach(tr => { if (completarLiq(tr, def)) cambio = true; }); return cambio; }
+  ['liq-d-cuenta', 'liq-d-depto', 'liq-d-imp'].forEach(id => $id(id).addEventListener('change', () => { if (aplicarDefectosLiq()) guardar(); }));
+  $id('panel-liquidaciones').addEventListener('change', ev => {
+    const i = ev.target, tr = i instanceof HTMLInputElement && i.closest('tr');
+    if (!tr || !['Cuenta PCGE', 'Cuenta por Pagar PCGE', 'Departamento', 'Código de impuesto'].some(n => +i.dataset.col === colL(n))) return;
+    i.classList.remove('propuesta'); completarLiq(tr, defectosLiq()); guardar();
+  });
   function pasarLiquidacionesAGastos() {
-    const def = { cuenta: $id('liq-d-cuenta').value.trim(), depto: $id('liq-d-depto').value, imp: $id('liq-d-imp').value };
+    aplicarDefectosLiq();
+    const def = defectosLiq();
     const grupos = new Map();
     leer(LQ).forEach(l => { const sn = (l[colL('Serie y N° COMP.')] || '').trim(); if (sn) { if (!grupos.has(sn)) grupos.set(sn, []); grupos.get(sn).push(l); } });
     const r = { ids: new Set(), total: grupos.size, nuevas: 0, completadas: 0, yaEstan: 0, sinDoc: 0, sinTotal: 0, sinCuenta: 0 };
@@ -942,12 +962,12 @@
       if (!ruc) { r.sinDoc++; return; }
       r.ids.add(idComprobante(ruc, sn));
       const primero = n => (ls.map(l => (l[colL(n)] || '').trim()).find(Boolean) || '');
-      const cuenta = primero('Cuenta PCGE') || def.cuenta, depto = primero('Departamento') || def.depto, imp = primero('Código de impuesto') || def.imp;
+      const cuenta = primero('Cuenta PCGE') || def.cuenta, depto = primero('Departamento') || def.depto, imp = primero('Código de impuesto') || def.imp, pagar = primero('Cuenta por Pagar PCGE');
       if (!cuenta) r.sinCuenta++;
       const trG = enGastos.get(idComprobante(ruc, sn));
       if (trG) {       // ya está en Gastos: solo se completan las celdas vacías (cuenta, departamento, impuesto)
         const ins = trG.querySelectorAll('input'); let cambio = false;
-        [['Cuenta PCGE', cuenta], ['Departamento', depto], ['Código de impuesto', imp]].forEach(([n, val]) => { if (val && !ins[colG(n)].value.trim()) { ins[colG(n)].value = val; cambio = true; } });
+        [['Cuenta PCGE', cuenta], ['Departamento', depto], ['Código de impuesto', imp], ['Cuenta por Pagar PCGE', pagar]].forEach(([n, val]) => { if (val && !ins[colG(n)].value.trim()) { ins[colG(n)].value = val; cambio = true; } });
         if (cambio) { sincronizarNS(trG); completarIdGasto(trG); r.completadas++; } else r.yaEstan++;
         return;
       }
@@ -959,7 +979,7 @@
       poner('External ID', idComprobante(ruc, sn)); poner('Fecha Factura', fechaExcel(g('Fecha Emision Y/o Pago'))); poner('Fecha Pago', fechaExcel(g('Fecha Emision Y/o Pago')));
       poner('Cod.Pago', recs[0] || sn); poner('N° Operación', g('N° OPERACIÓN BANCO')); poner('RUC', g('DNI/RUC')); poner('Razon Social', g('NOMBRES Y APELLIDOS / RAZON SOCIAL'));
       poner('Tipo Doc', 'Liquidacion compra'); poner('Serie-Numero', sn); poner('Concepto', cafes.join(' / '));
-      poner('Cuenta PCGE', cuenta); poner('Departamento', depto); poner('Código de impuesto', imp);
+      poner('Cuenta PCGE', cuenta); poner('Departamento', depto); poner('Código de impuesto', imp); poner('Cuenta por Pagar PCGE', pagar);
       poner('Descripción Gasto', ('L.C. café ' + (sede ? sede + ' · ' : '') + recs.join(', ') + ' · ' + fmt2(qq) + ' QQ').slice(0, 250));
       poner('Moneda', 'PEN'); poner('Sub-Total', fmt2(total)); poner('Igv', '0.00'); poner('Total', fmt2(total)); poner('Monto Detr.', '0.00'); poner('Monto Pagado', fmt2(total));
       poner('Area/Contrato', sede); poner('Met. Pago', /^transfer/i.test(pago) ? 'Transferencia de Fondos' : /^cheque/i.test(pago) ? 'Cheque' : /^efectivo/i.test(pago) ? 'Efectivo' : '');
@@ -1375,6 +1395,7 @@
       if (ins[colG(COL_PCGE)].value.trim() && nuevo && ins[colG(COL_NS)].value !== nuevo) { ins[colG(COL_NS)].value = nuevo; cambio = true; }
       if (ins[colG(COL_PAG)].value.trim() && nuevoP && ins[colG(COL_PAGNS)].value !== nuevoP) { ins[colG(COL_PAGNS)].value = nuevoP; cambio = true; }
     });
+    if (aplicarDefectosLiq()) cambio = true;
     if (cambio) guardar();
   }
   function ofrecerAplicar(tr, cod) {
@@ -2126,6 +2147,7 @@
         if (k === 'liquidaciones') d.hojas[k].forEach(fila => { fila[iSedeL] = fila[iSedeL] || sedeLiq; });
         d.hojas[k].forEach(fila => nuevaFila(k, fila, true));
         if (k === 'gastos') [...cuerpo('gastos').rows].forEach(completarIdGasto);
+        if (k === 'liquidaciones') aplicarDefectosLiq();
         while (cuerpo(k).rows.length < FILAS_INICIALES) nuevaFila(k);
       });
       guardar(); contadores();

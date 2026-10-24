@@ -120,6 +120,9 @@ def _migrar(datos: dict) -> dict:
         for f in pr["filas"]:
             if len(f) == len(pv.ENCABEZADOS) and not str(f[iE]).strip() and (str(f[iN]).strip() or str(f[iA]).strip()):
                 f[iE] = (str(f[iN]).strip() + " " + str(f[iA]).strip()).strip()
+    lq = (datos.get("hojas") or {}).get("liquidaciones")
+    if lq and lq.get("filas"):       # diseño anterior: 23 columnas del reporte + Cuenta PCGE, Departamento, Código de impuesto (26); ahora con las cuentas NetSuite y por pagar en medio
+        lq["filas"] = [f[:24] + ["", "", ""] + f[24:] if len(f) == 26 else f for f in lq["filas"]]
     g = (datos.get("hojas") or {}).get("gastos")
     if g and g.get("filas"):
         g["filas"] = [_fila_gastos(f) if (18 <= len(f) <= 32 or 34 <= len(f) < 38) else f for f in g["filas"]]

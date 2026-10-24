@@ -169,7 +169,7 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
 LIQUIDACIONES_ENCABEZADOS = [
     "Sede", "Mes", "Fecha Recibido", "Fecha Emision Y/o Pago", "Codigo Recepción", "TD", "Serie y N° COMP.", "DNI/RUC", "NOMBRES Y APELLIDOS / RAZON SOCIAL",
     "DNI SOCIO", "NOMBRES SOCIO", "TIPO DE CAFÉ", "P.TAZA", "RDTO FISICO", "QQ NETOS", "KILOS NETOS", "P.U. S/", "TOTAL DOCUMENTO DE RECEPCION",
-    "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",    "Cuenta PCGE", "Departamento", "Código de impuesto",      # los que necesita Factura de Proveedor (van al gasto); vacíos = los valores por defecto del panel
+    "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",    "Cuenta PCGE", "Cuenta NetSuite", "Cuenta por Pagar PCGE", "Cuenta por Pagar NetSuite", "Departamento", "Código de impuesto",      # los que necesita Factura de Proveedor (van al gasto); vacíos = los valores por defecto del panel
 ]
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
                                     "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"],
