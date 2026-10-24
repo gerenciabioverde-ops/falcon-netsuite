@@ -96,6 +96,11 @@ def proveedores_a_diseno6(filas: list) -> list:
     return [f + [pv.MONEDAS_DEFECTO] if len(f) == len(pv.ENCABEZADOS_V5) else f for f in filas]
 
 
+def pago_a_diseno2(filas: list) -> list:
+    """Pago Proveedor: BILL y PAYMENT (columnas 15 y 16 de la plantilla) pasan a ir justo después de Beneficiario."""
+    return [f[:3] + f[15:17] + f[3:15] + f[17:] if len(f) >= 17 else f for f in filas]
+
+
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     pr = (datos.get("hojas") or {}).get("proveedores")
@@ -120,6 +125,9 @@ def _migrar(datos: dict) -> dict:
         for f in pr["filas"]:
             if len(f) == len(pv.ENCABEZADOS) and not str(f[iE]).strip() and (str(f[iN]).strip() or str(f[iA]).strip()):
                 f[iE] = (str(f[iN]).strip() + " " + str(f[iA]).strip()).strip()
+    pg = (datos.get("hojas") or {}).get("pago proveedor")
+    if pg and pg.get("filas") and (pg.get("disenio") or 1) < 2:
+        pg["filas"], pg["disenio"] = pago_a_diseno2(pg["filas"]), 2
     lq = (datos.get("hojas") or {}).get("liquidaciones")
     if lq and lq.get("filas"):       # diseño anterior: 23 columnas del reporte + Cuenta PCGE, Departamento, Código de impuesto (26); ahora con las cuentas NetSuite y por pagar en medio
         lq["filas"] = [f[:24] + ["", "", ""] + f[24:] if len(f) == 26 else f for f in lq["filas"]]
