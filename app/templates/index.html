@@ -149,8 +149,7 @@
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
-          {% if p.clave == 'liquidaciones' %}<button type="button" id="btn-pasar-liq" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Gastos» un gasto por cada liquidación de compra (varias recepciones de una misma L.C. se suman). Desde Gastos pasan a Factura de Proveedor con «➜ Pasar a Factura de Proveedor»">➜ Pasar a Gastos</button>
-          <button type="button" id="btn-pasar-liq-fp" class="border rounded px-3 py-1.5 bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700" title="Hace los dos pasos: crea/actualiza los gastos y pasa directo a «Factura de Proveedor» las liquidaciones que tienen todo (cuenta, departamento, impuesto y proveedor con ID de NetSuite)">➜ Pasar a Factura de Proveedor</button>
+          {% if p.clave == 'liquidaciones' %}<button type="button" id="btn-pasar-liq-fp" class="border rounded px-3 py-1.5 bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700" title="Hace los dos pasos: crea/actualiza los gastos y pasa directo a «Factura de Proveedor» las liquidaciones que tienen todo (cuenta, departamento, impuesto y proveedor con ID de NetSuite)">➜ Pasar a Factura de Proveedor</button>
           <span class="flex flex-wrap items-center gap-2 border rounded px-2 py-1 bg-amber-50 border-amber-300 text-amber-900" title="Valores que se usan en las liquidaciones que no tienen la columna llenada (Cuenta PCGE, Departamento, Código de impuesto). Se recuerdan en este navegador">Por defecto para todas:
             <input id="liq-d-cuenta" list="dl-cuentas-gasto" placeholder="Cuenta PCGE del café" class="border rounded px-1 py-0.5 bg-white w-44" autocomplete="off">
             <select id="liq-d-depto" class="border rounded px-1 py-0.5 bg-white"><option value="">Departamento…</option></select>
@@ -999,12 +998,6 @@
     return r;
   }
   const textoLiq = r => r.nuevas + ' liquidaciones nuevas en Gastos' + (r.completadas ? ', ' + r.completadas + ' completadas' : '') + (r.yaEstan ? ' (' + r.yaEstan + ' ya estaban)' : '') + (r.sinDoc ? ' · ' + r.sinDoc + ' sin DNI/RUC' : '') + (r.sinTotal ? ' · ' + r.sinTotal + ' sin total' : '') + (r.sinCuenta ? ' · ' + r.sinCuenta + ' sin Cuenta PCGE (escríbela en «Por defecto» o en la columna)' : '') + '.';
-  $id('btn-pasar-liq').addEventListener('click', () => {
-    const r = pasarLiquidacionesAGastos();
-    if (!r.total) { alert('No hay liquidaciones cargadas: carga el reporte con «Cargar Excel / CSV».'); return; }
-    if (r.nuevas) activar(GF);
-    alert(textoLiq(r) + '\n' + (r.nuevas ? 'Siguiente: «Crear proveedores faltantes» y «➜ Pasar a Factura de Proveedor» (o usa el botón directo de Liquidaciones).' : ''));
-  });
   // Directo: Liquidaciones -> Gastos (de respaldo, para el ID del proveedor, el ID interno y las actualizaciones) -> Factura de Proveedor
   $id('btn-pasar-liq-fp').addEventListener('click', () => {
     const l = pasarLiquidacionesAGastos();
