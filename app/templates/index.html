@@ -159,7 +159,7 @@
             <select id="liq-d-imp" class="border rounded px-1 py-0.5 bg-white"><option>VAT_PE:E-PE</option><option>VAT_PE:I-PE</option><option>VAT_PE:S-PE</option></select></span>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-limpiar-marcas" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Quita todas las marcas ☑ «Actualizar»">☐ Limpiar marcas</button>{% endif %}
-          {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
+          {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos y de Liquidaciones los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez, y agrega las que falten">🔄 Actualizar desde Gastos y Liquidaciones</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
       </div>
@@ -1048,19 +1048,19 @@
       (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + (r.sinId ? ' (' + r.sinId + ' sin RUC o Serie-Número)' : '') +
       '.' + textoIncompletas(r));
   });
-  // En Factura de Proveedor: trae de Gastos los datos que cambiaron, de todas las facturas a la vez
+  // En Factura de Proveedor: trae de Gastos y de Liquidaciones los datos que cambiaron, de todas las facturas a la vez
   $id('btn-limpiar-marcas').addEventListener('click', () => { marcadasFP.clear(); pintarMarcas(); guardar(); if (($id('flt-marc') || {}).value) aplicarFiltrosFactura(); });
   $id('btn-actualizar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('actualizar');
     const campos = r.cambios.reduce((n, c) => n + c.dif.length, 0);
-    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert('Factura de Proveedor ya está al día con Gastos.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '') + textoIncompletas(r)); return; }
+    if (!r.nuevas.length && !r.cambios.length) { aplicarSincronizacion(r); alert('Factura de Proveedor ya está al día con Gastos y Liquidaciones.' + (r.sinId ? ' (' + r.sinId + ' gastos sin RUC o Serie-Número no se pueden relacionar.)' : '') + textoIncompletas(r)); return; }
     const ejemplos = r.cambios.slice(0, 5).map(({ tr, dif }) => {
       const ins = tr.querySelectorAll('input');
       return '• ' + ins[0].value + ': ' + dif.slice(0, 3).map(([k, val]) => porClave[FP].columnas[k].nombre + ' → ' + val).join('; ');
     });
-    if (!confirm('Se actualizará Factura de Proveedor con los datos de Gastos:\n• ' + r.nuevas.length + ' facturas nuevas\n• ' + r.cambios.length + ' facturas existentes con cambios (' + campos + ' campos)\n' +
+    if (!confirm('Se actualizará Factura de Proveedor con los datos de Gastos y Liquidaciones:\n• ' + r.nuevas.length + ' facturas nuevas\n• ' + r.cambios.length + ' facturas existentes con cambios (' + campos + ' campos)\n' +
         (ejemplos.length ? '\nEjemplos:\n' + ejemplos.join('\n') + '\n' : '') +
-        '\nLo que cambió en Gastos reemplaza lo que haya en esos campos de la factura. Lo demás (cuenta por pagar, impuestos, departamento…) no se toca.' + textoIncompletas(r) + '\n\n¿Continuar?')) return;
+        '\nLo que cambió en Gastos o Liquidaciones reemplaza lo que haya en esos campos de la factura. Lo demás (cuenta por pagar, impuestos, departamento…) no se toca.' + textoIncompletas(r) + '\n\n¿Continuar?')) return;
     aplicarSincronizacion(r);
     alert('Listo: ' + r.nuevas.length + ' nuevas y ' + r.cambios.length + ' actualizadas.');
   });
