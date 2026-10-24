@@ -18,6 +18,7 @@ from openpyxl import load_workbook
 from .esquema import Hoja, Plantilla, norm
 
 MAX_FILAS = 2000
+SEDE_POR_SERIE = {"L001": "Jaén", "L002": "Moyobamba"}
 ALIAS_HOJAS = {"vendor": "proveedores", "vendors": "proveedores", "proveedor": "proveedores"}
 # Etiquetas de la primera columna de las filas de ayuda del libro de carga (no son datos)
 FILAS_DE_AYUDA = {"totales", "total", "campos", "oracle netsuite standard", "tipo de campo", "mandatory", "mandatoriedad", "description",
@@ -137,6 +138,11 @@ def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[li
                     i_sede = hoja.idx("Sede")
                     for fila in salida:
                         fila[i_sede] = t.split(":", 1)[1].strip()
+    if hoja.nombre == "Liquidaciones":  # sin almacén en el encabezado, la sede sale de la serie: L001 = Jaén, L002 = Moyobamba
+        i_sede, i_ser = hoja.idx("Sede"), hoja.idx("Serie y N° COMP.")
+        for fila in salida:
+            if not fila[i_sede]:
+                fila[i_sede] = SEDE_POR_SERIE.get(fila[i_ser].split("-", 1)[0].strip().upper(), "")
     if hoja.nombre == "Proveedores":  # «No encontrado» (resultado del XLOOKUP del libro) no es un código postal
         i = hoja.idx("Código ZIP")
         for c in salida:

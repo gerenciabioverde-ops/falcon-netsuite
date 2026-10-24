@@ -930,6 +930,7 @@
     const guardarDef = () => { try { localStorage.setItem(LLAVE_LIQ, JSON.stringify({ cuenta: el.cuenta.value.trim(), depto: el.depto.value, imp: el.imp.value })); } catch (e) {} };
     Object.values(el).forEach(x => { x.addEventListener('change', guardarDef); x.addEventListener('input', guardarDef); });
   })();
+  const SEDE_POR_SERIE = { L001: 'Jaén', L002: 'Moyobamba' };
   const defectosLiq = () => ({ cuenta: $id('liq-d-cuenta').value.trim(), depto: $id('liq-d-depto').value, imp: $id('liq-d-imp').value });
   // Cuenta NetSuite (número del COA) de lo escrito en «Cuenta PCGE»: por el código de Falcon o, si ya se escribió el número del COA (1200.06), ese mismo
   const nsDeLiq = cod => { const v = String(cod || '').trim(); return !v ? '' : (cuentaNS(v) || (tablaCuentas.some(x => coaDe(x) === v) ? v : '')); };
@@ -938,6 +939,7 @@
     const ins = tr.querySelectorAll('input'), c = n => ins[colL(n)];
     if (!c('Serie y N° COMP.').value.trim()) return false;
     let cambio = false;
+    if (!c('Sede').value.trim()) { const sd = SEDE_POR_SERIE[c('Serie y N° COMP.').value.split('-')[0].trim().toUpperCase()]; if (sd) { c('Sede').value = sd; cambio = true; } }       // L001 = Jaén, L002 = Moyobamba
     const poner = (n, val) => { const i = c(n); if (!val || !(!i.value.trim() || i.classList.contains('propuesta'))) return; if (i.value !== val) { i.value = val; cambio = true; } i.classList.add('propuesta'); };
     poner('Cuenta PCGE', def.cuenta); poner('Departamento', def.depto); poner('Código de impuesto', def.imp); poner('Cuenta por Pagar PCGE', pagarPorTipo('Liquidacion compra'));
     [['Cuenta PCGE', 'Cuenta NetSuite'], ['Cuenta por Pagar PCGE', 'Cuenta por Pagar NetSuite']].forEach(([p, n]) => { const v = nsDeLiq(c(p).value); if (c(n).value !== v) { c(n).value = v; cambio = true; } });
