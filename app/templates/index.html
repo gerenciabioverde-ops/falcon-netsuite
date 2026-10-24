@@ -1576,7 +1576,7 @@
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
         (ok.length ? 'Descargado (' + (excel ? 'Excel' : 'CSV para NetSuite') + '): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún archivo.')) +
-        ((fl.length || idfSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID)' : 'ausente')] : []).join('; ') + ')' : '') +
+        ((fl.length || idfSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID; en NetSuite impórtalo en modo Actualizar y marca «Sobrescribir sublistas» para que las líneas de Gastos no se dupliquen)' : 'ausente')] : []).join('; ') + ')' : '') +
         (sinCsv.length ? ' Sin archivo por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
       const token = doc.querySelector('table').dataset.token;
