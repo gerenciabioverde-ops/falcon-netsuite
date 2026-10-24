@@ -15,7 +15,7 @@ uvicorn app.main:app --port 8002 --reload      # http://localhost:8002
 ```
 1. Escribir o pegar (Ctrl+V desde Excel) los datos en la pestaña de cada plantilla.
 2. Pulsar «Validar y generar», corregir errores y descargar cada CSV o el `.zip`.
-   - Desde la pestaña de una plantilla (p. ej. Factura de Proveedor) «Validar y generar» descarga **solo el CSV de esa pestaña**; desde las pestañas de información (Gastos, Bancos, Proveedores…) descarga el de todas las plantillas con datos sin errores.
+   - «Validar y generar» descarga **solo el CSV de la pestaña en la que estás** (Factura de Proveedor, Pago Proveedor, Proveedores…) y el resumen menciona solo los errores de esa pestaña. Gastos, Bancos MN/ME y Anular proveedor son pestañas de trabajo: no generan CSV (el aviso te dice dónde generar).
 
 El **EXTERNAL ID se genera solo** si se deja vacío, y es siempre el mismo para el mismo comprobante (así NetSuite no lo duplica al recargarlo):
 
