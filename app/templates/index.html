@@ -507,7 +507,7 @@
   }
   document.addEventListener('change', ev => { if (ev.target.classList && (ev.target.classList.contains('flt-fp') || ev.target.id === 'flt-idf')) aplicarFiltrosFactura(); });
   let vbTemporizador = null;
-  let pendGastos = null;       // gastos que aún no pasaron a Factura de Proveedor (sin ✔)
+  let pendGastos = null;       // gastos sin N° Transacción de NetSuite (aún no registrados)
   function vistoBuenoFactura() {
     clearTimeout(vbTemporizador);
     vbTemporizador = setTimeout(() => {
@@ -565,7 +565,7 @@
         const vals = [...tr.querySelectorAll('input')].map(i => i.value), id = (vals[0] || '').trim();
         if (!vals.some(v => v.trim())) { vb.textContent = ''; vb.title = ''; return; }
         const f = faltantesGasto(vals), enFactura = id && ids.has(id);
-        gTotal++; if (enFactura && !f.length) gPasaron++;
+        gTotal++; if (id && numFacturaNS[id]) gPasaron++;       // con N° Transacción = ya está registrada en NetSuite
         if (f.length) { vb.textContent = '⚠'; vb.style.color = '#b45309'; vb.title = (enFactura ? 'Ya está en Factura de Proveedor pero le falta: ' : 'No pasa a Factura de Proveedor: falta ') + f.join(', '); return; }
         vb.textContent = enFactura ? '✔' : ''; vb.style.color = '#15803d';
         vb.title = enFactura ? 'Ya pasó a Factura de Proveedor' : 'Listo para pasar a Factura de Proveedor';
@@ -582,9 +582,9 @@
     const b = document.querySelector('.tab[data-tab="' + k + '"]'), c = b && b.querySelector('.contador');
     if (!c || !porClave[k]) return;
     const filas = [...cuerpo(k).rows].filter(tr => [...tr.querySelectorAll('input')].some(i => i.value.trim()));
-    if (k === 'gastos' && pendGastos !== null) {       // Gastos: «pendientes / total» (pendiente = aún sin ✔ en V°B° Factura)
+    if (k === 'gastos' && pendGastos !== null) {       // Gastos: «pendientes / total» (pendiente = aún sin N° Transacción de NetSuite)
       c.textContent = pendGastos + ' / ' + filas.length; c.classList.toggle('hidden', filas.length === 0);
-      c.title = 'Pendientes de pasar a Factura de Proveedor: ' + pendGastos + ' de ' + filas.length + ' gastos (los que tienen ✔ ya pasaron)';
+      c.title = 'Pendientes: ' + pendGastos + ' de ' + filas.length + ' gastos todavía sin N° Transacción (sin registrar en NetSuite, o aún sin cargar el export de NetSuite)';
       c.classList.toggle('bg-amber-100', pendGastos > 0); c.classList.toggle('text-amber-800', pendGastos > 0);
       c.classList.toggle('bg-green-100', pendGastos === 0); c.classList.toggle('text-green-800', pendGastos === 0);
       c.classList.toggle('bg-blue-100', false); c.classList.toggle('text-blue-800', false);
