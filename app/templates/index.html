@@ -125,6 +125,10 @@
             <button type="button" id="anular-pasar" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Agrega los ID de este cuadro a la columna «ID interno» (los repetidos y los que ya están no se duplican) y completa el nombre">⬅ Pasar a la tabla</button>
             <span id="anular-estado" class="text-xs text-slate-600"></span>
           </div>
+          <div class="pt-2 border-t">
+            <button type="button" id="anular-nombres" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): sirve para poner el nombre a los ID que NO están en la pestaña Proveedores (p. ej. las copias duplicadas)">📂 Cargar nombres (export de NetSuite)</button><input type="file" id="archivo-anular-nombres" accept=".csv,.txt" class="hidden">
+            <p class="text-xs text-slate-500 mt-1">Los ID duplicados que se anulan no están en la pestaña Proveedores (ahí queda el original): sus nombres salen de este export.</p>
+          </div>
         </div>
         </div>{% endif %}
         <div class="flex gap-2 text-sm">
@@ -1399,8 +1403,13 @@
     return cargar;
   }
   // ---- Anular proveedor: al digitar el ID interno aparece el nombre (Razón Social de la pestaña Gastos, por el RUC del proveedor con ese ID) ----
+  let nombresNS = {};       // ID interno -> nombre, del export de proveedores de NetSuite (se recuerda en este navegador)
+  try { nombresNS = JSON.parse(localStorage.getItem('falcon-nombres-ns') || '{}') || {}; } catch (e) { nombresNS = {}; }
   function nombrePorIdAnular(id) {
     id = String(id || '').trim(); if (!id) return '';
+    return nombrePorIdFalcon(id) || nombresNS[id] || '';
+  }
+  function nombrePorIdFalcon(id) {
     const cp = porClave.proveedores.columnas, ip = n => cp.findIndex(c => c.nombre === n);
     const prov = [...cuerpo('proveedores').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value)).find(v => (v[ip('External ID')] || '').trim() === id);
     if (!prov) return '';
@@ -1433,6 +1442,20 @@
     }
     est.textContent = ids.length + ' ID agregado(s)' + (repetidos ? ' · ' + repetidos + ' repetido(s) omitido(s)' : '') + (ignorados ? ' · ' + ignorados + ' línea(s) sin número omitida(s)' : '') + '.';
     est.style.color = ids.length ? '#15803d' : '#b45309';
+  });
+  $id('anular-nombres').addEventListener('click', () => $id('archivo-anular-nombres').click());
+  $id('archivo-anular-nombres').addEventListener('change', async ev => {
+    const archivo = ev.target.files[0]; ev.target.value = '';
+    if (!archivo) return;
+    const filas = leerCsvNetSuite(await archivo.text()), enc = (filas[0] || []).map(quitarTildes);
+    const iId = enc.findIndex(c => c === 'id interno' || c === 'internal id'), iNom = enc.findIndex(c => c === 'nombre' || c === 'name');
+    const est = $id('anular-estado');
+    if (iId < 0 || iNom < 0) { est.textContent = 'El CSV debe tener las columnas «ID interno» y «Nombre» (export de proveedores de NetSuite).'; est.style.color = '#b91c1c'; return; }
+    nombresNS = {};
+    filas.slice(1).forEach(f => { const id = (f[iId] || '').trim(), n = (f[iNom] || '').trim(); if (/^\d+$/.test(id) && n) nombresNS[id] = n; });
+    try { localStorage.setItem('falcon-nombres-ns', JSON.stringify(nombresNS)); } catch (e) { /* sin almacenamiento: vale para esta sesión */ }
+    const c = completarAnular();
+    est.textContent = Object.keys(nombresNS).length + ' nombres cargados · ' + c + ' fila(s) completadas.'; est.style.color = '#15803d';
   });
   function completarAnular() { let c = 0; [...cuerpo('anular proveedor').rows].forEach(tr => { if (completarNombreAnular(tr)) c++; }); if (c) guardar(); return c; }
   // ---- Pestaña «CSV Anular Proveedor»: ID interno + Inactivo = T de los proveedores de la pestaña «Anular proveedor» (se arma en el navegador) ----
