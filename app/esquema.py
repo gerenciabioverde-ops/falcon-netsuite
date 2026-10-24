@@ -167,7 +167,7 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
     REGLAS[_hoja]["fecha_periodo"] = _col
 
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
-                                    "Bancos ME": BANCOS_ME_ENCABEZADOS}
+                                    "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"]}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
 LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
@@ -196,6 +196,8 @@ REGLAS["Bancos MN"] = {
     "numericos": ["Ingreso", "Egreso", "Saldos"],
 }
 REGLAS["Bancos ME"] = dict(REGLAS["Bancos MN"])
+# Proveedores a inactivar en NetSuite (ID interno): de ahí sale la pestaña «CSV Anular Proveedor» (ID interno + Inactivo = T)
+REGLAS["Anular proveedor"] = {"requeridos": ["ID interno"]}
 
 # Reporte de gastos (reporte_gastos_AAAA-MM-DD.xls): una fila por comprobante de gasto.
 REGLAS["Gastos"] = {

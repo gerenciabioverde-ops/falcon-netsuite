@@ -58,7 +58,7 @@ def _encabezados(filas: list[list], hoja: Hoja) -> tuple[int, dict[int, int]] | 
                     mapa[g] = j
                     usados.add(j)
                     break
-        if len(mapa) >= 3 and (mejor is None or len(mapa) > len(mejor[1])):
+        if len(mapa) >= min(3, max(1, len(objetivos) - 1)) and (mejor is None or len(mapa) > len(mejor[1])):
             mejor = (i, mapa)
     return mejor
 
@@ -156,7 +156,7 @@ def _leer_tabla_html(contenido: bytes, plantilla: Plantilla, clave_pestana: str,
     for clave in candidatas:
         hoja = plantilla.hojas[clave]
         enc = _encabezados(filas, hoja)
-        if enc is None or len(enc[1]) < max(4, len(hoja.encabezados) // 2):
+        if enc is None or len(enc[1]) < min(len(hoja.encabezados), max(4, len(hoja.encabezados) // 2)):
             continue
         datos = _filas_de_datos(filas, hoja, avisos)
         if datos:
@@ -209,7 +209,7 @@ def leer(nombre_archivo: str, contenido: bytes, plantilla: Plantilla, clave_csv:
             muestra = [list(f) for f in ws.iter_rows(min_row=1, max_row=25, values_only=True)]
             for clave, hoja in plantilla.hojas.items():
                 enc = _encabezados(muestra, hoja)
-                if clave in resultado or enc is None or len(enc[1]) < max(4, len(hoja.encabezados) // 2):
+                if clave in resultado or enc is None or len(enc[1]) < min(len(hoja.encabezados), max(4, len(hoja.encabezados) // 2)):
                     continue
                 datos = _filas_de_datos([list(f) for f in ws.iter_rows(values_only=True)], hoja, avisos)
                 if datos:

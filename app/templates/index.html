@@ -77,6 +77,7 @@
         <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
         {% if p.clave == 'proveedores' %}<button type="button" data-tab="csvprov" class="tab px-4 py-2.5 border-b-2" title="Vista previa del CSV de proveedores tal como se envía a NetSuite">CSV Proveedor
         <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
+        {% if p.clave == 'anular proveedor' %}<button type="button" data-tab="csvanular" class="tab px-4 py-2.5 border-b-2" title="CSV para inactivar en NetSuite los proveedores de la pestaña Anular proveedor">CSV Anular Proveedor</button>{% endif %}
       {% endfor %}
       <button type="button" id="tab-info" class="tab-grupo px-4 py-2.5 border-b-2 ml-auto border-l" title="Gastos, Proveedores, CSV Proveedor y Cuentas homologadas: la información de trabajo de donde salen las plantillas de NetSuite">Información</button>
       <button type="button" data-tab="cuentas" class="tab px-4 py-2.5 border-b-2 ml-auto border-l">Cuentas homologadas
@@ -144,6 +145,15 @@
           <span id="cp-estado" class="text-slate-600"></span>
         </div>
         <div id="cp-tabla" style="overflow:auto;max-height:60vh" class="border rounded"></div>
+      </div>
+      <div id="panel-csvanular" class="panel hidden space-y-3">
+        <p class="text-sm text-slate-600">CSV para <strong>inactivar proveedores</strong> en NetSuite con los ID interno de la pestaña <strong>Anular proveedor</strong>: columnas <code>ID interno</code> e <code>Inactivo</code> (T). En NetSuite impórtalo como <strong>Proveedor</strong>, modo <strong>Actualizar</strong>, con «ID interno» a ID interno e «Inactivo» al campo Inactivo.</p>
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <button type="button" id="ca-actualizar" class="border rounded px-3 py-1.5 hover:bg-slate-50">🔄 Actualizar vista</button>
+          <a id="ca-csv" class="border rounded px-3 py-1.5 bg-green-700 text-white hidden" href="#" download="anular_proveedor.csv">⬇ Descargar CSV</a>
+          <span id="ca-estado" class="text-slate-600"></span>
+        </div>
+        <div id="ca-tabla" style="overflow:auto;max-height:60vh" class="border rounded"></div>
       </div>
       <div id="panel-cuentas" class="panel hidden space-y-3">
         <p class="text-sm text-slate-600">
@@ -308,7 +318,7 @@
         filas: leer(p.clave, true),
         bloqueadas: [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0),
         ...(p.clave === 'gastos' ? { ids_factura: idsFacturaNS, ids_factura_num: numFacturaNS } : {}),
-        ...(p.clave === 'proveedores' ? { disenio: 5 } : {}),       // marca del orden de columnas de Proveedores (tipo y número de documento tras External ID; Nombres y Apellidos junto al nombre)
+        ...(p.clave === 'proveedores' ? { disenio: 6 } : {}),       // marca del orden de columnas de Proveedores (tipo y número de documento tras External ID; Nombres y Apellidos junto al nombre)
       };
     }
     return { hojas };
@@ -1302,7 +1312,7 @@
   // Nombres que se ven en Gastos (por dentro las columnas siguen con su nombre original: el reporte las trae así)
   const ETIQUETAS_GASTOS = { 'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco' };
   // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
-  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'proveedores', 'csvprov', 'cuentas'];
+  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'csvanular', 'proveedores', 'csvprov', 'cuentas'];
   let ultimaInfo = 'gastos';
   GRUPO_INFO.forEach(k => { const b = document.querySelector('.tab[data-tab="' + k + '"]'); if (b) { b.classList.remove('ml-auto', 'border-l'); document.getElementById('subtabs').appendChild(b); } });
   document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
@@ -1319,7 +1329,7 @@
     sub.classList.toggle('hidden', !enInfo); sub.classList.toggle('flex', enInfo); sub.classList.toggle('flex-wrap', enInfo);
     ['border-blue-700', 'text-blue-800', 'font-semibold'].forEach(c => bi.classList.toggle(c, enInfo)); bi.classList.toggle('border-transparent', !enInfo);
     if (enInfo) ultimaInfo = clave;
-    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov');
+    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov' || clave === 'csvanular');
     if (vistasCsv[clave]) vistasCsv[clave]();
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
     ajustarAlto();
@@ -1371,7 +1381,31 @@
     $id(pf + '-solo-errores').addEventListener('change', () => { if (datos) pintar(); });
     return cargar;
   }
-  const vistasCsv = { csvprov: vistaCsv('cp', 'csvprov', 'Proveedores') };
+  // ---- Pestaña «CSV Anular Proveedor»: ID interno + Inactivo = T de los proveedores de la pestaña «Anular proveedor» (se arma en el navegador) ----
+  function vistaAnular() {
+    const filas = leer('anular proveedor', true), ids = [], repetidos = new Set(), malos = [], vistos = new Set();
+    filas.forEach((f, i) => {
+      const id = (f[0] || '').trim(); if (!id) return;
+      if (!/^\d+$/.test(id)) { malos.push(i + 2); return; }
+      if (vistos.has(id)) { repetidos.add(id); return; }
+      vistos.add(id); ids.push([id, (f[1] || '').trim(), i + 2]);
+    });
+    const csv = 'ID interno,Inactivo\r\n' + ids.map(x => x[0] + ',T\r\n').join(''), a = $id('ca-csv'), est = $id('ca-estado');
+    if (a.dataset.url) URL.revokeObjectURL(a.dataset.url);
+    a.dataset.url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.href = a.dataset.url;
+    a.classList.toggle('hidden', !ids.length);
+    est.textContent = ids.length + ' proveedor(es) a inactivar' + (repetidos.size ? ' · ' + repetidos.size + ' ID repetido(s) (sale una sola vez)' : '') + (malos.length ? ' · ' + malos.length + ' fila(s) sin un ID interno numérico (filas ' + malos.slice(0, 8).join(', ') + (malos.length > 8 ? '…' : '') + '), no salen' : '') + '.';
+    est.style.color = malos.length ? '#b45309' : '#15803d';
+    const tb = document.createElement('table'); tb.className = 'text-xs'; tb.style.borderCollapse = 'collapse';
+    [['Fila', 'ID interno', 'Inactivo', 'Nombre (solo referencia)'], ...ids.map(x => [x[2], x[0], 'T', x[1]])].forEach((r, k) => {
+      const tr = document.createElement('tr');
+      r.forEach(v => { const c = document.createElement(k ? 'td' : 'th'); c.textContent = v; c.style.cssText = 'border:1px solid #e2e8f0;padding:3px 8px;white-space:nowrap;text-align:left' + (k ? '' : ';position:sticky;top:0;background:#f1f5f9'); tr.appendChild(c); });
+      tb.appendChild(tr);
+    });
+    $id('ca-tabla').replaceChildren(tb);
+  }
+  $id('ca-actualizar').addEventListener('click', vistaAnular);
+  const vistasCsv = { csvprov: vistaCsv('cp', 'csvprov', 'Proveedores'), csvanular: vistaAnular };
 
   // La grilla ocupa todo el alto libre de la ventana: desde donde empieza hasta justo antes de los botones y de la barra «Validar y generar»
   function ajustarAlto() {
@@ -1411,7 +1445,7 @@
       const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
       // un CSV por plantilla de NetSuite; «Gastos», «Bancos MN» y «Bancos ME» son solo de trabajo y no se descargan
-      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME');
+      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME' && x.nombre !== 'Anular proveedor');
       // desde la pestaña de una plantilla (p. ej. Factura de Proveedor) solo se descarga el CSV de esa pestaña; desde las pestañas de información se descargan todos
       const activo = ((document.querySelector('.panel:not(.hidden)') || {}).id || '').replace(/^panel-/, ''), soloActivo = porClave[activo] && !GRUPO_INFO.includes(activo) ? porClave[activo].nombre : null;
       if (soloActivo) { const f = csvs.filter(x => x.nombre === soloActivo); csvs.length = 0; csvs.push(...f); }
