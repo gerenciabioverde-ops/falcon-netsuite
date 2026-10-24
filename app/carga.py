@@ -129,6 +129,14 @@ def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[li
             salida.append(celdas)
     if hoja.nombre in ("Bancos MN", "Bancos ME"):
         _completar_bancos(filas[:inicio], salida, hoja)
+    if hoja.nombre == "Liquidaciones":  # el encabezado del reporte dice «Almacen: Jaén»; con «Todos» la sede queda vacía (se elige al cargar)
+        for f in filas[:inicio]:
+            for c in f:
+                t = str(c).strip()
+                if norm(t).startswith("almacen:") and norm(t.split(":", 1)[1]) not in ("", "todos", "todas"):
+                    i_sede = hoja.idx("Sede")
+                    for fila in salida:
+                        fila[i_sede] = t.split(":", 1)[1].strip()
     if hoja.nombre == "Proveedores":  # «No encontrado» (resultado del XLOOKUP del libro) no es un código postal
         i = hoja.idx("Código ZIP")
         for c in salida:

@@ -149,8 +149,8 @@
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
-          {% if p.clave == 'liquidaciones' %}<label class="flex items-center gap-1 border rounded px-2 py-1 bg-amber-50 border-amber-300 text-amber-900" title="El reporte no trae la sede: elige de cuál es el archivo ANTES de «Cargar Excel / CSV». Cargar otra sede no borra las filas de la primera; volver a cargar la misma sede la reemplaza">Sede del archivo:
-            <select id="liq-sede" class="border rounded px-1 py-0.5 bg-white"><option value="">— elige —</option><option>Jaén</option><option>Moyobamba</option></select></label>
+          {% if p.clave == 'liquidaciones' %}<label class="flex items-center gap-1 border rounded px-2 py-1 bg-amber-50 border-amber-300 text-amber-900" title="Opcional. Si el reporte dice «Almacen: Jaén» o «Almacen: Moyobamba», la sede se toma sola. Si dice «Todos», se usa la que elijas aquí (o queda vacía). Cargar otra sede no borra las filas de la primera; volver a cargar la misma sede la reemplaza">Sede (si el reporte dice «Todos»):
+            <select id="liq-sede" class="border rounded px-1 py-0.5 bg-white"><option value="">— ninguna —</option><option>Jaén</option><option>Moyobamba</option></select></label>
           <button type="button" id="btn-pasar-liq" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Gastos» un gasto por cada liquidación de compra (varias recepciones de una misma L.C. se suman). Desde Gastos pasan a Factura de Proveedor con «➜ Pasar a Factura de Proveedor»">➜ Pasar a Gastos</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-limpiar-marcas" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Quita todas las marcas ☑ «Actualizar»">☐ Limpiar marcas</button>{% endif %}
@@ -935,7 +935,7 @@
       poner('External ID', idComprobante(ruc, sn)); poner('Fecha Factura', fechaExcel(g('Fecha Emision Y/o Pago'))); poner('Fecha Pago', fechaExcel(g('Fecha Emision Y/o Pago')));
       poner('Cod.Pago', recs[0] || sn); poner('N° Operación', g('N° OPERACIÓN BANCO')); poner('RUC', g('DNI/RUC')); poner('Razon Social', g('NOMBRES Y APELLIDOS / RAZON SOCIAL'));
       poner('Tipo Doc', 'Liquidacion compra'); poner('Serie-Numero', sn); poner('Concepto', cafes.join(' / '));
-      poner('Descripción Gasto', ('L.C. café ' + sede + ' · ' + recs.join(', ') + ' · ' + fmt2(qq) + ' QQ').slice(0, 250));
+      poner('Descripción Gasto', ('L.C. café ' + (sede ? sede + ' · ' : '') + recs.join(', ') + ' · ' + fmt2(qq) + ' QQ').slice(0, 250));
       poner('Moneda', 'PEN'); poner('Sub-Total', fmt2(total)); poner('Igv', '0.00'); poner('Total', fmt2(total)); poner('Monto Detr.', '0.00'); poner('Monto Pagado', fmt2(total));
       poner('Area/Contrato', sede); poner('Met. Pago', /^transfer/i.test(pago) ? 'Transferencia de Fondos' : /^cheque/i.test(pago) ? 'Cheque' : /^efectivo/i.test(pago) ? 'Efectivo' : '');
       poner('Sujeto a Detracción', 'No'); poner('Clasificación Bienes y Servicios', 'MERCADERIA, MATERIA PRIMA, SUMINISTRO, ENVASES Y EMBALAJES'); poner('Neto a Pagar', fmt2(total));
@@ -2071,17 +2071,17 @@
       if (!d.ok) { est.className = 'text-sm text-red-700'; est.textContent = d.mensaje || ('Error ' + r.status); return; }
       const claves = Object.keys(d.hojas);
       const sedeLiq = ($('liq-sede') || {}).value || '';       // Liquidaciones: el reporte no trae la sede; se agrega a las filas y cada sede se reemplaza por separado
-      if (claves.includes('liquidaciones') && !sedeLiq) { est.className = 'text-sm text-red-700'; est.textContent = 'Elige primero la «Sede del archivo» (Jaén o Moyobamba) en la pestaña Liquidaciones y vuelve a cargar.'; return; }
       const iSedeL = porClave.liquidaciones ? porClave.liquidaciones.columnas.findIndex(c => c.nombre === 'Sede') : -1;
-      const conDatos = claves.filter(k => k === 'liquidaciones' ? leer(k).some(f => f[iSedeL] === sedeLiq) : leer(k).length).map(k => k);
+      const sedesNuevas = new Set(((d.hojas.liquidaciones || []).map(f => f[iSedeL] || sedeLiq))),       // sede de cada fila: la que trae el reporte («Almacen: Jaén») o, si dice «Todos», la elegida (puede quedar vacía)
+        conDatos = claves.filter(k => k === 'liquidaciones' ? leer(k).some(f => sedesNuevas.has(f[iSedeL])) : leer(k).length);
       if (conDatos.length && !confirm('Se reemplazarán las filas actuales de: ' + conDatos.map(k => d.nombres[k]).join(', ') + '. ¿Continuar?')) {
         est.textContent = ''; return;
       }
       claves.forEach(k => {
-        const otrasSedes = k === 'liquidaciones' ? leer(k).filter(f => f[iSedeL] !== sedeLiq) : [];
+        const otrasSedes = k === 'liquidaciones' ? leer(k).filter(f => !sedesNuevas.has(f[iSedeL])) : [];
         cuerpo(k).innerHTML = '';
         otrasSedes.forEach(fila => nuevaFila(k, fila, true));
-        if (k === 'liquidaciones') d.hojas[k].forEach(fila => { fila[iSedeL] = sedeLiq; });
+        if (k === 'liquidaciones') d.hojas[k].forEach(fila => { fila[iSedeL] = fila[iSedeL] || sedeLiq; });
         d.hojas[k].forEach(fila => nuevaFila(k, fila, true));
         if (k === 'gastos') [...cuerpo('gastos').rows].forEach(completarIdGasto);
         while (cuerpo(k).rows.length < FILAS_INICIALES) nuevaFila(k);
