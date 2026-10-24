@@ -169,14 +169,14 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
 LIQUIDACIONES_ENCABEZADOS = [
     "Sede", "Mes", "Fecha Recibido", "Fecha Emision Y/o Pago", "Codigo Recepción", "TD", "Serie y N° COMP.", "DNI/RUC", "NOMBRES Y APELLIDOS / RAZON SOCIAL",
     "DNI SOCIO", "NOMBRES SOCIO", "TIPO DE CAFÉ", "P.TAZA", "RDTO FISICO", "QQ NETOS", "KILOS NETOS", "P.U. S/", "TOTAL DOCUMENTO DE RECEPCION",
-    "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",
+    "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",    "Cuenta PCGE", "Departamento", "Código de impuesto",      # los que necesita Factura de Proveedor (van al gasto); vacíos = los valores por defecto del panel
 ]
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
                                     "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"],
                                     "Monedas proveedor": ["ID interno", "Nombre", "Moneda"], "Liquidaciones": LIQUIDACIONES_ENCABEZADOS}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
-LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Monedas proveedor": {"Moneda": ["USD", "SOL", "SOL y USD"]}, "Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
+LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Liquidaciones": {"Departamento": DEPARTAMENTOS, "Código de impuesto": ["VAT_PE:S-PE", "VAT_PE:E-PE", "VAT_PE:I-PE"]}, "Monedas proveedor": {"Moneda": ["USD", "SOL", "SOL y USD"]}, "Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
                                                 "Sujeto a Detracción": ["Sí", "No"],
                                                 "Código de impuesto": ["VAT_PE:S-PE", "VAT_PE:E-PE", "VAT_PE:I-PE", "VAT_PE:R10-PE"]}}
 # Tabla de detracciones (concepto -> porcentaje) de la hoja DATA MAESTRA de la plantilla; se llena en cargar_plantilla()
