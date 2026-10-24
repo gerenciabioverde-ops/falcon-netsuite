@@ -119,6 +119,9 @@
             {% if p.clave == 'factura de proveedor' %}<tr class="fila-filtros">
               <th title="Filtros: elige un valor para ver solo esas filas. El CSV baja solo con las filas visibles">🔎</th><th><select id="flt-marc" title="Solo las facturas marcadas con ☑ para actualizar (el CSV baja solo con ellas)"><option value="">Todas</option><option value="si">Solo marcadas</option></select></th><th></th>
               {% for c in p.columnas %}{% if c.nombre in ['Moneda', 'Latam - Tipo de Transacción', 'Latam - Concepto Detracción'] %}<th><select class="flt-fp" data-nombre="{{ c.nombre }}" title="Filtrar por «{{ c.nombre }}» (el CSV baja solo con las filas visibles)"><option value="">Todos</option></select></th>{% else %}<th></th>{% endif %}{% if c.nombre == 'Cuenta' %}<th></th>{% endif %}{% if c.nombre == 'EXTERNAL ID' %}<th><select id="flt-idf" title="Filtrar por ID interno de la factura. Con «Solo con ID interno» el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID (para actualizar en NetSuite)"><option value="">Todos</option><option value="con">Solo con ID interno</option><option value="sin">Solo sin ID interno</option></select></th><th></th>{% endif %}{% endfor %}
+            </tr>{% endif %}
+            {% if p.clave == 'pago proveedor' %}<tr class="fila-filtros">
+              <th title="Filtro por moneda: el CSV baja solo con las filas visibles (así puedes importar los pagos en soles y luego los de dólares sin repetir los ya contabilizados)">🔎</th>{% for c in p.columnas %}{% if c.nombre == 'CURRENCY' %}<th><select class="flt-pg" data-nombre="CURRENCY" title="Filtrar por «CURRENCY» (el CSV baja solo con las filas visibles)"><option value="">Todos</option></select></th>{% else %}<th></th>{% endif %}{% endfor %}
             </tr>{% endif %}</thead>
             <tbody></tbody>
           </table>
@@ -490,8 +493,9 @@
   function buscarEnGrilla(panel) {
     const clave = panel.dataset.hoja, q = normBusqueda(panel.querySelector('.buscar-grilla').value).split(/\s+/).filter(Boolean), filas = [...cuerpo(clave).rows];
     let n = 0;
-    filas.forEach(tr => { const ok = !q.length || (t => q.every(w => t.includes(w)))(textoFila(tr)); tr.dataset.busq = ok ? '' : 'no'; if (ok) n++; if (clave !== 'factura de proveedor') tr.style.display = ok ? '' : 'none'; });
+    filas.forEach(tr => { const ok = !q.length || (t => q.every(w => t.includes(w)))(textoFila(tr)); tr.dataset.busq = ok ? '' : 'no'; if (ok) n++; if (clave !== 'factura de proveedor' && clave !== 'pago proveedor') tr.style.display = ok ? '' : 'none'; });
     if (clave === 'factura de proveedor') aplicarFiltrosFactura();
+    if (clave === 'pago proveedor') aplicarFiltrosPago();
     panel.querySelector('.buscar-estado').textContent = q.length ? n + ' de ' + filas.length + ' filas' : '';
     contarTab(clave);
   }
@@ -551,6 +555,29 @@
     aplicarFiltrosFactura();
   }
   document.addEventListener('change', ev => { if (ev.target.classList && (ev.target.classList.contains('flt-fp') || ev.target.id === 'flt-idf' || ev.target.id === 'flt-marc')) aplicarFiltrosFactura(); });
+  // Filtro de moneda de Pago Proveedor: oculta las filas que no coinciden y el CSV baja solo con las visibles
+  const PG_CLAVE = 'pago proveedor';
+  const valorFiltroPG = tr => { const i = porClave[PG_CLAVE].columnas.findIndex(c => c.nombre === 'CURRENCY'); return ((tr.querySelectorAll('input')[i] || {}).value || '').trim().toUpperCase() || VACIO_FP; };
+  function filtroPago() { const sel = document.querySelector('select.flt-pg'); return sel ? sel.value : ''; }
+  function aplicarFiltrosPago() {
+    fijarTopFiltros();
+    const v = filtroPago(), sel = document.querySelector('select.flt-pg'); if (sel) sel.classList.toggle('activo', !!v);
+    [...cuerpo(PG_CLAVE).rows].forEach(tr => { tr.style.display = (!v || valorFiltroPG(tr) === v) && tr.dataset.busq !== 'no' ? '' : 'none'; });
+    contarTab(PG_CLAVE);
+  }
+  function poblarFiltrosPago() {
+    const sel = document.querySelector('select.flt-pg'); if (!sel) return;
+    const filas = [...cuerpo(PG_CLAVE).rows].filter(tr => [...tr.querySelectorAll('input')].some(i => i.value.trim())), n = {};
+    filas.forEach(tr => { const v = valorFiltroPG(tr); n[v] = (n[v] || 0) + 1; });
+    const firma = JSON.stringify(n); if (sel.dataset.firma !== firma) {
+      const actual = sel.value; sel.dataset.firma = firma; sel.innerHTML = '';
+      sel.add(new Option('Todos (' + filas.length + ')', ''));
+      Object.keys(n).sort().forEach(k => sel.add(new Option(k + ' (' + n[k] + ')', k)));
+      sel.value = n[actual] ? actual : '';
+    }
+    aplicarFiltrosPago();
+  }
+  document.addEventListener('change', ev => { if (ev.target.classList && ev.target.classList.contains('flt-pg')) aplicarFiltrosPago(); });
   let vbTemporizador = null;
   let pendGastos = null;       // gastos sin N° Transacción de NetSuite (aún no registrados)
   function vistoBuenoFactura() {
@@ -559,7 +586,7 @@
       if (!porClave.gastos || !porClave.hasOwnProperty || !document.getElementById('panel-gastos')) return;
       const ids = new Set([...cuerpo('factura de proveedor').rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
       const iTd = colF('Latam - Tipo de Documento Fiscal'), iSe = colF('Latam - Serie CxP'), iNu = colF('Latam - Número Preimpreso');
-      poblarFiltrosFactura(); pintarMarcas();
+      poblarFiltrosFactura(); poblarFiltrosPago(); pintarMarcas();
       ['bancos mn', 'bancos me'].forEach(k => {       // Bancos: ID interno de la factura (de «CSV Factura de Proveedor»), por RUC + serie-número del comprobante
         if (!porClave[k]) return;
         const cb = porClave[k].columnas, iR = cb.findIndex(c => c.nombre === 'Número de RUC'), iS = cb.findIndex(c => c.nombre === 'Serie y número comprobante');
@@ -1644,7 +1671,7 @@
   document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
   function activar(clave) {
     document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + clave));
-    if (clave === 'factura de proveedor') setTimeout(() => { try { fijarTopFiltros(); } catch (e) {} }, 0);
+    if (clave === 'factura de proveedor' || clave === 'pago proveedor') setTimeout(() => { try { fijarTopFiltros(); } catch (e) {} }, 0);
     document.querySelectorAll('.tab').forEach(b => {
       const on = b.dataset.tab === clave;
       b.classList.toggle('border-blue-700', on); b.classList.toggle('text-blue-800', on);
@@ -1828,6 +1855,8 @@
     esquema.forEach(p => { datos[p.clave] = leer(p.clave, true); });
     const fl = Object.entries(filtrosFP()), idfSel = ($id('flt-idf') || {}).value || '', marcSel = (($id('flt-marc') || {}).value || marcadasFP.size) ? 'si' : '';       // con alguna factura marcada ☑, el CSV lleva solo las marcadas (no hace falta el filtro)
     if (fl.length || idfSel || marcSel) datos['factura de proveedor'] = datos['factura de proveedor'].map(f => fl.every(([i, val]) => valorFiltroFP(f, +i) === val) && (!idfSel || tieneIdf(f) === idfSel) && (!marcSel || marcadasFP.has((f[0] || '').trim())) ? f : f.map(() => ''));       // las demás quedan en blanco (así el número de fila sigue siendo el de la pestaña)
+    const pgSel = filtroPago();       // Pago Proveedor: con el filtro de moneda el CSV lleva solo esas filas
+    if (pgSel) { const iCur = porClave[PG_CLAVE].columnas.findIndex(c => c.nombre === 'CURRENCY'); datos[PG_CLAVE] = datos[PG_CLAVE].map(f => (((f[iCur] || '').trim().toUpperCase() || VACIO_FP) === pgSel) ? f : f.map(() => '')); }
     if (idfSel === 'con') datos['__ids_factura__'] = Object.entries(idsFacturaNS);       // el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID (para actualizar en NetSuite)
     const estado = document.getElementById('estado-grilla');
     estadoGrilla('Procesando…');
@@ -1854,6 +1883,7 @@
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
         (ok.length ? 'Descargado (' + (excel ? 'Excel' : 'CSV para NetSuite') + '): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún archivo.')) +
+        (pgSel && activo === PG_CLAVE ? ' (Pago Proveedor, solo CURRENCY = ' + pgSel + ')' : '') +
         ((fl.length || idfSel || marcSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(marcSel ? ['marcadas para actualizar (' + marcadasFP.size + ')'] : []).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID; en NetSuite impórtalo en modo Actualizar y marca «Sobrescribir sublistas» para que las líneas de Gastos no se dupliquen)' : 'ausente')] : []).join('; ') + ')' : '') +
         (sinCsv.length ? ' Sin archivo por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
