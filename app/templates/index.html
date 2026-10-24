@@ -2014,13 +2014,15 @@
     if (!ps.length) { const li = document.createElement('li'); li.style.color = '#15803d'; li.textContent = 'Sin problemas en esta fila.'; ul.appendChild(li); return; }
     ps.forEach(p => { const li = document.createElement('li'); li.style.color = p.nivel === 'error' ? '#b91c1c' : '#b45309'; li.textContent = p.columna + ': ' + p.mensaje; ul.appendChild(li); });
   }
+  // posición de la fila dentro del cuerpo de la tabla (rowIndex cuenta también los encabezados: Factura de Proveedor tiene dos, y abría la fila siguiente)
+  const indiceFila = tr => [...tr.parentNode.rows].indexOf(tr);
   document.addEventListener('click', ev => {
     const b = ev.target.closest && ev.target.closest('.btn-editar');
-    if (b) abrirFila(b.closest('.panel').dataset.hoja, b.closest('tr').rowIndex - 1);
+    if (b) abrirFila(b.closest('.panel').dataset.hoja, indiceFila(b.closest('tr')));
   });
   document.addEventListener('dblclick', ev => {            // doble clic en una celda bloqueada abre el editor
     const i = ev.target;
-    if (i instanceof HTMLInputElement && i.readOnly && i.closest('.grilla')) abrirFila(i.closest('.panel').dataset.hoja, i.closest('tr').rowIndex - 1);
+    if (i instanceof HTMLInputElement && i.readOnly && i.closest('.grilla')) abrirFila(i.closest('.panel').dataset.hoja, indiceFila(i.closest('tr')));
   });
   document.getElementById('mf-guardar').addEventListener('click', () => terminarFila(true));
   document.getElementById('mf-cancelar').addEventListener('click', () => terminarFila(false));
