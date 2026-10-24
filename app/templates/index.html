@@ -105,7 +105,7 @@
             <thead><tr>
               <th>#</th>
               {% if p.clave in ['bancos mn', 'bancos me'] %}<th title="Solo para ver: ID interno de la factura en NetSuite, tomado de «CSV Factura de Proveedor» (se busca por RUC + serie-número del comprobante). Es el que pasa a BILL en Pago Proveedor">ID Interno Factura</th>{% endif %}
-              {% if p.clave == 'liquidaciones' %}<th title="Solo para ver: ID de NetSuite del proveedor (por DNI/RUC, en la pestaña Proveedores). «⚠ no registrado» = clic para crearlo; «⚠ sin ID» = falta cargar su ID">ID Proveedor</th><th title="Solo para ver: ID interno de la factura en NetSuite (se carga en Gastos con «🔗 Cargar ID interno de facturas»; las liquidaciones pasan a Gastos con el botón verde). «⚠ sin ID» = ya está en Factura de Proveedor pero aún sin ID">ID Interno Factura</th><th title="Solo para ver: número de transacción de la factura en NetSuite (VENDBILL…), según el export cargado">N° Transacción</th><th title="Importe contabilizado de la factura en NetSuite (con IGV), según el export cargado">Importe NetSuite</th><th title="Compara el importe de NetSuite con el total de la L.C. en Falcon: ✔ = coincide · ⚠ ×N = N veces el importe · ✖ = difiere">Verif. importe</th>{% endif %}
+              {% if p.clave == 'liquidaciones' %}<th title="Solo para ver: ID de NetSuite del proveedor (por DNI/RUC, en la pestaña Proveedores). «⚠ no registrado» = clic para crearlo; «⚠ sin ID» = falta cargar su ID">ID Proveedor</th><th title="Solo para ver: ID interno de la factura en NetSuite (se carga con «🔗 Cargar ID interno de facturas»). «⚠ sin ID» = ya está en Factura de Proveedor pero aún sin ID">ID Interno Factura</th><th title="Solo para ver: número de transacción de la factura en NetSuite (VENDBILL…), según el export cargado">N° Transacción</th><th title="Importe contabilizado de la factura en NetSuite (con IGV), según el export cargado">Importe NetSuite</th><th title="Compara el importe de NetSuite con el total de la L.C. en Falcon: ✔ = coincide · ⚠ ×N = N veces el importe · ✖ = difiere">Verif. importe</th>{% endif %}
               {% if p.clave == 'factura de proveedor' %}<th title="Marca las facturas que quieres actualizar en NetSuite: con el filtro «Solo marcadas» el CSV baja solo con ellas. Clic aquí para marcar o desmarcar todas las filas visibles"><span id="chk-todas" style="cursor:pointer">☐ Actualizar</span></th>{% endif %}
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="⚠ = a este gasto le falta información y no pasa a Factura de Proveedor (pasa el cursor para ver qué falta). Vacío = sin problemas">Datos faltantes</th>{% endif %}
@@ -150,9 +150,9 @@
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
-          {% if p.clave == 'liquidaciones' %}<button type="button" id="btn-liq-ids" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV): primero deja las liquidaciones también en Gastos (respaldo) y luego pone el ID interno y el N° de transacción de cada factura, como en Gastos">🔗 Cargar ID interno de facturas (CSV de NetSuite)</button>
-          <button type="button" id="btn-liq-prov" class="border rounded px-3 py-1.5 bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100" title="Crea en la pestaña Proveedores los DNI/RUC de las liquidaciones que aún no están registrados (los pasa antes a Gastos)">➕ Crear proveedores faltantes</button>
-          <button type="button" id="btn-pasar-liq-fp" class="border rounded px-3 py-1.5 bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700" title="Hace los dos pasos: crea/actualiza los gastos y pasa directo a «Factura de Proveedor» las liquidaciones que tienen todo (cuenta, departamento, impuesto y proveedor con ID de NetSuite)">➜ Pasar a Factura de Proveedor</button>
+          {% if p.clave == 'liquidaciones' %}<button type="button" id="btn-liq-ids" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV) y pone el ID interno y el N° de transacción de cada factura (de las liquidaciones y de Gastos)">🔗 Cargar ID interno de facturas (CSV de NetSuite)</button>
+          <button type="button" id="btn-liq-prov" class="border rounded px-3 py-1.5 bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100" title="Crea en la pestaña Proveedores los DNI/RUC de las liquidaciones (y de Gastos) que aún no están registrados">➕ Crear proveedores faltantes</button>
+          <button type="button" id="btn-pasar-liq-fp" class="border rounded px-3 py-1.5 bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700" title="Pasa directo a «Factura de Proveedor» las liquidaciones que tienen todo (cuenta, departamento, impuesto y proveedor con ID de NetSuite)">➜ Pasar a Factura de Proveedor</button>
           <span class="flex flex-wrap items-center gap-2 border rounded px-2 py-1 bg-amber-50 border-amber-300 text-amber-900" title="Valores que se usan en las liquidaciones que no tienen la columna llenada (Cuenta PCGE, Departamento, Código de impuesto). Se recuerdan en este navegador">Por defecto para todas:
             <input id="liq-d-cuenta" list="dl-cuentas-gasto" placeholder="Cuenta PCGE del café" class="border rounded px-1 py-0.5 bg-white w-44" autocomplete="off">
             <select id="liq-d-depto" class="border rounded px-1 py-0.5 bg-white"><option value="">Departamento…</option></select>
@@ -642,7 +642,7 @@
           const idi = cid ? idsFacturaNS[cid] : '';
           td.style.background = ''; td.title = '';
           if (idi) { td.textContent = idi; td.style.color = '#15803d'; td.title = 'ID interno de la factura en NetSuite'; }
-          else if (cid && ids.has(cid)) { td.textContent = '⚠ sin ID'; td.style.color = '#b45309'; td.style.background = '#fef3c7'; td.title = 'Ya está en Factura de Proveedor pero aún sin ID interno: cárgalo en Gastos con «🔗 Cargar ID interno de facturas»'; }
+          else if (cid && ids.has(cid)) { td.textContent = '⚠ sin ID'; td.style.color = '#b45309'; td.style.background = '#fef3c7'; td.title = 'Ya está en Factura de Proveedor pero aún sin ID interno: cárgalo con «🔗 Cargar ID interno de facturas»'; }
           else td.textContent = '';
           tn.textContent = (cid && numFacturaNS[cid]) || '';
           const ns = cid ? impFacturaNS[cid] : null, fa = cid ? totL[cid] : null;
@@ -914,7 +914,7 @@
     const idsPagarAuto = new Set([CUENTA_POR_PAGAR, CUENTA_POR_PAGAR_RHE, ...['421201', '424001', '469901'].flatMap(c => [cuentaID(c), cuentaNS(c)]).filter(Boolean)]);       // IDs que puso la app en versiones anteriores
     const colsFijas = new Set(FIJOS_FACTURA.map(n => porClave[FP].columnas.findIndex(c => c.nombre === n)));
     const r = { nuevas: [], cambios: [], vinculadas: [], sinCambios: 0, sinId: 0, sinCuenta: 0, incompletas: [] };
-    leer(GF).forEach(g => {
+    leer(GF).concat(gastosDeLiquidaciones().filas).forEach(g => {       // los gastos y las liquidaciones de compra
       const f = facturaDeGasto(g);
       if (!f) { r.sinId++; return; }
       const falt = faltantesGasto(g);
@@ -985,66 +985,50 @@
     if (!tr || !['Cuenta PCGE', 'Cuenta por Pagar PCGE', 'Departamento', 'Código de impuesto'].some(n => +i.dataset.col === colL(n))) return;
     i.classList.remove('propuesta'); completarLiq(tr, defectosLiq()); guardar();
   });
-  function pasarLiquidacionesAGastos() {
+  // Las liquidaciones ya no pasan por la pestaña Gastos: cada L.C. (serie-número) se arma como una fila «tipo Gastos» solo en memoria, que usan Factura de Proveedor,
+  // el export de NetSuite y «Crear proveedores faltantes». Varias recepciones con la misma serie-número forman una sola L.C.; el total es el de la primera fila.
+  function gastosDeLiquidaciones() {
     aplicarDefectosLiq();
-    const def = defectosLiq();
     const grupos = new Map();
     leer(LQ).forEach(l => { const sn = (l[colL('Serie y N° COMP.')] || '').trim(); if (sn) { if (!grupos.has(sn)) grupos.set(sn, []); grupos.get(sn).push(l); } });
-    const r = { ids: new Set(), total: grupos.size, nuevas: 0, completadas: 0, yaEstan: 0, sinDoc: 0, sinTotal: 0, sinCuenta: 0 };
-    if (!grupos.size) return r;
-    const enGastos = new Map([...cuerpo(GF).rows].map(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); return [idComprobante(v[colG('RUC')], v[colG('Serie-Numero')]), tr]; }));
-    const nuevas = [];
+    const r = { filas: [], ids: new Set(), total: grupos.size, sinDoc: 0, sinTotal: 0, sinCuenta: 0 };
     grupos.forEach((ls, sn) => {
       const l0 = ls[0], g = n => (l0[colL(n)] || '').trim(), ruc = limpiarId(g('DNI/RUC'));
       if (!ruc) { r.sinDoc++; return; }
-      r.ids.add(idComprobante(ruc, sn));
       const primero = n => (ls.map(l => (l[colL(n)] || '').trim()).find(Boolean) || '');
-      const cuenta = primero('Cuenta PCGE') || def.cuenta, depto = primero('Departamento') || def.depto, imp = primero('Código de impuesto') || def.imp, pagar = primero('Cuenta por Pagar PCGE');
-      if (!cuenta) r.sinCuenta++;
-      const trG = enGastos.get(idComprobante(ruc, sn));
-      if (trG) {       // ya está en Gastos: solo se completan las celdas vacías (cuenta, departamento, impuesto)
-        const ins = trG.querySelectorAll('input'); let cambio = false;
-        [['Cuenta PCGE', cuenta], ['Departamento', depto], ['Código de impuesto', imp], ['Cuenta por Pagar PCGE', pagar]].forEach(([n, val]) => { if (val && !ins[colG(n)].value.trim()) { ins[colG(n)].value = val; cambio = true; } });
-        if (cambio) { if (cuentaNS(ins[colG('Cuenta PCGE')].value)) sincronizarNS(trG); else if (!ins[colG(COL_NS)].value.trim()) ins[colG(COL_NS)].value = nsDeLiq(ins[colG('Cuenta PCGE')].value); completarIdGasto(trG); r.completadas++; } else r.yaEstan++;
-        return;
-      }
       const total = numero(ls.map(l => l[colL('S/ TOTAL L.C. Y/O FACTURAS')]).find(t => numero(t) > 0)) || ls.reduce((t, l) => t + numero(l[colL('TOTAL DOCUMENTO DE RECEPCION')]), 0);
       if (!(total > 0)) { r.sinTotal++; return; }
+      const cuenta = primero('Cuenta PCGE');
+      if (!cuenta) r.sinCuenta++;
       const cafes = [...new Set(ls.map(l => (l[colL('TIPO DE CAFÉ')] || '').trim()).filter(Boolean))], recs = [...new Set(ls.map(l => (l[colL('Codigo Recepción')] || '').trim()).filter(Boolean))];
       const qq = ls.reduce((t, l) => t + numero(l[colL('QQ NETOS')]), 0), pago = g('TIPO DE PAGO'), sede = g('Sede');
       const fila = new Array(porClave[GF].columnas.length).fill(''), poner = (n, val) => { fila[colG(n)] = val; };
       poner('External ID', idComprobante(ruc, sn)); poner('Fecha Factura', fechaExcel(g('Fecha Emision Y/o Pago'))); poner('Fecha Pago', fechaExcel(g('Fecha Emision Y/o Pago')));
       poner('Cod.Pago', recs[0] || sn); poner('N° Operación', g('N° OPERACIÓN BANCO')); poner('RUC', g('DNI/RUC')); poner('Razon Social', g('NOMBRES Y APELLIDOS / RAZON SOCIAL'));
       poner('Tipo Doc', 'Liquidacion compra'); poner('Serie-Numero', sn); poner('Concepto', cafes.join(' / '));
-      poner('Cuenta PCGE', cuenta); poner('Departamento', depto); poner('Código de impuesto', imp); poner('Cuenta por Pagar PCGE', pagar);
+      poner('Cuenta PCGE', cuenta); poner(COL_NS, primero('Cuenta NetSuite')); poner('Departamento', primero('Departamento')); poner('Código de impuesto', primero('Código de impuesto'));
+      poner('Cuenta por Pagar PCGE', primero('Cuenta por Pagar PCGE')); poner('Cuenta por Pagar NetSuite', primero('Cuenta por Pagar NetSuite'));
       poner('Descripción Gasto', ('L.C. café ' + (sede ? sede + ' · ' : '') + recs.join(', ') + ' · ' + fmt2(qq) + ' QQ').slice(0, 250));
       poner('Moneda', 'PEN'); poner('Sub-Total', fmt2(total)); poner('Igv', '0.00'); poner('Total', fmt2(total)); poner('Monto Detr.', '0.00'); poner('Monto Pagado', fmt2(total));
       poner('Area/Contrato', sede); poner('Met. Pago', /^transfer/i.test(pago) ? 'Transferencia de Fondos' : /^cheque/i.test(pago) ? 'Cheque' : /^efectivo/i.test(pago) ? 'Efectivo' : '');
       poner('Sujeto a Detracción', 'No'); poner('Clasificación Bienes y Servicios', 'MERCADERIA, MATERIA PRIMA, SUMINISTRO, ENVASES Y EMBALAJES'); poner('Neto a Pagar', fmt2(total));
-      nuevas.push(fila);
+      r.filas.push(fila); r.ids.add(fila[colG('External ID')]);
     });
-    if (nuevas.length) {
-      [...cuerpo(GF).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
-      nuevas.forEach(f => nuevaFila(GF, f, true));
-      [...cuerpo(GF).rows].slice(-nuevas.length).forEach(tr => { const ins = tr.querySelectorAll('input'), pc = ins[colG('Cuenta PCGE')].value; if (cuentaNS(pc)) sincronizarNS(tr); else ins[colG(COL_NS)].value = nsDeLiq(pc); completarIdGasto(tr); });
-      renumerar(GF);
-    }
-    r.nuevas = nuevas.length; contadores(); guardar();
     return r;
   }
-  const textoLiq = r => r.nuevas + ' liquidaciones nuevas en Gastos' + (r.completadas ? ', ' + r.completadas + ' completadas' : '') + (r.yaEstan ? ' (' + r.yaEstan + ' ya estaban)' : '') + (r.sinDoc ? ' · ' + r.sinDoc + ' sin DNI/RUC' : '') + (r.sinTotal ? ' · ' + r.sinTotal + ' sin total' : '') + (r.sinCuenta ? ' · ' + r.sinCuenta + ' sin Cuenta PCGE (escríbela en «Por defecto» o en la columna)' : '') + '.';
-  // Los botones de Gastos que sirven para las liquidaciones: antes las deja también en Gastos (el export de NetSuite y los proveedores se relacionan desde ahí)
-  $id('btn-liq-ids').addEventListener('click', () => { pasarLiquidacionesAGastos(); $id('archivo-ids-fact-gastos').click(); });
-  $id('btn-liq-prov').addEventListener('click', () => { pasarLiquidacionesAGastos(); $id('btn-crear-prov').click(); });
-  // Directo: Liquidaciones -> Gastos (de respaldo, para el ID del proveedor, el ID interno y las actualizaciones) -> Factura de Proveedor
+  // Los botones de Gastos que sirven para las liquidaciones usan las mismas rutinas (el export de NetSuite y los proveedores también consideran las L.C.)
+  $id('btn-liq-ids').addEventListener('click', () => $id('archivo-ids-fact-gastos').click());
+  $id('btn-liq-prov').addEventListener('click', () => $id('btn-crear-prov').click());
+  // Liquidaciones -> Factura de Proveedor, directo (sin pasar por Gastos)
   $id('btn-pasar-liq-fp').addEventListener('click', () => {
-    const l = pasarLiquidacionesAGastos();
+    const l = gastosDeLiquidaciones();
     if (!l.total) { alert('No hay liquidaciones cargadas: carga el reporte con «Cargar Excel / CSV».'); return; }
     const r = sincronizarFactura('completar');
-    r.incompletas = r.incompletas.filter(x => l.ids.has(x.id));       // solo las liquidaciones de esta carga
+    r.incompletas = r.incompletas.filter(x => l.ids.has(x.id));       // solo las liquidaciones
     aplicarSincronizacion(r); activar(FP);
-    alert(textoLiq(l) + '\n' + r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' existentes completadas' : '') + (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + '.' + textoIncompletas(r) +
-      (r.incompletas.length ? '\n\nSi falta «ID Proveedor»: en Gastos pulsa «Crear proveedores faltantes» y sube el ID de NetSuite en Proveedores.' : ''));
+    alert(l.total + ' liquidaciones (L.C.): ' + r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' existentes completadas' : '') + (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + '.' +
+      (l.sinDoc ? '\n' + l.sinDoc + ' sin DNI/RUC.' : '') + (l.sinTotal ? '\n' + l.sinTotal + ' sin total.' : '') + (l.sinCuenta ? '\n' + l.sinCuenta + ' sin Cuenta PCGE (escríbela en «Por defecto» o en la columna).' : '') + textoIncompletas(r) +
+      (r.incompletas.length ? '\n\nSi falta «ID Proveedor»: pulsa «Crear proveedores faltantes» y carga el ID de NetSuite en Proveedores.' : ''));
   });
   $id('btn-pasar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('completar');
@@ -1252,7 +1236,7 @@
     const iId = col('id interno', 'internal id'), iExt = col('id externo', 'external id', 'externalid'), iFe = col('fecha', 'date'), iNo = col('nombre', 'name'),
       iImp = col('importe (moneda extranjera)', 'amount (foreign currency)'), iMo = col('moneda', 'currency'), iEs = col('estado', 'status'), iNt = col('numero de transaccion', 'transaction number'), iDoc = col('numero de documento', 'document number');
     if (iId < 0) { estadoGrilla('El CSV debe tener la columna «ID interno» (export de facturas de proveedor de NetSuite).', '#b91c1c'); return; }
-    const gastos = [...cuerpo('gastos').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value)).filter(f => f.some(v => v.trim()));
+    const gastos = [...cuerpo('gastos').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value)).filter(f => f.some(v => v.trim())).concat(gastosDeLiquidaciones().filas);       // y las liquidaciones de compra
     const cG = n => porClave.gastos.columnas.findIndex(c => c.nombre === n), cP = n => porClave.proveedores.columnas.findIndex(c => c.nombre === n);
     const nuevos = {}, nuevosNum = {}; let ok = 0, sinCoin = 0, ambiguas = 0, porOrden = 0, porDoc = 0;
     const filasNS = filas.slice(1).filter(f => /^\d+$/.test((f[iId] || '').trim()) && !(iEs >= 0 && /cancelad|void/i.test(f[iEs] || '')));
@@ -1485,11 +1469,12 @@
       const v = tr.querySelectorAll('input'), r = (v[colG('RUC')] || {}).value.trim();
       if (r && !hay.has(r) && !faltan.has(r)) faltan.set(r, (v[colG('Razon Social')] || {}).value.trim());
     });
+    leer(LQ).forEach(l => { const r = (l[colL('DNI/RUC')] || '').trim(); if (r && !hay.has(r) && !faltan.has(r)) faltan.set(r, (l[colL('NOMBRES Y APELLIDOS / RAZON SOCIAL')] || '').trim()); });       // y los de Liquidaciones
     return faltan;
   }
   $id('btn-crear-prov').addEventListener('click', async () => {
     const faltan = proveedoresFaltantes();
-    if (!faltan.size) { estadoGrilla('Todos los RUC/DNI de Gastos ya están en Proveedores.', '#15803d'); return; }
+    if (!faltan.size) { estadoGrilla('Todos los RUC/DNI de Gastos y Liquidaciones ya están en Proveedores.', '#15803d'); return; }
     if (!confirm('Hay ' + faltan.size + ' RUC/DNI en Gastos que no están en Proveedores. Se crean en la pestaña Proveedores (con los datos del padrón de SUNAT si está cargado; si no, con la razón social del gasto). ¿Continuar?')) return;
     let n = 0;
     for (const [ruc, razon] of faltan) { n++; estadoGrilla('Creando proveedores… ' + n + ' de ' + faltan.size, '#1d4ed8'); await crearFilaProveedor(ruc, razon, () => {}); }
