@@ -101,6 +101,11 @@ def pago_a_diseno2(filas: list) -> list:
     return [f[:3] + f[15:17] + f[3:15] + f[17:] if len(f) >= 17 else f for f in filas]
 
 
+def pago_a_diseno3(filas: list) -> list:
+    """Pago Proveedor: «LATAM - PAYMENT METHOD» (última columna del diseño 2) pasa a ir antes de «CHEQUE #»."""
+    return [f[:10] + f[16:17] + f[10:16] + f[17:] if len(f) >= 17 else f for f in filas]
+
+
 def _migrar(datos: dict) -> dict:
     """Gastos guardados con un diseño anterior: 18 columnas (sin External ID) o 19 (sin Cuenta PCGE / Cuenta NetSuite)."""
     pr = (datos.get("hojas") or {}).get("proveedores")
@@ -128,6 +133,8 @@ def _migrar(datos: dict) -> dict:
     pg = (datos.get("hojas") or {}).get("pago proveedor")
     if pg and pg.get("filas") and (pg.get("disenio") or 1) < 2:
         pg["filas"], pg["disenio"] = pago_a_diseno2(pg["filas"]), 2
+    if pg and pg.get("filas") and (pg.get("disenio") or 1) < 3:
+        pg["filas"], pg["disenio"] = pago_a_diseno3(pg["filas"]), 3
     lq = (datos.get("hojas") or {}).get("liquidaciones")
     if lq and lq.get("filas"):       # diseño anterior: 23 columnas del reporte + Cuenta PCGE, Departamento, Código de impuesto (26); ahora con las cuentas NetSuite y por pagar en medio
         lq["filas"] = [f[:24] + ["", "", ""] + f[24:] if len(f) == 26 else f for f in lq["filas"]]

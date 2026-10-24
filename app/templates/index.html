@@ -363,7 +363,7 @@
         bloqueadas: [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0),
         ...(p.clave === 'factura de proveedor' ? { marcadas: [...marcadasFP] } : {}),
         ...(p.clave === 'gastos' ? { ids_factura: idsFacturaNS, ids_factura_num: numFacturaNS, ids_factura_imp: impFacturaNS } : {}),
-        ...(p.clave === 'proveedores' ? { disenio: 6 } : {}), ...(p.clave === 'pago proveedor' ? { disenio: 2 } : {}),       // marca del orden de columnas de Proveedores (tipo y número de documento tras External ID; Nombres y Apellidos junto al nombre)
+        ...(p.clave === 'proveedores' ? { disenio: 6 } : {}), ...(p.clave === 'pago proveedor' ? { disenio: 3 } : {}),       // marca del orden de columnas de Proveedores (tipo y número de documento tras External ID; Nombres y Apellidos junto al nombre)
       };
     }
     return { hojas };

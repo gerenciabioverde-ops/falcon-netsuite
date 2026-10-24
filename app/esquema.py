@@ -172,8 +172,9 @@ LIQUIDACIONES_ENCABEZADOS = [
     "DNI SOCIO", "NOMBRES SOCIO", "TIPO DE CAFÉ", "P.TAZA", "RDTO FISICO", "QQ NETOS", "KILOS NETOS", "P.U. S/", "TOTAL DOCUMENTO DE RECEPCION",
     "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",    "Cuenta PCGE", "Cuenta NetSuite", "Cuenta por Pagar PCGE", "Cuenta por Pagar NetSuite", "Departamento", "Código de impuesto",      # los que necesita Factura de Proveedor (van al gasto); vacíos = los valores por defecto del panel
 ]
-# Orden de columnas distinto al de la plantilla (diseño 2 de Pago Proveedor: BILL y PAYMENT junto al beneficiario, como se llenan en NetSuite)
-ORDEN_COLUMNAS = {"Pago Proveedor": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "BILL", "PAYMENT"]}
+# Orden de columnas distinto al de la plantilla (diseño 3 de Pago Proveedor: BILL y PAYMENT junto al beneficiario y el método de pago antes del cheque, como se llenan en NetSuite)
+ORDEN_COLUMNAS = {"Pago Proveedor": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "BILL", "PAYMENT", "ACCOUNT", "CURRENCY", "EXCHANGE RATE", "DATE",
+                                   "POSTING PERIOD", "LATAM - PAYMENT METHOD"]}
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
                                     "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"],
                                     "Monedas proveedor": ["ID interno", "Nombre", "Moneda"], "Liquidaciones": LIQUIDACIONES_ENCABEZADOS}
