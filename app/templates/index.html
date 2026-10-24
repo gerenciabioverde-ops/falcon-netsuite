@@ -1632,7 +1632,7 @@
   document.getElementById('btn-grilla').addEventListener('click', async () => {
     const datos = {};
     esquema.forEach(p => { datos[p.clave] = leer(p.clave, true); });
-    const fl = Object.entries(filtrosFP()), idfSel = ($id('flt-idf') || {}).value || '', marcSel = ($id('flt-marc') || {}).value || '';
+    const fl = Object.entries(filtrosFP()), idfSel = ($id('flt-idf') || {}).value || '', marcSel = (($id('flt-marc') || {}).value || marcadasFP.size) ? 'si' : '';       // con alguna factura marcada ☑, el CSV lleva solo las marcadas (no hace falta el filtro)
     if (fl.length || idfSel || marcSel) datos['factura de proveedor'] = datos['factura de proveedor'].map(f => fl.every(([i, val]) => valorFiltroFP(f, +i) === val) && (!idfSel || tieneIdf(f) === idfSel) && (!marcSel || marcadasFP.has((f[0] || '').trim())) ? f : f.map(() => ''));       // las demás quedan en blanco (así el número de fila sigue siendo el de la pestaña)
     if (idfSel === 'con') datos['__ids_factura__'] = Object.entries(idsFacturaNS);       // el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID (para actualizar en NetSuite)
     const estado = document.getElementById('estado-grilla');
@@ -1660,7 +1660,7 @@
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
         (ok.length ? 'Descargado (' + (excel ? 'Excel' : 'CSV para NetSuite') + '): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún archivo.')) +
-        ((fl.length || idfSel || marcSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(marcSel ? ['marcadas para actualizar'] : []).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID; en NetSuite impórtalo en modo Actualizar y marca «Sobrescribir sublistas» para que las líneas de Gastos no se dupliquen)' : 'ausente')] : []).join('; ') + ')' : '') +
+        ((fl.length || idfSel || marcSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(marcSel ? ['marcadas para actualizar (' + marcadasFP.size + ')'] : []).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID; en NetSuite impórtalo en modo Actualizar y marca «Sobrescribir sublistas» para que las líneas de Gastos no se dupliquen)' : 'ausente')] : []).join('; ') + ')' : '') +
         (sinCsv.length ? ' Sin archivo por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
       const token = doc.querySelector('table').dataset.token;
