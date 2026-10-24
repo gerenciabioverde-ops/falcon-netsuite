@@ -73,11 +73,12 @@
   <section class="bg-white rounded-lg shadow">
     <nav id="tabs" class="flex flex-wrap border-b text-sm" role="tablist">
       {% for p in pestanas %}
-      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{% if p.clave not in ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'proveedores', 'cuentas'] %}CSV {% endif %}{{ p.nombre }}
+      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{% if p.clave not in ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'monedas proveedor', 'proveedores', 'cuentas'] %}CSV {% endif %}{{ p.nombre }}
         <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
         {% if p.clave == 'proveedores' %}<button type="button" data-tab="csvprov" class="tab px-4 py-2.5 border-b-2" title="Vista previa del CSV de proveedores tal como se envía a NetSuite">CSV Proveedor
         <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
         {% if p.clave == 'anular proveedor' %}<button type="button" data-tab="csvanular" class="tab px-4 py-2.5 border-b-2" title="CSV para inactivar en NetSuite los proveedores de la pestaña Anular proveedor">CSV Anular Proveedor</button>{% endif %}
+        {% if p.clave == 'monedas proveedor' %}<button type="button" data-tab="csvmonedas" class="tab px-4 py-2.5 border-b-2" title="CSV para agregar en NetSuite las monedas que faltan a proveedores que ya existen (ID interno + Moneda)">CSV Monedas Proveedor</button>{% endif %}
       {% endfor %}
       <button type="button" id="tab-info" class="tab-grupo px-4 py-2.5 border-b-2 ml-auto border-l" title="Gastos, Bancos, Anular proveedor, Proveedores y Cuentas homologadas: la información de trabajo de donde salen las plantillas de NetSuite">Información</button>
       <button type="button" data-tab="cuentas" class="tab px-4 py-2.5 border-b-2 ml-auto border-l">Cuentas homologadas
@@ -98,8 +99,8 @@
           <input type="search" class="buscar-grilla border rounded px-3 py-1.5 w-96 max-w-full" placeholder="🔎 Buscar en {{ p.nombre }}: escribe cualquier dato (RUC, nombre, serie, importe, ID…)" title="Muestra solo las filas que contienen todas las palabras escritas (sin distinguir mayúsculas ni tildes). Solo cambia lo que ves: no afecta a lo que se genera">
           <span class="buscar-estado text-xs text-slate-500"></span>
         </div>
-        {% if p.clave == 'anular proveedor' %}<div class="flex gap-4 items-start">{% endif %}
-        <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;{% if p.clave == 'anular proveedor' %} flex: 0 1 auto; max-width: 55%;{% endif %}">
+        {% if p.clave in ['anular proveedor', 'monedas proveedor'] %}<div class="flex gap-4 items-start">{% endif %}
+        <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;{% if p.clave in ['anular proveedor', 'monedas proveedor'] %} flex: 0 1 auto; max-width: 55%;{% endif %}">
           <table class="grilla border-collapse text-left">
             <thead><tr>
               <th>#</th>
@@ -119,16 +120,16 @@
             <tbody></tbody>
           </table>
         </div>
-        {% if p.clave == 'anular proveedor' %}
+        {% if p.clave in ['anular proveedor', 'monedas proveedor'] %}{% set pre = 'anular' if p.clave == 'anular proveedor' else 'mon' %}
         <div class="flex-1 text-sm space-y-2" style="min-width: 16rem; max-width: 28rem;">
-          <label for="anular-pegar" class="font-semibold">Pegar ID interno como texto</label>
-          <textarea id="anular-pegar" rows="10" class="w-full border rounded px-2 py-1.5 font-mono text-sm" placeholder="Pega aquí los ID interno (uno por línea, o separados por coma, espacio o tabulación). Ejemplo:&#10;298701&#10;298705&#10;298706"></textarea>
+          <label for="{{ pre }}-pegar" class="font-semibold">Pegar ID interno como texto</label>
+          <textarea id="{{ pre }}-pegar" rows="10" class="w-full border rounded px-2 py-1.5 font-mono text-sm" placeholder="Pega aquí los ID interno (uno por línea, o separados por coma, espacio o tabulación). Ejemplo:&#10;298701&#10;298705&#10;298706"></textarea>
           <div class="flex items-center gap-2">
-            <button type="button" id="anular-pasar" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Agrega los ID de este cuadro a la columna «ID interno» (los repetidos y los que ya están no se duplican) y completa el nombre">⬅ Pasar a la tabla</button>
-            <span id="anular-estado" class="text-xs text-slate-600"></span>
+            <button type="button" id="{{ pre }}-pasar" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Agrega los ID de este cuadro a la columna «ID interno» (los repetidos y los que ya están no se duplican) y completa el nombre">⬅ Pasar a la tabla</button>
+            <span id="{{ pre }}-estado" class="text-xs text-slate-600"></span>
           </div>
           <div class="pt-2 border-t">
-            <button type="button" id="anular-nombres" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): sirve para poner el nombre a los ID que NO están en la pestaña Proveedores (p. ej. las copias duplicadas)">📂 Cargar nombres (export de NetSuite)</button><input type="file" id="archivo-anular-nombres" accept=".csv,.txt" class="hidden">
+            <button type="button" id="{{ pre }}-nombres" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de proveedores de NetSuite (CSV con «ID interno» y «Nombre»): sirve para poner el nombre a los ID que NO están en la pestaña Proveedores (p. ej. las copias duplicadas)">📂 Cargar nombres (export de NetSuite)</button><input type="file" id="archivo-{{ pre }}-nombres" accept=".csv,.txt" class="hidden">
             <p class="text-xs text-slate-500 mt-1">Los ID duplicados que se anulan no están en la pestaña Proveedores (ahí queda el original): sus nombres salen de este export.</p>
           </div>
         </div>
@@ -171,6 +172,15 @@
           <span id="ca-estado" class="text-slate-600"></span>
         </div>
         <div id="ca-tabla" style="overflow:auto;max-height:60vh" class="border rounded"></div>
+      </div>
+      <div id="panel-csvmonedas" class="panel hidden space-y-3">
+        <p class="text-sm text-slate-600">CSV para <strong>agregar monedas a proveedores que ya existen</strong> en NetSuite, con los ID interno de la pestaña <strong>Monedas proveedor</strong>: columnas <code>ID interno</code> y <code>Moneda</code>, una fila por cada moneda que falta. En NetSuite impórtalo como <strong>Proveedor</strong>, modo <strong>Actualizar</strong>, «ID interno» a ID interno y «Moneda» a la sublista <strong>Monedas</strong>. <strong>No marques «Sobrescribir sublistas»</strong>: aquí se agregan monedas, no se reemplazan.</p>
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <button type="button" id="cm-actualizar" class="border rounded px-3 py-1.5 hover:bg-slate-50">🔄 Actualizar vista</button>
+          <a id="cm-csv" class="border rounded px-3 py-1.5 bg-green-700 text-white hidden" href="#" download="monedas_proveedor.csv">⬇ Descargar CSV</a>
+          <span id="cm-estado" class="text-slate-600"></span>
+        </div>
+        <div id="cm-tabla" style="overflow:auto;max-height:60vh" class="border rounded"></div>
       </div>
       <div id="panel-cuentas" class="panel hidden space-y-3">
         <p class="text-sm text-slate-600">
@@ -693,7 +703,7 @@
   document.addEventListener('input', ev => {
     if (ev.target.closest && ev.target.closest('.grilla')) {
       const pn = ev.target.closest('.panel');
-      if (pn && pn.dataset.hoja === 'anular proveedor' && ev.target.dataset.col === '0') completarNombreAnular(ev.target.closest('tr'));       // al digitar el ID interno aparece el nombre
+      if (pn && (pn.dataset.hoja === 'anular proveedor' || pn.dataset.hoja === 'monedas proveedor') && ev.target.dataset.col === '0') completarNombreAnular(ev.target.closest('tr'));       // al digitar el ID interno aparece el nombre
       guardar(); contadores();
     }
   });
@@ -718,7 +728,7 @@
       const t = tipoProveedor(v('Nombre de la empresa'), v('Nombres'), v('Apellidos'), v('Latam - Tax Reg Number'));
       if (t) { ii[cs.findIndex(c => c.nombre === 'Tipo')].value = t; if (t === 'Individual') completarNombresProv(i.closest('tr'), cs, ii); }
     }
-    if (clave === 'anular proveedor' && col && col.nombre === 'ID interno') completarNombreAnular(i.closest('tr'));
+    if ((clave === 'anular proveedor' || clave === 'monedas proveedor') && col && col.nombre === 'ID interno') completarNombreAnular(i.closest('tr'));
     aplicarDefectos(clave, i.closest('tr'), i); guardar();
   });
 
@@ -1410,7 +1420,9 @@
   // Nombres que se ven en Gastos (por dentro las columnas siguen con su nombre original: el reporte las trae así)
   const ETIQUETAS_GASTOS = { 'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco' };
   // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
-  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'proveedores', 'cuentas'];       // «CSV Proveedor» y «CSV Anular Proveedor» quedan en la barra principal, al lado de «Pago de factura de cliente»
+  const HOJAS_ID = { 'anular proveedor': 'anular', 'monedas proveedor': 'mon' };
+  const MONEDA_DEFECTO_ID = { 'monedas proveedor': 'USD' };
+  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'monedas proveedor', 'proveedores', 'cuentas'];       // «CSV Proveedor» y «CSV Anular Proveedor» quedan en la barra principal, al lado de «Pago de factura de cliente»
   let ultimaInfo = 'gastos';
   GRUPO_INFO.forEach(k => { const b = document.querySelector('.tab[data-tab="' + k + '"]'); if (b) { b.classList.remove('ml-auto', 'border-l'); document.getElementById('subtabs').appendChild(b); } });
   document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
@@ -1427,8 +1439,8 @@
     sub.classList.toggle('hidden', !enInfo); sub.classList.toggle('flex', enInfo); sub.classList.toggle('flex-wrap', enInfo);
     ['border-blue-700', 'text-blue-800', 'font-semibold'].forEach(c => bi.classList.toggle(c, enInfo)); bi.classList.toggle('border-transparent', !enInfo);
     if (enInfo) ultimaInfo = clave;
-    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov' || clave === 'csvanular');
-    if (clave === 'anular proveedor') completarAnular();
+    document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov' || clave === 'csvanular' || clave === 'csvmonedas');
+    if (HOJAS_ID[clave]) completarAnular(clave);
     if (vistasCsv[clave]) vistasCsv[clave]();
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
     ajustarAlto();
@@ -1502,71 +1514,81 @@
     if (n === ins[1].value) return false;
     ins[1].value = n; ins[1].dataset.auto = n ? '1' : ''; return !!n;
   }
-  $id('anular-pasar').addEventListener('click', () => {       // cuadro de texto -> columna «ID interno» (sin repetir los que ya están); si la línea trae «ID  Nombre» el nombre también pasa
-    const caja = $id('anular-pegar'), est = $id('anular-estado'), tb = cuerpo('anular proveedor');
-    const existentes = new Set([...tb.rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
-    const ids = [], nombres = {}; let ignorados = 0, repetidos = 0;
-    caja.value.split(/\r?\n/).forEach(linea => {
-      const m = /^\s*(\d+)(?:[\s,;]+(.*))?$/.exec(linea), toks = linea.split(/[\s,;]+/).filter(Boolean);
-      if (!toks.length) return;
-      if (toks.every(t => /^\d+$/.test(t))) toks.forEach(t => { if (existentes.has(t) || ids.includes(t)) repetidos++; else ids.push(t); });       // línea con puros números: todos son ID
-      else if (m) {       // «ID  Nombre»: el primer número es el ID y lo demás es el nombre
-        const id = m[1], nom = (m[2] || '').trim(); if (nom) nombres[id] = nom;
-        if (existentes.has(id) || ids.includes(id)) repetidos++; else ids.push(id);
-      } else ignorados++;
+  // Pestañas de ID interno (Anular proveedor y Monedas proveedor): mismo cuadro de pegado, mismo nombre automático
+  Object.entries(HOJAS_ID).forEach(([clave, pre]) => {
+    $id(pre + '-pasar').addEventListener('click', () => {       // cuadro de texto -> columna «ID interno» (sin repetir los que ya están); si la línea trae «ID  Nombre» el nombre también pasa
+      const caja = $id(pre + '-pegar'), est = $id(pre + '-estado'), tb = cuerpo(clave);
+      const existentes = new Set([...tb.rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
+      const ids = [], nombres = {}; let ignorados = 0, repetidos = 0;
+      caja.value.split(/\r?\n/).forEach(linea => {
+        const m = /^\s*(\d+)(?:[\s,;]+(.*))?$/.exec(linea), toks = linea.split(/[\s,;]+/).filter(Boolean);
+        if (!toks.length) return;
+        if (toks.every(t => /^\d+$/.test(t))) toks.forEach(t => { if (existentes.has(t) || ids.includes(t)) repetidos++; else ids.push(t); });       // línea con puros números: todos son ID
+        else if (m) {       // «ID  Nombre»: el primer número es el ID y lo demás es el nombre
+          const id = m[1], nom = (m[2] || '').trim(); if (nom) nombres[id] = nom;
+          if (existentes.has(id) || ids.includes(id)) repetidos++; else ids.push(id);
+        } else ignorados++;
+      });
+      let nomPuestos = 0;
+      [...tb.rows].forEach(tr => { const v = tr.querySelectorAll('input'), id = v[0].value.trim(); if (id && nombres[id] && (!v[1].value.trim() || v[1].dataset.auto === '1')) { v[1].value = nombres[id]; v[1].dataset.auto = ''; nomPuestos++; } });       // los ID que ya estaban sin nombre lo reciben
+      if (ids.length) {
+        [...tb.rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
+        ids.forEach(id => nuevaFila(clave, [id, nombres[id] || '', ...(MONEDA_DEFECTO_ID[clave] ? [MONEDA_DEFECTO_ID[clave]] : [])]));
+        renumerar(clave);
+      }
+      if (ids.length || nomPuestos) { completarAnular(clave); contadores(); guardar(); caja.value = ''; }
+      est.textContent = ids.length + ' ID agregado(s)' + (nomPuestos ? ' · ' + nomPuestos + ' nombre(s) completados' : '') + (repetidos ? ' · ' + repetidos + ' repetido(s) omitido(s)' : '') + (ignorados ? ' · ' + ignorados + ' línea(s) sin número omitida(s)' : '') + '.';
+      est.style.color = ids.length || nomPuestos ? '#15803d' : '#b45309';
     });
-    let nomPuestos = 0;
-    [...tb.rows].forEach(tr => { const v = tr.querySelectorAll('input'), id = v[0].value.trim(); if (id && nombres[id] && (!v[1].value.trim() || v[1].dataset.auto === '1')) { v[1].value = nombres[id]; v[1].dataset.auto = ''; nomPuestos++; } });       // los ID que ya estaban sin nombre lo reciben
-    if (ids.length) {
-      [...tb.rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
-      ids.forEach(id => nuevaFila('anular proveedor', [id, nombres[id] || '']));
-      renumerar('anular proveedor');
-    }
-    if (ids.length || nomPuestos) { completarAnular(); contadores(); guardar(); caja.value = ''; }
-    est.textContent = ids.length + ' ID agregado(s)' + (nomPuestos ? ' · ' + nomPuestos + ' nombre(s) completados' : '') + (repetidos ? ' · ' + repetidos + ' repetido(s) omitido(s)' : '') + (ignorados ? ' · ' + ignorados + ' línea(s) sin número omitida(s)' : '') + '.';
-    est.style.color = ids.length || nomPuestos ? '#15803d' : '#b45309';
+    $id(pre + '-nombres').addEventListener('click', () => $id('archivo-' + pre + '-nombres').click());
+    $id('archivo-' + pre + '-nombres').addEventListener('change', async ev => {
+      const archivo = ev.target.files[0]; ev.target.value = '';
+      if (!archivo) return;
+      const filas = leerCsvNetSuite(await archivo.text()), enc = (filas[0] || []).map(quitarTildes);
+      const iId = enc.findIndex(c => c === 'id interno' || c === 'internal id'), iNom = enc.findIndex(c => c === 'nombre' || c === 'name');
+      const est = $id(pre + '-estado');
+      if (iId < 0 || iNom < 0) { est.textContent = 'El CSV debe tener las columnas «ID interno» y «Nombre» (export de proveedores de NetSuite).'; est.style.color = '#b91c1c'; return; }
+      nombresNS = {};
+      filas.slice(1).forEach(f => { const id = (f[iId] || '').trim(), n = (f[iNom] || '').trim(); if (/^\d+$/.test(id) && n) nombresNS[id] = n; });
+      try { localStorage.setItem('falcon-nombres-ns', JSON.stringify(nombresNS)); } catch (e) { /* sin almacenamiento: vale para esta sesión */ }
+      const c = Object.keys(HOJAS_ID).reduce((t, k) => t + completarAnular(k), 0);
+      est.textContent = Object.keys(nombresNS).length + ' nombres cargados · ' + c + ' fila(s) completadas.'; est.style.color = '#15803d';
+    });
   });
-  $id('anular-nombres').addEventListener('click', () => $id('archivo-anular-nombres').click());
-  $id('archivo-anular-nombres').addEventListener('change', async ev => {
-    const archivo = ev.target.files[0]; ev.target.value = '';
-    if (!archivo) return;
-    const filas = leerCsvNetSuite(await archivo.text()), enc = (filas[0] || []).map(quitarTildes);
-    const iId = enc.findIndex(c => c === 'id interno' || c === 'internal id'), iNom = enc.findIndex(c => c === 'nombre' || c === 'name');
-    const est = $id('anular-estado');
-    if (iId < 0 || iNom < 0) { est.textContent = 'El CSV debe tener las columnas «ID interno» y «Nombre» (export de proveedores de NetSuite).'; est.style.color = '#b91c1c'; return; }
-    nombresNS = {};
-    filas.slice(1).forEach(f => { const id = (f[iId] || '').trim(), n = (f[iNom] || '').trim(); if (/^\d+$/.test(id) && n) nombresNS[id] = n; });
-    try { localStorage.setItem('falcon-nombres-ns', JSON.stringify(nombresNS)); } catch (e) { /* sin almacenamiento: vale para esta sesión */ }
-    const c = completarAnular();
-    est.textContent = Object.keys(nombresNS).length + ' nombres cargados · ' + c + ' fila(s) completadas.'; est.style.color = '#15803d';
-  });
-  function completarAnular() { let c = 0; [...cuerpo('anular proveedor').rows].forEach(tr => { if (completarNombreAnular(tr)) c++; }); if (c) guardar(); return c; }
-  // ---- Pestaña «CSV Anular Proveedor»: ID interno + Inactivo = T de los proveedores de la pestaña «Anular proveedor» (se arma en el navegador) ----
-  function vistaAnular() {
-    completarAnular();
-    const filas = leer('anular proveedor', true), ids = [], repetidos = new Set(), malos = [], vistos = new Set();
+  function completarAnular(clave) { clave = clave || 'anular proveedor'; let c = 0; [...cuerpo(clave).rows].forEach(tr => { if (completarNombreAnular(tr)) c++; }); if (c) guardar(); return c; }
+  // ---- Pestañas «CSV Anular Proveedor» y «CSV Monedas Proveedor» (se arman en el navegador) ----
+  function vistaId(clave, pf, columnas, filaCsv, textoTotal) {
+    completarAnular(clave);
+    const filas = leer(clave, true), items = [], repetidos = new Set(), malos = [], vistos = new Set();
     filas.forEach((f, i) => {
-      const id = (f[0] || '').trim(); if (!id) return;
+      const id = (f[0] || '').trim(); if (!id && !(f[2] || '').trim()) return; if (!id) { malos.push(i + 2); return; }
       if (!/^\d+$/.test(id)) { malos.push(i + 2); return; }
-      if (vistos.has(id)) { repetidos.add(id); return; }
-      vistos.add(id); ids.push([id, (f[1] || '').trim(), i + 2]);
+      const sal = filaCsv(id, f, i + 2); if (!sal) { malos.push(i + 2); return; }
+      sal.forEach(x => { const k = x.csv.join('|'); if (vistos.has(k)) repetidos.add(k); else { vistos.add(k); items.push({ ...x, nombre: (f[1] || '').trim(), fila: i + 2 }); } });
     });
-    const csv = 'ID interno,Inactivo\r\n' + ids.map(x => x[0] + ',T\r\n').join(''), a = $id('ca-csv'), est = $id('ca-estado');
+    const csv = columnas.join(',') + '\r\n' + items.map(x => x.csv.join(',') + '\r\n').join(''), a = $id(pf + '-csv'), est = $id(pf + '-estado');
     if (a.dataset.url) URL.revokeObjectURL(a.dataset.url);
     a.dataset.url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.href = a.dataset.url;
-    a.classList.toggle('hidden', !ids.length);
-    est.textContent = ids.length + ' proveedor(es) a inactivar' + (repetidos.size ? ' · ' + repetidos.size + ' ID repetido(s) (sale una sola vez)' : '') + (malos.length ? ' · ' + malos.length + ' fila(s) sin un ID interno numérico (filas ' + malos.slice(0, 8).join(', ') + (malos.length > 8 ? '…' : '') + '), no salen' : '') + '.';
+    a.classList.toggle('hidden', !items.length);
+    est.textContent = items.length + ' ' + textoTotal + (repetidos.size ? ' · ' + repetidos.size + ' repetida(s) (sale una sola vez)' : '') + (malos.length ? ' · ' + malos.length + ' fila(s) sin un ID interno numérico o sin moneda válida (filas ' + malos.slice(0, 8).join(', ') + (malos.length > 8 ? '…' : '') + '), no salen' : '') + '.';
     est.style.color = malos.length ? '#b45309' : '#15803d';
     const tb = document.createElement('table'); tb.className = 'text-xs'; tb.style.borderCollapse = 'collapse';
-    [['Fila', 'ID interno', 'Inactivo', 'Nombre (solo referencia)'], ...ids.map(x => [x[2], x[0], 'T', x[1]])].forEach((r, k) => {
+    [['Fila', ...columnas, 'Nombre (solo referencia)'], ...items.map(x => [x.fila, ...x.csv, x.nombre])].forEach((r, k) => {
       const tr = document.createElement('tr');
       r.forEach(v => { const c = document.createElement(k ? 'td' : 'th'); c.textContent = v; c.style.cssText = 'border:1px solid #e2e8f0;padding:3px 8px;white-space:nowrap;text-align:left' + (k ? '' : ';position:sticky;top:0;background:#f1f5f9'); tr.appendChild(c); });
       tb.appendChild(tr);
     });
-    $id('ca-tabla').replaceChildren(tb);
+    $id(pf + '-tabla').replaceChildren(tb);
   }
+  const vistaAnular = () => vistaId('anular proveedor', 'ca', ['ID interno', 'Inactivo'], id => [{ csv: [id, 'T'] }], 'proveedor(es) a inactivar');
+  const vistaMonedas = () => vistaId('monedas proveedor', 'cm', ['ID interno', 'Moneda'], (id, f) => {       // una fila por moneda que falta
+    const m = quitarTildes((f[2] || '').toLowerCase()).trim();
+    const ms = m === 'usd' ? ['USD'] : m === 'sol' ? ['SOL'] : /^sol\s*(y|\+|,)\s*usd$|^usd\s*(y|\+|,)\s*sol$/.test(m) ? ['SOL', 'USD'] : null;
+    return ms && ms.map(x => ({ csv: [id, x] }));
+  }, 'moneda(s) a agregar');
   $id('ca-actualizar').addEventListener('click', vistaAnular);
-  const vistasCsv = { csvprov: vistaCsv('cp', 'csvprov', 'Proveedores'), csvanular: vistaAnular };
+  $id('cm-actualizar').addEventListener('click', vistaMonedas);
+  const vistasCsv = { csvprov: vistaCsv('cp', 'csvprov', 'Proveedores'), csvanular: vistaAnular, csvmonedas: vistaMonedas };
 
   // La grilla ocupa todo el alto libre de la ventana: desde donde empieza hasta justo antes de los botones y de la barra «Validar y generar»
   function ajustarAlto() {
@@ -1606,10 +1628,10 @@
       const resumen = [...doc.querySelector('table').querySelectorAll('tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
       // un CSV por plantilla de NetSuite; «Gastos», «Bancos MN» y «Bancos ME» son solo de trabajo y no se descargan
-      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME' && x.nombre !== 'Anular proveedor');
+      const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME' && x.nombre !== 'Anular proveedor' && x.nombre !== 'Monedas proveedor');
       // solo se genera el archivo de la pestaña en la que estás (p. ej. Factura de Proveedor o Proveedores); Gastos, Bancos y Anular proveedor son pestañas de trabajo y no tienen CSV propio
       const activo = ((document.querySelector('.panel:not(.hidden)') || {}).id || '').replace(/^panel-/, ''), soloActivo = porClave[activo] ? porClave[activo].nombre : null;
-      const sinArchivoPropio = soloActivo && ['Gastos', 'Bancos MN', 'Bancos ME', 'Anular proveedor'].includes(soloActivo);
+      const sinArchivoPropio = soloActivo && ['Gastos', 'Bancos MN', 'Bancos ME', 'Anular proveedor', 'Monedas proveedor'].includes(soloActivo);
       if (soloActivo) { const f = csvs.filter(x => x.nombre === soloActivo); csvs.length = 0; csvs.push(...f); const mios = sinCsv.filter(t => t.startsWith(soloActivo + ' (')); sinCsv.length = 0; sinCsv.push(...mios); }
       if (sinArchivoPropio) { estadoGrilla('«' + soloActivo + '» es una pestaña de trabajo y no genera CSV: ve a la pestaña de la plantilla (p. ej. Factura de Proveedor, Pago Proveedor, «CSV Proveedor» o «CSV Anular Proveedor») y genera desde ahí.', '#b45309'); return; }
       csvs.forEach((x, i) => setTimeout(() => { const l = document.createElement('a'); l.href = x.a.getAttribute('href'); l.download = ''; document.body.appendChild(l); l.click(); l.remove(); }, i * 600));
@@ -1795,7 +1817,7 @@
   document.getElementById('mf-ant').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx - 1); });
   document.getElementById('mf-sig').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx + 1); });
   document.getElementById('mf-campos').addEventListener('input', ev => {       // Anular proveedor: al digitar el ID interno aparece el nombre
-    if (mClave !== 'anular proveedor' || ev.target.dataset.col !== '0') return;
+    if ((mClave !== 'anular proveedor' && mClave !== 'monedas proveedor') || ev.target.dataset.col !== '0') return;
     const nom = camposModal()[1]; if (nom && (!nom.value.trim() || nom.dataset.auto === '1')) { nom.value = nombrePorIdAnular(ev.target.value); nom.dataset.auto = nom.value ? '1' : ''; }
   });
   document.getElementById('mf-auto').addEventListener('click', async () => {

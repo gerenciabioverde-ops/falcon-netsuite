@@ -167,10 +167,11 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
     REGLAS[_hoja]["fecha_periodo"] = _col
 
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
-                                    "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"]}
+                                    "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"],
+                                    "Monedas proveedor": ["ID interno", "Nombre", "Moneda"]}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
-LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
+LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Monedas proveedor": {"Moneda": ["USD", "SOL", "SOL y USD"]}, "Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
                                                 "Sujeto a Detracción": ["Sí", "No"],
                                                 "Código de impuesto": ["VAT_PE:S-PE", "VAT_PE:E-PE", "VAT_PE:I-PE", "VAT_PE:R10-PE"]}}
 # Tabla de detracciones (concepto -> porcentaje) de la hoja DATA MAESTRA de la plantilla; se llena en cargar_plantilla()
@@ -198,6 +199,8 @@ REGLAS["Bancos MN"] = {
 REGLAS["Bancos ME"] = dict(REGLAS["Bancos MN"])
 # Proveedores a inactivar en NetSuite (ID interno): de ahí sale la pestaña «CSV Anular Proveedor» (ID interno + Inactivo = T)
 REGLAS["Anular proveedor"] = {"requeridos": ["ID interno"]}
+# Monedas que faltan a proveedores que ya existen en NetSuite (sublista Monedas): de ahí sale «CSV Monedas Proveedor» (ID interno + Moneda, una fila por moneda)
+REGLAS["Monedas proveedor"] = {"requeridos": ["ID interno", "Moneda"], "por_defecto": {"Moneda": "USD"}}
 
 # Reporte de gastos (reporte_gastos_AAAA-MM-DD.xls): una fila por comprobante de gasto.
 REGLAS["Gastos"] = {
