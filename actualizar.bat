@@ -53,6 +53,11 @@ if errorlevel 1 goto :FALLO
 echo.
 git log --oneline -1
 echo.
+REM Con --no-pause (lo usa actualizar_e_iniciar.bat) no se detiene al terminar
+if /i "%~1"=="--no-pause" (
+    echo [OK] Listo.
+    exit /b 0
+)
 echo [OK] Listo. Ahora ejecuta iniciar.bat
 pause
 exit /b 0

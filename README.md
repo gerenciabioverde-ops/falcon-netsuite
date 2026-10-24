@@ -6,7 +6,7 @@ la valida contra `data/TEMPLATE_CSV_FALCON.xlsx` y entrega los CSV de importaci�
 ## Uso
 En Windows: doble clic en `iniciar.bat` (crea el entorno, instala dependencias, arranca y abre el navegador). Usa el primer puerto libre desde el 8002, saltando los reservados por otras apps Falcon (8000 Contable, 8001 Tesorería, 8003 Falcon PDB; editar `RESERVADOS` en `iniciar.bat` para agregar más). Mapa de puertos: Contable 8000 · Tesorería 8001 · NetSuite 8002 · PDB 8003.
 
-`actualizar.bat` baja la última versión de `main` y actualiza dependencias; `detener.bat` cierra el servidor de esta carpeta. Para actualizar la app se usa `actualizar.bat` (ya no hay botón «Actualizar» en la pantalla).
+**Un solo clic:** `crear_acceso_directo.bat` (una sola vez) crea en el escritorio el icono **«Falcon NetSuite»**, que ejecuta `actualizar_e_iniciar.bat`: baja la última versión de `main` y, si todo salió bien, arranca el servidor y abre el navegador (si la actualización falla, se detiene con el mensaje de error y no inicia). `actualizar.bat` baja la última versión de `main` y actualiza dependencias; `detener.bat` cierra el servidor de esta carpeta. Para actualizar la app se usa `actualizar.bat` (ya no hay botón «Actualizar» en la pantalla).
 
 Manual:
 ```
