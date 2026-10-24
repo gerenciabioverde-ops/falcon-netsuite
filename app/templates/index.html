@@ -1038,9 +1038,10 @@
         gastos.forEach(g => {
           const id = (g[0] || '').trim() || idGasto(g); if (!id || resueltos.has(id)) return;
           let c = porRef[numeroReferencia(g[cG('Tipo Doc')], g[cG('Serie-Numero')])] || [];
-          if (c.length > 1) {       // el mismo número en varios proveedores: se distingue por el nombre
+          if (c.length && iNo >= 0) {       // el mismo número lo pueden tener proveedores distintos: la factura de NetSuite debe ser del mismo proveedor (aunque sea una sola; si es de otro, no se relaciona)
             const nombres = [g[cG('Razon Social')], ...(nomProvR[(g[cG('RUC')] || '').trim()] || [])].map(normNombreNS).filter(Boolean);
-            c = c.filter(f => iNo >= 0 && nombres.includes(normNombreNS(f[iNo])));
+            const mismo = x => nombres.some(n => n === x || (n.length >= 25 && x.startsWith(n.slice(0, 25))) || (x.length >= 25 && n.startsWith(x.slice(0, 25))));       // NetSuite corta los nombres largos
+            c = c.filter(f => mismo(normNombreNS(f[iNo])));
           }
           if (c.length === 1) { nuevos[id] = c[0][iId].trim(); nuevosNum[id] = iNt >= 0 ? (c[0][iNt] || '').trim() : ''; resueltos.add(id); ok++; porDoc++; }
         });
