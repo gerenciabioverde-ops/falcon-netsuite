@@ -739,9 +739,9 @@
     });
   });
 
-  let limpiezaLC = 0;
+  let limpiezaLC = 0, corregidasLC = 0;
   function llenarDesde(datos) {
-    limpiezaLC = 0;
+    limpiezaLC = 0; corregidasLC = 0;
     esquema.forEach(p => {
       cuerpo(p.clave).innerHTML = '';
       const h = (datos.hojas && datos.hojas[p.clave]) || {};
@@ -757,11 +757,15 @@
       if (p.clave === 'factura de proveedor') marcadasFP = new Set(Array.isArray(h.marcadas) ? h.marcadas : []);
       if (p.clave === 'gastos') { idsFacturaNS = Object.assign({}, h.ids_factura || {}); numFacturaNS = Object.assign({}, h.ids_factura_num || {}); impFacturaNS = Object.assign({}, h.ids_factura_imp || {}); }
       if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].forEach(tr => { const k = p.columnas.findIndex(c => c.nombre === 'Latam - Concepto Detracción'), i = tr.querySelectorAll('input')[k]; if (i && i.value.trim() === 'SIN DETRACCIÓN') i.value = ''; });
+      if (p.clave === 'factura de proveedor') {       // Tipo de Documento Fiscal = liquidación de compra -> Tipo de Transacción = «Liquidacion compra» (antes quedaba «Liquidaciones Varias»)
+        const kT = p.columnas.findIndex(c => c.nombre === 'Latam - Tipo de Transacción'), kD = p.columnas.findIndex(c => c.nombre === 'Latam - Tipo de Documento Fiscal');
+        [...cuerpo(p.clave).rows].forEach(tr => { const ins = tr.querySelectorAll('input'); if (/^liquidacion (de )?compra/.test(quitarTildes(ins[kD].value)) && ins[kT].value !== 'Liquidacion compra') { ins[kT].value = 'Liquidacion compra'; corregidasLC++; } });
+      }
       if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].filter(tr => /^VENDB_/.test(tr.querySelector('input').value)).forEach(bloquearFila);   // filas que vienen de Gastos
       while (cuerpo(p.clave).rows.length < FILAS_INICIALES) nuevaFila(p.clave);
     });
     contadores();
-    if (limpiezaLC) setTimeout(() => { guardar(); estadoGrilla('Se quitaron de Gastos ' + limpiezaLC + ' liquidaciones de compra copiadas antes: ahora viven solo en la pestaña Liquidaciones.', '#15803d'); }, 0);
+    if (limpiezaLC || corregidasLC) setTimeout(() => { guardar(); estadoGrilla((limpiezaLC ? 'Se quitaron de Gastos ' + limpiezaLC + ' liquidaciones de compra copiadas antes: ahora viven solo en la pestaña Liquidaciones. ' : '') + (corregidasLC ? 'Factura de Proveedor: ' + corregidasLC + ' liquidaciones de compra con «Latam - Tipo de Transacción» corregido a «Liquidacion compra».' : ''), '#15803d'); }, 0);
   }
   const hayFilas = d => Object.values(d.hojas || {}).some(h => (h.filas || []).some(f => f.some(c => String(c).trim() !== '')));
   function borradorViejo() {          // formato anterior: {clave: filas, __bloqueadas: {clave: [i]}}
@@ -941,6 +945,8 @@
         const defectoCambiable = k === iCuentaFP && idsPagarAuto.has(actual) && val !== actual;
         if (val && (!actual || defectoCambiable || (modo === 'actualizar' && !colsFijas.has(k) && actual !== val))) dif.push([k, val, actual]);
       });
+      const kTT = porClave[FP].columnas.findIndex(c => c.nombre === 'Latam - Tipo de Transacción');       // liquidación de compra: el tipo de transacción debe ser «Liquidacion compra» aunque ya tuviera otro
+      if (f.fila[kTT] === 'Liquidacion compra' && ins[kTT].value.trim() && ins[kTT].value !== 'Liquidacion compra' && !dif.some(d => d[0] === kTT)) dif.push([kTT, 'Liquidacion compra', ins[kTT].value]);
       const kCD = porClave[FP].columnas.findIndex(c => c.nombre === 'Latam - Concepto Detracción');       // sin detracción: se deja en blanco (antes se escribía «SIN DETRACCIÓN»)
       if (!f.fila[kCD] && ins[kCD].value.trim() === 'SIN DETRACCIÓN') dif.push([kCD, '', ins[kCD].value]);
       if (dif.length) r.cambios.push({ tr, dif }); else r.sinCambios++;
