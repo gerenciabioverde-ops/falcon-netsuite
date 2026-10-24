@@ -104,6 +104,7 @@
           <table class="grilla border-collapse text-left">
             <thead><tr>
               <th>#</th>
+              {% if p.clave == 'factura de proveedor' %}<th title="Marca las facturas que quieres actualizar en NetSuite: con el filtro «Solo marcadas» el CSV baja solo con ellas. Clic aquí para marcar o desmarcar todas las filas visibles"><span id="chk-todas" style="cursor:pointer">☐ Actualizar</span></th>{% endif %}
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado y el gasto no pasa a Factura de Proveedor">ID Proveedor</th>{% endif %}
@@ -114,7 +115,7 @@
               {% for c in p.columnas %}<th{% if p.clave == 'gastos' and c.nombre == 'RUC' %} title="Escribe el RUC seguido de + para crear ese proveedor"{% endif %}>{{ ({'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco'}.get(c.nombre, c.nombre)) if p.clave == 'gastos' else ('Cuenta NetSuite' if p.clave == 'factura de proveedor' and c.nombre == 'Cuenta' else c.nombre) }}{% if c.requerida %} <span class="text-red-600">*</span>{% endif %}{% if c.auto %} <span class="font-normal text-slate-500">(automático)</span>{% endif %}</th>{% if p.clave == 'factura de proveedor' and c.nombre == 'Cuenta' %}<th title="Solo para ver: ID interno de NetSuite de la cuenta (según «Cuentas homologadas»). Es el que va al CSV. «sin ID» = esa cuenta no está homologada y NetSuite no la va a reconocer">ID Interno Cta</th>{% endif %}{% if p.clave == 'factura de proveedor' and c.nombre == 'EXTERNAL ID' %}<th title="Solo para ver: ID interno de la factura en NetSuite (viene de Gastos). Con el filtro «Solo con ID interno», el CSV lleva esta columna en lugar de EXTERNAL ID">ID Interno Factura</th><th title="Número de transacción de la factura en NetSuite (VENDBILL…), solo para ver (no va en el CSV)">N° Transacción</th>{% endif %}{% endfor %}
             </tr>
             {% if p.clave == 'factura de proveedor' %}<tr class="fila-filtros">
-              <th title="Filtros: elige un valor para ver solo esas filas. El CSV baja solo con las filas visibles">🔎</th><th></th>
+              <th title="Filtros: elige un valor para ver solo esas filas. El CSV baja solo con las filas visibles">🔎</th><th><select id="flt-marc" title="Solo las facturas marcadas con ☑ para actualizar (el CSV baja solo con ellas)"><option value="">Todas</option><option value="si">Solo marcadas</option></select></th><th></th>
               {% for c in p.columnas %}{% if c.nombre in ['Moneda', 'Latam - Tipo de Transacción', 'Latam - Concepto Detracción'] %}<th><select class="flt-fp" data-nombre="{{ c.nombre }}" title="Filtrar por «{{ c.nombre }}» (el CSV baja solo con las filas visibles)"><option value="">Todos</option></select></th>{% else %}<th></th>{% endif %}{% if c.nombre == 'Cuenta' %}<th></th>{% endif %}{% if c.nombre == 'EXTERNAL ID' %}<th><select id="flt-idf" title="Filtrar por ID interno de la factura. Con «Solo con ID interno» el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID (para actualizar en NetSuite)"><option value="">Todos</option><option value="con">Solo con ID interno</option><option value="sin">Solo sin ID interno</option></select></th><th></th>{% endif %}{% endfor %}
             </tr>{% endif %}</thead>
             <tbody></tbody>
@@ -147,6 +148,7 @@
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
+          {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-limpiar-marcas" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Quita todas las marcas ☑ «Actualizar»">☐ Limpiar marcas</button>{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
           <button type="button" class="btn-limpiar border rounded px-3 py-1.5 text-red-700 hover:bg-red-50">Limpiar pestaña</button>
         </div>
@@ -336,6 +338,7 @@
   const sumarMes = (p, n) => { const d = new Date(+p.slice(0, 4), +p.slice(5) - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
   const estadoPeriodo = (txt, color) => { const e = $id('per-estado'); e.textContent = txt; e.style.color = color || '#64748b'; };
 
+  let marcadasFP = new Set();       // facturas (EXTERNAL ID) marcadas para actualizar en NetSuite; se guarda con el período
   let impFacturaNS = {};       // importe (con IGV) de cada factura en NetSuite: {ID Comprobante: importe}
   let numFacturaNS = {};       // número de transacción (VENDBILL…) de cada factura: {ID Comprobante: número}
   let idsFacturaNS = {};       // ID interno de NetSuite de cada factura: {ID Comprobante (VENDB_…): ID interno}; se guarda con la hoja Gastos del período
@@ -345,6 +348,7 @@
       hojas[p.clave] = {
         filas: leer(p.clave, true),
         bloqueadas: [...cuerpo(p.clave).rows].map((tr, i) => tr.dataset.bloqueada ? i : -1).filter(i => i >= 0),
+        ...(p.clave === 'factura de proveedor' ? { marcadas: [...marcadasFP] } : {}),
         ...(p.clave === 'gastos' ? { ids_factura: idsFacturaNS, ids_factura_num: numFacturaNS, ids_factura_imp: impFacturaNS } : {}),
         ...(p.clave === 'proveedores' ? { disenio: 6 } : {}),       // marca del orden de columnas de Proveedores (tipo y número de documento tras External ID; Nombres y Apellidos junto al nombre)
       };
@@ -415,6 +419,7 @@
     bEd.title = 'Editar esta fila en un formulario';
     n.append(num, bEd);
     tr.appendChild(n);
+    if (clave === 'factura de proveedor') { const mk = document.createElement('td'); mk.className = 'chk'; mk.textContent = '☐'; mk.style.cssText = 'text-align:center;cursor:pointer;font-size:1.1rem;min-width:5.5rem;user-select:none'; mk.title = 'Marcar esta factura para actualizarla en NetSuite'; tr.appendChild(mk); }
     if (clave === 'factura de proveedor') { const rf = document.createElement('td'); rf.className = 'refn'; rf.style.cssText = 'white-space:nowrap;min-width:8rem;font-size:.8rem;padding:0 6px'; tr.appendChild(rf); }
     if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); const ip = document.createElement('td'); ip.className = 'idp'; ip.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(ip); const idf = document.createElement('td'); idf.className = 'idf'; idf.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(idf); const nt = document.createElement('td'); nt.className = 'ntr'; nt.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem;white-space:nowrap'; tr.appendChild(nt); const im = document.createElement('td'); im.className = 'imn'; im.style.cssText = 'text-align:right;min-width:7rem;font-size:.8rem;white-space:nowrap;padding:0 6px'; tr.appendChild(im); const vi = document.createElement('td'); vi.className = 'vim'; vi.style.cssText = 'text-align:center;min-width:6.5rem;font-size:.8rem;font-weight:700;white-space:nowrap'; tr.appendChild(vi); }
     p.columnas.forEach((c, i) => {
@@ -493,15 +498,31 @@
   const tieneIdf = f => (idsFacturaNS[(f[0] || '').trim()] ? 'con' : 'sin');
   function aplicarFiltrosFactura() {
     fijarTopFiltros();
-    const fl = Object.entries(filtrosFP()), idf = ($id('flt-idf') || {}).value || '';
+    const fl = Object.entries(filtrosFP()), idf = ($id('flt-idf') || {}).value || '', marc = ($id('flt-marc') || {}).value || '';
     if ($id('flt-idf')) $id('flt-idf').classList.toggle('activo', !!idf);
+    if ($id('flt-marc')) $id('flt-marc').classList.toggle('activo', !!marc);
     document.querySelectorAll('select.flt-fp').forEach(sel => sel.classList.toggle('activo', !!sel.value));
     [...cuerpo('factura de proveedor').rows].forEach(tr => {
       const v = [...tr.querySelectorAll('input')].map(i => i.value);
-      tr.style.display = fl.every(([i, val]) => valorFiltroFP(v, +i) === val) && (!idf || tieneIdf(v) === idf) && tr.dataset.busq !== 'no' ? '' : 'none';
+      tr.style.display = fl.every(([i, val]) => valorFiltroFP(v, +i) === val) && (!idf || tieneIdf(v) === idf) && (!marc || marcadasFP.has((v[0] || '').trim())) && tr.dataset.busq !== 'no' ? '' : 'none';
     });
     contarTab('factura de proveedor');
   }
+  function pintarMarcas() { [...cuerpo('factura de proveedor').rows].forEach(tr => { const mk = tr.querySelector('td.chk'); if (!mk) return; const on = marcadasFP.has((tr.querySelector('input').value || '').trim()); mk.textContent = on ? '☑' : '☐'; mk.style.color = on ? '#1d4ed8' : ''; }); const t = $id('chk-todas'); if (t) t.textContent = (marcadasFP.size ? '☑ ' : '☐ ') + 'Actualizar' + (marcadasFP.size ? ' (' + marcadasFP.size + ')' : ''); }
+  document.addEventListener('click', ev => {
+    const mk = ev.target.closest && ev.target.closest('#panel-factura\\ de\\ proveedor td.chk');
+    if (mk) {
+      const id = (mk.parentElement.querySelector('input').value || '').trim(); if (!id) return;
+      if (marcadasFP.has(id)) marcadasFP.delete(id); else marcadasFP.add(id);
+      pintarMarcas(); guardar(); if (($id('flt-marc') || {}).value) aplicarFiltrosFactura(); return;
+    }
+    if (ev.target.id === 'chk-todas') {       // marca (o desmarca) todas las filas que se están viendo
+      const vis = [...cuerpo('factura de proveedor').rows].filter(tr => tr.style.display !== 'none').map(tr => (tr.querySelector('input').value || '').trim()).filter(Boolean);
+      const todas = vis.length && vis.every(id => marcadasFP.has(id));
+      vis.forEach(id => todas ? marcadasFP.delete(id) : marcadasFP.add(id));
+      pintarMarcas(); guardar(); if (($id('flt-marc') || {}).value) aplicarFiltrosFactura();
+    }
+  });
   function poblarFiltrosFactura() {
     const cols = porClave['factura de proveedor'].columnas, filas = [...cuerpo('factura de proveedor').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value));
     document.querySelectorAll('select.flt-fp').forEach(sel => {
@@ -515,7 +536,7 @@
     });
     aplicarFiltrosFactura();
   }
-  document.addEventListener('change', ev => { if (ev.target.classList && (ev.target.classList.contains('flt-fp') || ev.target.id === 'flt-idf')) aplicarFiltrosFactura(); });
+  document.addEventListener('change', ev => { if (ev.target.classList && (ev.target.classList.contains('flt-fp') || ev.target.id === 'flt-idf' || ev.target.id === 'flt-marc')) aplicarFiltrosFactura(); });
   let vbTemporizador = null;
   let pendGastos = null;       // gastos sin N° Transacción de NetSuite (aún no registrados)
   function vistoBuenoFactura() {
@@ -524,7 +545,7 @@
       if (!porClave.gastos || !porClave.hasOwnProperty || !document.getElementById('panel-gastos')) return;
       const ids = new Set([...cuerpo('factura de proveedor').rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
       const iTd = colF('Latam - Tipo de Documento Fiscal'), iSe = colF('Latam - Serie CxP'), iNu = colF('Latam - Número Preimpreso');
-      poblarFiltrosFactura();
+      poblarFiltrosFactura(); pintarMarcas();
       [...cuerpo('factura de proveedor').rows].forEach(tr => { const fi = tr.querySelector('td.idfi'); if (!fi) return; const v = idsFacturaNS[(tr.querySelector('input').value || '').trim()] || ''; fi.textContent = v; fi.style.color = '#15803d'; const nti = tr.querySelector('td.ntri'); if (nti) nti.textContent = numFacturaNS[(tr.querySelector('input').value || '').trim()] || ''; });
       const iCta = porClave['factura de proveedor'].columnas.findIndex(c => c.nombre === 'Cuenta'), idsCta = new Set(tablaCuentas.map(f => String(f.netsuite)));
       [...cuerpo('factura de proveedor').rows].forEach(tr => {       // ID Interno Cta (solo vista): ID de NetSuite de la cuenta, el que va al CSV
@@ -626,6 +647,7 @@
       const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
       (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
       if (p.clave === 'gastos') { [...cuerpo('gastos').rows].forEach(completarIdGasto); resincronizarCuentas(); }
+      if (p.clave === 'factura de proveedor') marcadasFP = new Set(Array.isArray(h.marcadas) ? h.marcadas : []);
       if (p.clave === 'gastos') { idsFacturaNS = Object.assign({}, h.ids_factura || {}); numFacturaNS = Object.assign({}, h.ids_factura_num || {}); impFacturaNS = Object.assign({}, h.ids_factura_imp || {}); }
       if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].forEach(tr => { const k = p.columnas.findIndex(c => c.nombre === 'Latam - Concepto Detracción'), i = tr.querySelectorAll('input')[k]; if (i && i.value.trim() === 'SIN DETRACCIÓN') i.value = ''; });
       if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].filter(tr => /^VENDB_/.test(tr.querySelector('input').value)).forEach(bloquearFila);   // filas que vienen de Gastos
@@ -842,6 +864,7 @@
       '.' + textoIncompletas(r));
   });
   // En Factura de Proveedor: trae de Gastos los datos que cambiaron, de todas las facturas a la vez
+  $id('btn-limpiar-marcas').addEventListener('click', () => { marcadasFP.clear(); pintarMarcas(); guardar(); if (($id('flt-marc') || {}).value) aplicarFiltrosFactura(); });
   $id('btn-actualizar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('actualizar');
     const campos = r.cambios.reduce((n, c) => n + c.dif.length, 0);
@@ -1610,8 +1633,8 @@
   document.getElementById('btn-grilla').addEventListener('click', async () => {
     const datos = {};
     esquema.forEach(p => { datos[p.clave] = leer(p.clave, true); });
-    const fl = Object.entries(filtrosFP()), idfSel = ($id('flt-idf') || {}).value || '';
-    if (fl.length || idfSel) datos['factura de proveedor'] = datos['factura de proveedor'].map(f => fl.every(([i, val]) => valorFiltroFP(f, +i) === val) && (!idfSel || tieneIdf(f) === idfSel) ? f : f.map(() => ''));       // las demás quedan en blanco (así el número de fila sigue siendo el de la pestaña)
+    const fl = Object.entries(filtrosFP()), idfSel = ($id('flt-idf') || {}).value || '', marcSel = ($id('flt-marc') || {}).value || '';
+    if (fl.length || idfSel || marcSel) datos['factura de proveedor'] = datos['factura de proveedor'].map(f => fl.every(([i, val]) => valorFiltroFP(f, +i) === val) && (!idfSel || tieneIdf(f) === idfSel) && (!marcSel || marcadasFP.has((f[0] || '').trim())) ? f : f.map(() => ''));       // las demás quedan en blanco (así el número de fila sigue siendo el de la pestaña)
     if (idfSel === 'con') datos['__ids_factura__'] = Object.entries(idsFacturaNS);       // el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID (para actualizar en NetSuite)
     const estado = document.getElementById('estado-grilla');
     estadoGrilla('Procesando…');
@@ -1638,7 +1661,7 @@
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
         (ok.length ? 'Descargado (' + (excel ? 'Excel' : 'CSV para NetSuite') + '): ' + ok.join(', ') + '.' : ((doc.querySelector('.bg-red-50 span') || {}).textContent || 'No se generó ningún archivo.')) +
-        ((fl.length || idfSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID; en NetSuite impórtalo en modo Actualizar y marca «Sobrescribir sublistas» para que las líneas de Gastos no se dupliquen)' : 'ausente')] : []).join('; ') + ')' : '') +
+        ((fl.length || idfSel || marcSel) ? ' (Factura de Proveedor, solo: ' + fl.map(([i, val]) => porClave['factura de proveedor'].columnas[+i].nombre + ' = ' + val).concat(marcSel ? ['marcadas para actualizar'] : []).concat(idfSel ? ['ID interno ' + (idfSel === 'con' ? '(el CSV lleva «ID Interno Factura» en lugar de EXTERNAL ID; en NetSuite impórtalo en modo Actualizar y marca «Sobrescribir sublistas» para que las líneas de Gastos no se dupliquen)' : 'ausente')] : []).join('; ') + ')' : '') +
         (sinCsv.length ? ' Sin archivo por errores: ' + sinCsv.join(', ') + '.' : ''), sinCsv.length || !ok.length ? '#b45309' : '#15803d');
       const conProblemas = resumen.some(f => (f[2] && f[2] !== '0') || (f[3] && f[3] !== '0'));
       const token = doc.querySelector('table').dataset.token;
