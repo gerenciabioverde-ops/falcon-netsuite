@@ -461,6 +461,7 @@
     filas.forEach(tr => { const ok = !q.length || (t => q.every(w => t.includes(w)))(textoFila(tr)); tr.dataset.busq = ok ? '' : 'no'; if (ok) n++; if (clave !== 'factura de proveedor') tr.style.display = ok ? '' : 'none'; });
     if (clave === 'factura de proveedor') aplicarFiltrosFactura();
     panel.querySelector('.buscar-estado').textContent = q.length ? n + ' de ' + filas.length + ' filas' : '';
+    contarTab(clave);
   }
   let buscarTemporizador = null;
   document.addEventListener('input', ev => {
@@ -486,6 +487,7 @@
       const v = [...tr.querySelectorAll('input')].map(i => i.value);
       tr.style.display = fl.every(([i, val]) => valorFiltroFP(v, +i) === val) && (!idf || tieneIdf(v) === idf) && tr.dataset.busq !== 'no' ? '' : 'none';
     });
+    contarTab('factura de proveedor');
   }
   function poblarFiltrosFactura() {
     const cols = porClave['factura de proveedor'].columnas, filas = [...cuerpo('factura de proveedor').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value));
@@ -552,12 +554,19 @@
   }
   function contadores() {
     vistoBuenoFactura();
-    document.querySelectorAll('.tab').forEach(b => {
-      const k = b.dataset.tab, c = b.querySelector('.contador');
-      if (!c) return;
-      const n = leer(k).length;
-      c.textContent = n; c.classList.toggle('hidden', n === 0);
-    });
+    document.querySelectorAll('.tab').forEach(b => { if (b.querySelector('.contador')) contarTab(b.dataset.tab); });
+  }
+  // Número junto al nombre de la pestaña: filas con datos; si hay filtros o búsqueda activos, «visibles / total» (cuántas se están seleccionando)
+  function contarTab(k) {
+    const b = document.querySelector('.tab[data-tab="' + k + '"]'), c = b && b.querySelector('.contador');
+    if (!c || !porClave[k]) return;
+    const filas = [...cuerpo(k).rows].filter(tr => [...tr.querySelectorAll('input')].some(i => i.value.trim()));
+    const vis = filas.filter(tr => tr.style.display !== 'none').length, filtrado = vis < filas.length;
+    c.textContent = filtrado ? vis + ' / ' + filas.length : filas.length;
+    c.title = filtrado ? 'Seleccionadas: ' + vis + ' de ' + filas.length + ' filas (filtros o búsqueda activos)' : '';
+    c.classList.toggle('hidden', filas.length === 0);
+    c.classList.toggle('bg-amber-100', filtrado); c.classList.toggle('text-amber-800', filtrado);
+    c.classList.toggle('bg-blue-100', !filtrado); c.classList.toggle('text-blue-800', !filtrado);
   }
 
   // Datalists: se llenan una sola vez con las opciones originales de cada lista desplegable
