@@ -79,7 +79,7 @@
         <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
         {% if p.clave == 'anular proveedor' %}<button type="button" data-tab="csvanular" class="tab px-4 py-2.5 border-b-2" title="CSV para inactivar en NetSuite los proveedores de la pestaña Anular proveedor">CSV Anular Proveedor</button>{% endif %}
       {% endfor %}
-      <button type="button" id="tab-info" class="tab-grupo px-4 py-2.5 border-b-2 ml-auto border-l" title="Gastos, Proveedores, CSV Proveedor y Cuentas homologadas: la información de trabajo de donde salen las plantillas de NetSuite">Información</button>
+      <button type="button" id="tab-info" class="tab-grupo px-4 py-2.5 border-b-2 ml-auto border-l" title="Gastos, Bancos, Anular proveedor, Proveedores y Cuentas homologadas: la información de trabajo de donde salen las plantillas de NetSuite">Información</button>
       <button type="button" data-tab="cuentas" class="tab px-4 py-2.5 border-b-2 ml-auto border-l">Cuentas homologadas
         <span id="cuentas-contador" class="ml-1 text-xs bg-green-100 text-green-800 rounded-full px-1.5 hidden"></span></button>
     </nav>
@@ -1312,7 +1312,7 @@
   // Nombres que se ven en Gastos (por dentro las columnas siguen con su nombre original: el reporte las trae así)
   const ETIQUETAS_GASTOS = { 'External ID': 'ID Comprobante', 'Cod.Pago': 'Cod.Pago Copera', 'N° Operación': 'N° Operación Banco' };
   // «Información»: Gastos, Proveedores, CSV Proveedor y Cuentas homologadas quedan en una barra propia bajo esa pestaña
-  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'csvanular', 'proveedores', 'csvprov', 'cuentas'];
+  const GRUPO_INFO = ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'proveedores', 'cuentas'];       // «CSV Proveedor» y «CSV Anular Proveedor» quedan en la barra principal, al lado de «Pago de factura de cliente»
   let ultimaInfo = 'gastos';
   GRUPO_INFO.forEach(k => { const b = document.querySelector('.tab[data-tab="' + k + '"]'); if (b) { b.classList.remove('ml-auto', 'border-l'); document.getElementById('subtabs').appendChild(b); } });
   document.getElementById('tab-info').addEventListener('click', () => { activar(ultimaInfo); estadoGrilla(''); });
