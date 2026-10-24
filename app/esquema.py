@@ -166,9 +166,14 @@ for _hoja, _col in {"Factura de Proveedor": "Fecha", "Pago Proveedor": "DATE", "
                     "Nota de credito Cliente": "Fecha", "Pago de factura de cliente": "DATE"}.items():
     REGLAS[_hoja]["fecha_periodo"] = _col
 
+LIQUIDACIONES_ENCABEZADOS = [
+    "Sede", "Mes", "Fecha Recibido", "Fecha Emision Y/o Pago", "Codigo Recepción", "TD", "Serie y N° COMP.", "DNI/RUC", "NOMBRES Y APELLIDOS / RAZON SOCIAL",
+    "DNI SOCIO", "NOMBRES SOCIO", "TIPO DE CAFÉ", "P.TAZA", "RDTO FISICO", "QQ NETOS", "KILOS NETOS", "P.U. S/", "TOTAL DOCUMENTO DE RECEPCION",
+    "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",
+]
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
                                     "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"],
-                                    "Monedas proveedor": ["ID interno", "Nombre", "Moneda"]}
+                                    "Monedas proveedor": ["ID interno", "Nombre", "Moneda"], "Liquidaciones": LIQUIDACIONES_ENCABEZADOS}
 # Departamentos de NetSuite para los gastos
 DEPARTAMENTOS = ["Operaciones", "Sostenibilidad", "Finanzas", "Administrativos"]
 LISTAS_EXTRA: dict[str, dict[str, list[str]]] = {"Monedas proveedor": {"Moneda": ["USD", "SOL", "SOL y USD"]}, "Gastos": {"Moneda": ["PEN", "USD"], "Departamento": DEPARTAMENTOS,
@@ -201,6 +206,10 @@ REGLAS["Bancos ME"] = dict(REGLAS["Bancos MN"])
 REGLAS["Anular proveedor"] = {"requeridos": ["ID interno"]}
 # Monedas que faltan a proveedores que ya existen en NetSuite (sublista Monedas): de ahí sale «CSV Monedas Proveedor» (ID interno + Moneda, una fila por moneda)
 REGLAS["Monedas proveedor"] = {"requeridos": ["ID interno", "Moneda"], "por_defecto": {"Moneda": "USD"}}
+
+# Liquidaciones de compra de café («reporte_liquidaciones_AAAA-MM-DD.xls»: tabla HTML, una fila por recepción). «Sede» (Jaén / Moyobamba) no viene
+# en el reporte: se elige al cargar. Es una pestaña de trabajo: de aquí se pasan a Gastos y de Gastos a Factura de Proveedor.
+REGLAS["Liquidaciones"] = {"requeridos": []}
 
 # Reporte de gastos (reporte_gastos_AAAA-MM-DD.xls): una fila por comprobante de gasto.
 REGLAS["Gastos"] = {

@@ -90,11 +90,33 @@ def _completar_bancos(cabecera: list[list], filas: list[list[str]], hoja: Hoja) 
             saldo = actual
 
 
+def _completar_liquidaciones(cabecera: list, filas: list[list]) -> list[list]:
+    """Reporte de liquidaciones: cuando una L.C. agrupa varias recepciones, el reporte omite las celdas combinadas (Serie y N° COMP. y
+    S/ TOTAL L.C.) en las filas siguientes y las columnas se corren. Aquí se vuelven a insertar y la serie se copia de la fila anterior."""
+    nombres = [norm(c) for c in cabecera]
+    i_ser = nombres.index("serie y n° comp.") if "serie y n° comp." in nombres else -1
+    i_tot = next((i for i, n in enumerate(nombres) if n.startswith("s/ total l.c")), -1)
+    if i_ser < 0 or i_tot < 0:
+        return filas
+    salida, serie = [], ""
+    for f in filas:
+        f = list(f)
+        if len(f) == len(nombres) - 2:
+            f.insert(i_ser, serie)
+            f.insert(i_tot, "")
+        elif len(f) > i_ser:
+            serie = str(f[i_ser]).strip()
+        salida.append(f)
+    return salida
+
+
 def _filas_de_datos(filas: list[list], hoja: Hoja, avisos: list[str]) -> list[list[str]] | None:
     enc = _encabezados(filas, hoja)
     if enc is None:
         return None
     inicio, mapa = enc
+    if hoja.nombre == "Liquidaciones":
+        filas = filas[:inicio + 1] + _completar_liquidaciones(filas[inicio], filas[inicio + 1:])
     salida: list[list[str]] = []
     for fila in filas[inicio + 1:]:
         if fila and norm(fila[0]) in FILAS_DE_AYUDA:
