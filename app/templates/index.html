@@ -889,9 +889,9 @@
   const MONEDA_NS = { PEN: 'SOL', USD: 'USD' };
   const METODO_NS = { 'Transferencia de Fondos': 'PE - TRANSFERENCIA DE FONDOS', 'Efectivo': 'PE - EFECTIVO, EN LOS DEMÁS CASOS' };
   const TIPO_TRANSACCION = { 'factura': 'Factura de Proveedor', 'boleta': 'Boleta de Venta', 'recibo por honorarios': 'Recibo por Honorarios', 'nota de debito': 'Nota de Debito' };
-  // Tipos que no están en la lista de NetSuite: liquidación de gastos, planilla de movilidad y recibo -> «Otros Gastos»; liquidación de compra -> «Liquidaciones Varias»; el resto -> «Boleta de Venta»
+  // Tipos que no están en la lista de NetSuite: liquidación de gastos, planilla de movilidad y recibo -> «Otros Gastos»; liquidación de compra -> «Liquidacion compra»; otras liquidaciones -> «Liquidaciones Varias»; el resto -> «Boleta de Venta»
   const TIPO_OTROS = { 'liquidacion de gastos': 'Otros Gastos', 'planilla de movilidad': 'Otros Gastos', 'recibo': 'Otros Gastos' };
-  const tipoTransaccionOtros = t => { const k = quitarTildes(t); return TIPO_OTROS[k] || (k.startsWith('liquidaci') ? 'Liquidaciones Varias' : 'Boleta de Venta'); };
+  const tipoTransaccionOtros = t => { const k = quitarTildes(t); return TIPO_OTROS[k] || (/^liquidacion (de )?compra/.test(k) ? 'Liquidacion compra' : k.startsWith('liquidaci') ? 'Liquidaciones Varias' : 'Boleta de Venta'); };
   const limpiarId = t => String(t || '').trim().replace(/[^A-Za-z0-9]+/g, '');       // solo letras y números: FA01-00018047 -> FA0100018047
   const GF = 'gastos', FP = 'factura de proveedor';
   const FIJOS_FACTURA = ['Cuenta', 'Subsidiaria', 'Latam - Subsidiaria País', 'Ubicación', 'Gastos: Ubicación'];     // se completan solo si están vacías (el código de impuesto se puede cambiar a mano: inafecto, retención…)
