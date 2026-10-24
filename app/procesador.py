@@ -358,8 +358,11 @@ def validar_hoja(hoja: Hoja, filas: list[tuple[int, list]], formato_fecha: str, 
                              else "complete " + ", ".join(r["id_auto"]["campos"]))
                     res.problemas.append(Problema("error", nro, nom, f"No se pudo generar el EXTERNAL ID: {falta}"))
                 elif i in requeridos:
+                    opcional = r.get("opcional_si", {}).get(nom)       # p. ej. EXCHANGE RATE en USD: NetSuite usa su tipo de cambio de la fecha
+                    if opcional and str(fila[idx(opcional[0])] or "").strip().upper() == opcional[1]:
+                        pass
                     # una persona (Individual) lleva Nombres y Apellidos, no «Nombre de la empresa»
-                    if r.get("completar") == "proveedores" and nom == proveedores.C_NOMBRE and (
+                    elif r.get("completar") == "proveedores" and nom == proveedores.C_NOMBRE and (
                             str(fila[idx(proveedores.C_TIPO)] or "").strip() == "Individual"
                             or any(str(fila[idx(c)] or "").strip() for c in (proveedores.C_NOMBRES, proveedores.C_APELLIDOS))):
                         pass

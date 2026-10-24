@@ -43,6 +43,7 @@ REGLAS: dict[str, dict] = {
         "requeridos": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "ACCOUNT", "CURRENCY", "EXCHANGE RATE",
                        "DATE", "POSTING PERIOD", "SUBSIDIARY", "BILL", "PAYMENT"],
         "fechas": ["DATE"],
+        "opcional_si": {"EXCHANGE RATE": ("CURRENCY", "USD")},      # en USD el tipo de cambio puede ir vacío: NetSuite usa el de la fecha del pago
         "numericos": ["EXCHANGE RATE", "PAYMENT"],
         "periodo": "POSTING PERIOD",
         "lineas_desde": "BILL",
