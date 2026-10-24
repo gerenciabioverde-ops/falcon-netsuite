@@ -504,6 +504,7 @@
   }
   document.addEventListener('change', ev => { if (ev.target.classList && (ev.target.classList.contains('flt-fp') || ev.target.id === 'flt-idf')) aplicarFiltrosFactura(); });
   let vbTemporizador = null;
+  let pendGastos = null;       // gastos que aún no pasaron a Factura de Proveedor (sin ✔)
   function vistoBuenoFactura() {
     clearTimeout(vbTemporizador);
     vbTemporizador = setTimeout(() => {
@@ -529,6 +530,7 @@
       const iRucP = porClave.proveedores.columnas.findIndex(c => c.nombre === 'Latam - Tax Reg Number'), iIdP = porClave.proveedores.columnas.findIndex(c => c.nombre === 'External ID'), iRucG = porClave.gastos.columnas.findIndex(c => c.nombre === 'RUC');
       const idsProv = {};       // RUC/DNI -> ID de NetSuite ('' si el proveedor está en la pestaña pero sin ID)
       [...cuerpo('proveedores').rows].forEach(tr => { const v = tr.querySelectorAll('input'), r = v[iRucP].value.trim(), id = v[iIdP].value.trim(); if (r) idsProv[r] = /^\d+$/.test(id) ? id : ''; });
+      let gTotal = 0, gPasaron = 0;
       [...cuerpo('gastos').rows].forEach(tr => {
         const idf = tr.querySelector('td.idf');       // ID interno de la factura en NetSuite (solo vista)
         if (idf) { const v = idsFacturaNS[(tr.querySelector('input').value || '').trim()] || ''; idf.textContent = v; idf.style.color = '#15803d'; idf.title = v ? 'ID interno de la factura en NetSuite' : ''; }
@@ -546,10 +548,12 @@
         const vals = [...tr.querySelectorAll('input')].map(i => i.value), id = (vals[0] || '').trim();
         if (!vals.some(v => v.trim())) { vb.textContent = ''; vb.title = ''; return; }
         const f = faltantesGasto(vals), enFactura = id && ids.has(id);
+        gTotal++; if (enFactura && !f.length) gPasaron++;
         if (f.length) { vb.textContent = '⚠'; vb.style.color = '#b45309'; vb.title = (enFactura ? 'Ya está en Factura de Proveedor pero le falta: ' : 'No pasa a Factura de Proveedor: falta ') + f.join(', '); return; }
         vb.textContent = enFactura ? '✔' : ''; vb.style.color = '#15803d';
         vb.title = enFactura ? 'Ya pasó a Factura de Proveedor' : 'Listo para pasar a Factura de Proveedor';
       });
+      pendGastos = gTotal - gPasaron; contarTab('gastos');
     }, 250);
   }
   function contadores() {
@@ -561,6 +565,14 @@
     const b = document.querySelector('.tab[data-tab="' + k + '"]'), c = b && b.querySelector('.contador');
     if (!c || !porClave[k]) return;
     const filas = [...cuerpo(k).rows].filter(tr => [...tr.querySelectorAll('input')].some(i => i.value.trim()));
+    if (k === 'gastos' && pendGastos !== null) {       // Gastos: «pendientes / total» (pendiente = aún sin ✔ en V°B° Factura)
+      c.textContent = pendGastos + ' / ' + filas.length; c.classList.toggle('hidden', filas.length === 0);
+      c.title = 'Pendientes de pasar a Factura de Proveedor: ' + pendGastos + ' de ' + filas.length + ' gastos (los que tienen ✔ ya pasaron)';
+      c.classList.toggle('bg-amber-100', pendGastos > 0); c.classList.toggle('text-amber-800', pendGastos > 0);
+      c.classList.toggle('bg-green-100', pendGastos === 0); c.classList.toggle('text-green-800', pendGastos === 0);
+      c.classList.toggle('bg-blue-100', false); c.classList.toggle('text-blue-800', false);
+      return;
+    }
     const vis = filas.filter(tr => tr.style.display !== 'none').length, filtrado = vis < filas.length;
     c.textContent = filtrado ? vis + ' / ' + filas.length : filas.length;
     c.title = filtrado ? 'Seleccionadas: ' + vis + ' de ' + filas.length + ' filas (filtros o búsqueda activos)' : '';
