@@ -1538,9 +1538,11 @@
       const sinCsv = resumen.filter(f => f[2] && f[2] !== '0').map(f => f[0] + ' (' + f[2] + ' errores)');
       // un CSV por plantilla de NetSuite; «Gastos», «Bancos MN» y «Bancos ME» son solo de trabajo y no se descargan
       const csvs = [...doc.querySelectorAll('tbody tr')].map(tr => ({ nombre: tr.cells[0].textContent.trim(), a: tr.querySelector(excel ? 'a[href$=".xlsx"]' : 'a[href$=".csv"]') })).filter(x => x.a && x.nombre !== 'Gastos' && x.nombre !== 'Bancos MN' && x.nombre !== 'Bancos ME' && x.nombre !== 'Anular proveedor');
-      // desde la pestaña de una plantilla (p. ej. Factura de Proveedor) solo se descarga el CSV de esa pestaña; desde las pestañas de información se descargan todos
-      const activo = ((document.querySelector('.panel:not(.hidden)') || {}).id || '').replace(/^panel-/, ''), soloActivo = porClave[activo] && !GRUPO_INFO.includes(activo) ? porClave[activo].nombre : null;
-      if (soloActivo) { const f = csvs.filter(x => x.nombre === soloActivo); csvs.length = 0; csvs.push(...f); }
+      // solo se genera el archivo de la pestaña en la que estás (p. ej. Factura de Proveedor o Proveedores); Gastos, Bancos y Anular proveedor son pestañas de trabajo y no tienen CSV propio
+      const activo = ((document.querySelector('.panel:not(.hidden)') || {}).id || '').replace(/^panel-/, ''), soloActivo = porClave[activo] ? porClave[activo].nombre : null;
+      const sinArchivoPropio = soloActivo && ['Gastos', 'Bancos MN', 'Bancos ME', 'Anular proveedor'].includes(soloActivo);
+      if (soloActivo) { const f = csvs.filter(x => x.nombre === soloActivo); csvs.length = 0; csvs.push(...f); const mios = sinCsv.filter(t => t.startsWith(soloActivo + ' (')); sinCsv.length = 0; sinCsv.push(...mios); }
+      if (sinArchivoPropio) { estadoGrilla('«' + soloActivo + '» es una pestaña de trabajo y no genera CSV: ve a la pestaña de la plantilla (p. ej. Factura de Proveedor, Pago Proveedor, «CSV Proveedor» o «CSV Anular Proveedor») y genera desde ahí.', '#b45309'); return; }
       csvs.forEach((x, i) => setTimeout(() => { const l = document.createElement('a'); l.href = x.a.getAttribute('href'); l.download = ''; document.body.appendChild(l); l.click(); l.remove(); }, i * 600));
       const ok = csvs.map(x => x.nombre);
       estadoGrilla(
