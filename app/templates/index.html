@@ -73,7 +73,7 @@
   <section class="bg-white rounded-lg shadow">
     <nav id="tabs" class="flex flex-wrap border-b text-sm" role="tablist">
       {% for p in pestanas %}
-      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{{ p.nombre }}
+      <button type="button" data-tab="{{ p.clave }}" class="tab px-4 py-2.5 border-b-2">{% if p.clave not in ['gastos', 'bancos mn', 'bancos me', 'anular proveedor', 'proveedores', 'cuentas'] %}CSV {% endif %}{{ p.nombre }}
         <span class="contador ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 hidden"></span></button>
         {% if p.clave == 'proveedores' %}<button type="button" data-tab="csvprov" class="tab px-4 py-2.5 border-b-2" title="Vista previa del CSV de proveedores tal como se envía a NetSuite">CSV Proveedor
         <span id="csvprov-contador" class="ml-1 text-xs bg-red-100 text-red-800 rounded-full px-1.5 hidden"></span></button>{% endif %}
