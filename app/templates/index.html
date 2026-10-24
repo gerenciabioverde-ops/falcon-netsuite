@@ -106,7 +106,7 @@
               <th>#</th>
               {% if p.clave == 'factura de proveedor' %}<th title="Marca las facturas que quieres actualizar en NetSuite: con el filtro «Solo marcadas» el CSV baja solo con ellas. Clic aquí para marcar o desmarcar todas las filas visibles"><span id="chk-todas" style="cursor:pointer">☐ Actualizar</span></th>{% endif %}
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
-              {% if p.clave == 'gastos' %}<th title="✔ = el documento ya pasó a Factura de Proveedor · ⚠ = falta información y no pasa (pasa el cursor para ver qué falta)">V°B° Factura</th>{% endif %}
+              {% if p.clave == 'gastos' %}<th title="⚠ = a este gasto le falta información y no pasa a Factura de Proveedor (pasa el cursor para ver qué falta). Vacío = sin problemas">Datos faltantes</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Solo para ver: ID de NetSuite del proveedor (se busca por RUC/DNI en la pestaña Proveedores). «sin ID» = ese proveedor aún no tiene ID cargado y el gasto no pasa a Factura de Proveedor">ID Proveedor</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="ID interno de la factura en NetSuite (se carga con «🔗 Cargar ID interno de facturas»). Pasa a Factura de Proveedor">ID Interno Factura</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="Número de transacción de la factura en NetSuite (VENDBILL…), según el export cargado">N° Transacción</th>{% endif %}
@@ -456,7 +456,7 @@
       .filter(f => conVacias || f.some(v => v.trim() !== ''));
   }
 
-  // Gastos -> Factura de Proveedor: solo pasa el documento que tiene la información necesaria; la columna «V°B° Factura» muestra ✔ si ya pasó
+  // Gastos -> Factura de Proveedor: solo pasa el documento que tiene la información necesaria; la columna «Datos faltantes» muestra ⚠ si falta algo
   const REQ_PASO = ['RUC', 'Razon Social', 'Tipo Doc', 'Serie-Numero', 'Fecha Factura', 'Moneda', 'Sub-Total', 'Total', 'Cuenta PCGE', 'Cuenta NetSuite', 'Cuenta por Pagar NetSuite', 'Met. Pago', 'Departamento', 'Código de impuesto'];
   const COL_IDPROV = 'ID Proveedor';       // columna solo de lectura de Gastos: el proveedor debe tener ID de NetSuite para que el gasto pase
   const faltantesGasto = vals => {
@@ -598,8 +598,7 @@
         const f = faltantesGasto(vals), enFactura = id && ids.has(id);
         gTotal++; if (id && numFacturaNS[id]) gPasaron++;       // con N° Transacción = ya está registrada en NetSuite
         if (f.length) { vb.textContent = '⚠'; vb.style.color = '#b45309'; vb.title = (enFactura ? 'Ya está en Factura de Proveedor pero le falta: ' : 'No pasa a Factura de Proveedor: falta ') + f.join(', '); return; }
-        vb.textContent = enFactura ? '✔' : ''; vb.style.color = '#15803d';
-        vb.title = enFactura ? 'Ya pasó a Factura de Proveedor' : 'Listo para pasar a Factura de Proveedor';
+        vb.textContent = ''; vb.title = '';       // completo: sin marca (solo se muestra el ⚠ cuando falta algo)
       });
       pendGastos = gTotal - gPasaron; contarTab('gastos');
     }, 250);
@@ -845,7 +844,7 @@
     tr.querySelectorAll('input').forEach(i => { i.readOnly = true; i.title = 'Fila bloqueada: use «✎ Editar» (o doble clic) para modificarla'; });
   }
   const textoIncompletas = r => r.incompletas.length
-    ? '\n\n⚠ ' + r.incompletas.length + ' gasto(s) con información incompleta NO pasaron (ver ⚠ en la columna V°B° Factura de Gastos):\n' +
+    ? '\n\n⚠ ' + r.incompletas.length + ' gasto(s) con información incompleta NO pasaron (ver ⚠ en la columna «Datos faltantes» de Gastos):\n' +
       r.incompletas.slice(0, 5).map(x => '• ' + x.id + ': falta ' + x.falt.join(', ')).join('\n') + (r.incompletas.length > 5 ? '\n• …' : '')
     : '';
   function aplicarSincronizacion(r) {
