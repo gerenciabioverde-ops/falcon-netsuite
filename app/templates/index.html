@@ -1424,24 +1424,29 @@
     if (n === ins[1].value) return false;
     ins[1].value = n; ins[1].dataset.auto = n ? '1' : ''; return !!n;
   }
-  $id('anular-pasar').addEventListener('click', () => {       // cuadro de texto -> columna «ID interno» (sin repetir los que ya están) y el nombre se completa solo
+  $id('anular-pasar').addEventListener('click', () => {       // cuadro de texto -> columna «ID interno» (sin repetir los que ya están); si la línea trae «ID  Nombre» el nombre también pasa
     const caja = $id('anular-pegar'), est = $id('anular-estado'), tb = cuerpo('anular proveedor');
     const existentes = new Set([...tb.rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
-    const ids = []; let ignorados = 0, repetidos = 0;
+    const ids = [], nombres = {}; let ignorados = 0, repetidos = 0;
     caja.value.split(/\r?\n/).forEach(linea => {
-      const toks = linea.split(/[\s,;]+/).filter(Boolean);
+      const m = /^\s*(\d+)(?:[\s,;]+(.*))?$/.exec(linea), toks = linea.split(/[\s,;]+/).filter(Boolean);
       if (!toks.length) return;
-      const sel = toks.every(t => /^\d+$/.test(t)) ? toks : (/^\d+$/.test(toks[0]) ? [toks[0]] : []);       // línea con puros números: todos; si trae texto: solo el primero si es número
-      if (!sel.length) { ignorados++; return; }
-      sel.forEach(t => { if (existentes.has(t) || ids.includes(t)) repetidos++; else ids.push(t); });
+      if (toks.every(t => /^\d+$/.test(t))) toks.forEach(t => { if (existentes.has(t) || ids.includes(t)) repetidos++; else ids.push(t); });       // línea con puros números: todos son ID
+      else if (m) {       // «ID  Nombre»: el primer número es el ID y lo demás es el nombre
+        const id = m[1], nom = (m[2] || '').trim(); if (nom) nombres[id] = nom;
+        if (existentes.has(id) || ids.includes(id)) repetidos++; else ids.push(id);
+      } else ignorados++;
     });
+    let nomPuestos = 0;
+    [...tb.rows].forEach(tr => { const v = tr.querySelectorAll('input'), id = v[0].value.trim(); if (id && nombres[id] && (!v[1].value.trim() || v[1].dataset.auto === '1')) { v[1].value = nombres[id]; v[1].dataset.auto = ''; nomPuestos++; } });       // los ID que ya estaban sin nombre lo reciben
     if (ids.length) {
       [...tb.rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
-      ids.forEach(id => nuevaFila('anular proveedor', [id, '']));
-      renumerar('anular proveedor'); completarAnular(); contadores(); guardar(); caja.value = '';
+      ids.forEach(id => nuevaFila('anular proveedor', [id, nombres[id] || '']));
+      renumerar('anular proveedor');
     }
-    est.textContent = ids.length + ' ID agregado(s)' + (repetidos ? ' · ' + repetidos + ' repetido(s) omitido(s)' : '') + (ignorados ? ' · ' + ignorados + ' línea(s) sin número omitida(s)' : '') + '.';
-    est.style.color = ids.length ? '#15803d' : '#b45309';
+    if (ids.length || nomPuestos) { completarAnular(); contadores(); guardar(); caja.value = ''; }
+    est.textContent = ids.length + ' ID agregado(s)' + (nomPuestos ? ' · ' + nomPuestos + ' nombre(s) completados' : '') + (repetidos ? ' · ' + repetidos + ' repetido(s) omitido(s)' : '') + (ignorados ? ' · ' + ignorados + ' línea(s) sin número omitida(s)' : '') + '.';
+    est.style.color = ids.length || nomPuestos ? '#15803d' : '#b45309';
   });
   $id('anular-nombres').addEventListener('click', () => $id('archivo-anular-nombres').click());
   $id('archivo-anular-nombres').addEventListener('change', async ev => {
