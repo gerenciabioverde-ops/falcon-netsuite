@@ -1002,23 +1002,40 @@
     const filas = leerCsvNetSuite(await archivo.text()), enc = (filas[0] || []).map(quitarTildes);
     const col = (...nombres) => enc.findIndex(c => nombres.includes(c));
     const iId = col('id interno', 'internal id'), iExt = col('id externo', 'external id', 'externalid'), iFe = col('fecha', 'date'), iNo = col('nombre', 'name'),
-      iImp = col('importe (moneda extranjera)', 'amount (foreign currency)'), iMo = col('moneda', 'currency'), iEs = col('estado', 'status'), iNt = col('numero de transaccion', 'transaction number');
+      iImp = col('importe (moneda extranjera)', 'amount (foreign currency)'), iMo = col('moneda', 'currency'), iEs = col('estado', 'status'), iNt = col('numero de transaccion', 'transaction number'), iDoc = col('numero de documento', 'document number');
     if (iId < 0) { estadoGrilla('El CSV debe tener la columna «ID interno» (export de facturas de proveedor de NetSuite).', '#b91c1c'); return; }
     const gastos = [...cuerpo('gastos').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value)).filter(f => f.some(v => v.trim()));
     const cG = n => porClave.gastos.columnas.findIndex(c => c.nombre === n), cP = n => porClave.proveedores.columnas.findIndex(c => c.nombre === n);
-    const nuevos = {}, nuevosNum = {}; let ok = 0, sinCoin = 0, ambiguas = 0, porOrden = 0;
+    const nuevos = {}, nuevosNum = {}; let ok = 0, sinCoin = 0, ambiguas = 0, porOrden = 0, porDoc = 0;
     const filasNS = filas.slice(1).filter(f => /^\d+$/.test((f[iId] || '').trim()) && !(iEs >= 0 && /cancelad|void/i.test(f[iEs] || '')));
     if (iExt >= 0) {       // con «ID externo»: relación exacta por el ID del comprobante
       const mapa = {}; filasNS.forEach(f => { const ex = (f[iExt] || '').trim(); if (ex) mapa[ex] = { id: f[iId].trim(), num: iNt >= 0 ? (f[iNt] || '').trim() : '' }; });
       gastos.forEach(g => { const id = (g[0] || '').trim() || idGasto(g); if (mapa[id]) { nuevos[id] = mapa[id].id; nuevosNum[id] = mapa[id].num; ok++; } else sinCoin++; });
     } else {       // sin «ID externo»: fecha + proveedor + importe + moneda
-      if (iFe < 0 || iNo < 0 || iImp < 0) { estadoGrilla('Sin «ID externo» el CSV necesita «Fecha», «Nombre» e «Importe (moneda extranjera)». Agrega «ID externo» a la vista de NetSuite para una relación exacta.', '#b91c1c'); return; }
+      if (iDoc < 0 && (iFe < 0 || iNo < 0 || iImp < 0)) { estadoGrilla('Sin «ID externo» el CSV necesita «Número de documento» (o «Fecha», «Nombre» e «Importe (moneda extranjera)»). Agrega «ID externo» a la vista de NetSuite para una relación exacta.', '#b91c1c'); return; }
+      // 1.º por el número de documento (N° de referencia: «FA E001-1258», «002-0012099»): no depende del importe, que en Gastos puede ser el de una sola línea del comprobante
+      const resueltos = new Set();
+      if (iDoc >= 0) {
+        const porRef = {}; filasNS.forEach(f => { const d = (f[iDoc] || '').trim(); if (d) (porRef[d] = porRef[d] || []).push(f); });
+        const nomProvR = {}; [...cuerpo('proveedores').rows].forEach(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); const r = (v[cP('Latam - Tax Reg Number')] || '').trim(); if (r) nomProvR[r] = [v[cP('Nombre de la empresa')], ((v[cP('Nombres')] || '') + ' ' + (v[cP('Apellidos')] || '')).trim(), ((v[cP('Apellidos')] || '') + ' ' + (v[cP('Nombres')] || '')).trim()]; });
+        gastos.forEach(g => {
+          const id = (g[0] || '').trim() || idGasto(g); if (!id || resueltos.has(id)) return;
+          let c = porRef[numeroReferencia(g[cG('Tipo Doc')], g[cG('Serie-Numero')])] || [];
+          if (c.length > 1) {       // el mismo número en varios proveedores: se distingue por el nombre
+            const nombres = [g[cG('Razon Social')], ...(nomProvR[(g[cG('RUC')] || '').trim()] || [])].map(normNombreNS).filter(Boolean);
+            c = c.filter(f => iNo >= 0 && nombres.includes(normNombreNS(f[iNo])));
+          }
+          if (c.length === 1) { nuevos[id] = c[0][iId].trim(); nuevosNum[id] = iNt >= 0 ? (c[0][iNt] || '').trim() : ''; resueltos.add(id); ok++; porDoc++; }
+        });
+      }
+      if (iFe < 0 || iNo < 0 || iImp < 0) { sinCoin += gastos.filter(g => { const id = (g[0] || '').trim() || idGasto(g); return id && !resueltos.has(id); }).length; Object.assign(idsFacturaNS, nuevos); Object.assign(numFacturaNS, nuevosNum); guardar(); vistoBuenoFactura(); estadoGrilla(ok + ' factura(s) con su ID interno (por número de documento)' + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia' : '') + '.', sinCoin ? '#b45309' : '#15803d'); return; }
       const ns = {};       // clave -> [ID interno]
       filasNS.forEach(f => { const m = montoNS(f[iImp]); if (m == null) return; const k = [fechaISO(f[iFe]), (f[iMo] || '').trim().toUpperCase(), m.toFixed(2), normNombreNS(f[iNo])].join('|'); (ns[k] = ns[k] || []).push({ id: f[iId].trim(), num: iNt >= 0 ? (f[iNt] || '').trim() : '' }); });
       const nomProv = {}; [...cuerpo('proveedores').rows].forEach(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); const r = (v[cP('Latam - Tax Reg Number')] || '').trim(); if (r) nomProv[r] = [v[cP('Nombre de la empresa')], ((v[cP('Nombres')] || '') + ' ' + (v[cP('Apellidos')] || '')).trim(), ((v[cP('Apellidos')] || '') + ' ' + (v[cP('Nombres')] || '')).trim()]; });
       const grupos = {};       // gastos que comparten clave (mismo día, proveedor, importe y moneda)
       gastos.forEach(g => {
-        const id = (g[0] || '').trim() || idGasto(g), fe = fechaISO(g[cG('Fecha Factura')]), mo = (MONEDA_NS[(g[cG('Moneda')] || '').toUpperCase()] || g[cG('Moneda')] || '').toUpperCase(), m = montoNS(g[cG('Total')]);
+        const id = (g[0] || '').trim() || idGasto(g); if (resueltos.has(id)) return;
+        const fe = fechaISO(g[cG('Fecha Factura')]), mo = (MONEDA_NS[(g[cG('Moneda')] || '').toUpperCase()] || g[cG('Moneda')] || '').toUpperCase(), m = montoNS(g[cG('Total')]);
         if (!id || m == null) return;
         const nombres = [g[cG('Razon Social')], ...(nomProv[(g[cG('RUC')] || '').trim()] || [])].map(normNombreNS).filter(Boolean);
         const k = nombres.map(n => [fe, mo, m.toFixed(2), n].join('|')).find(k => ns[k]) || [fe, mo, m.toFixed(2), nombres[0] || ''].join('|');
@@ -1043,7 +1060,7 @@
       Object.keys(idsFacturaNS).forEach(k => { const n = numPorId[idsFacturaNS[k]]; if (n && numFacturaNS[k] !== n) { numFacturaNS[k] = n; completados++; } });
     }
     guardar(); vistoBuenoFactura();
-    estadoGrilla(ok + ' factura(s) con su ID interno' + (porOrden ? ' (' + porOrden + ' relacionadas por orden: facturas iguales el mismo día)' : '') + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
+    estadoGrilla(ok + ' factura(s) con su ID interno' + (porDoc ? ' (' + porDoc + ' por número de documento)' : '') + (porOrden ? ' (' + porOrden + ' relacionadas por orden: facturas iguales el mismo día)' : '') + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
   });
 
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
