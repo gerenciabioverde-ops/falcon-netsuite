@@ -136,6 +136,7 @@
           </div>
         </div>
         </div>{% endif %}
+        <div class="resumen-mon hidden flex flex-wrap gap-2 text-sm"></div>
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
@@ -622,10 +623,51 @@
     vistoBuenoFactura();
     document.querySelectorAll('.tab').forEach(b => { if (b.querySelector('.contador')) contarTab(b.dataset.tab); });
   }
+  // Totales por moneda de las filas visibles de cada pestaña (cuánto se está contabilizando en SOL y en USD)
+  const RESUMEN_MON = {
+    'factura de proveedor': {mon: 'Moneda', imp: ['Gastos: Importe', 'Artículos: Importe']},
+    'factura de cliente': {mon: 'Moneda', imp: ['Artículos: Importe']},
+    'nota de credito cliente': {mon: 'Moneda', imp: ['Artículos: Importe']},
+    'gastos': {mon: 'Moneda', imp: ['Total'], doc: null},
+    'pago proveedor': {mon: 'CURRENCY', imp: ['PAYMENT']},
+    'pago de factura de cliente': {mon: 'CURRENCY', imp: ['Pago']},
+    'asiento': {mon: 'Currency', imp: ['Debit']},
+    'bancos mn': {fija: 'SOL', imp: ['Ingreso', 'Egreso'], doc: null},
+    'bancos me': {fija: 'USD', imp: ['Ingreso', 'Egreso'], doc: null},
+  };
+  const aNumero = v => { let t = String(v || '').replace(/[^\d.,-]/g, ''); if (t.includes(',') && t.includes('.')) t = t.replace(/,/g, ''); else if (t.includes(',')) t = t.replace(',', '.'); const n = parseFloat(t); return isNaN(n) ? 0 : n; };
+  const fmtMonto = n => n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  function resumenMoneda(k) {
+    const cfg = RESUMEN_MON[k], p = porClave[k], box = cfg && panel(k).querySelector('.resumen-mon');
+    if (!box || !p) return;
+    const ix = n => p.columnas.findIndex(c => c.nombre === n), iM = cfg.mon ? ix(cfg.mon) : -1, iI = cfg.imp.map(ix);
+    const tot = {}, docs = {}, ultima = {};      // tot[moneda][columna importe] · documentos distintos (mismo ID = un solo documento)
+    [...cuerpo(k).rows].forEach(tr => {
+      if (tr.style.display === 'none') return;
+      const v = [...tr.querySelectorAll('input')].map(i => i.value.trim());
+      if (!v.some(x => x)) return;
+      const id = cfg.doc === null ? '' : v[0];
+      let m = cfg.fija || (iM >= 0 ? v[iM].toUpperCase() : '');
+      if (!cfg.fija) { if (!m && id && ultima[id]) m = ultima[id]; if (m && id) ultima[id] = m; m = /USD|DOL|US\$/.test(m) ? 'USD' : (/SOL|PEN|S\//.test(m) || !m ? (m ? 'SOL' : 'Sin moneda') : m); }
+      const t = tot[m] = tot[m] || cfg.imp.map(() => 0); iI.forEach((i, j) => { if (i >= 0) t[j] += aNumero(v[i]); });
+      (docs[m] = docs[m] || new Set()).add(id || Math.random());
+    });
+    const orden = Object.keys(tot).sort((a, b) => (a === 'SOL' ? -1 : b === 'SOL' ? 1 : a === 'USD' ? -1 : b === 'USD' ? 1 : a.localeCompare(b)));
+    box.innerHTML = ''; box.classList.toggle('hidden', !orden.length);
+    orden.forEach(m => {
+      const chip = document.createElement('span'), simb = m === 'USD' ? 'US$' : m === 'SOL' ? 'S/' : '';
+      chip.className = 'border rounded px-2 py-1 ' + (m === 'USD' ? 'bg-sky-50 border-sky-300 text-sky-900' : m === 'SOL' ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-amber-50 border-amber-300 text-amber-900');
+      const partes = cfg.imp.map((n, j) => (cfg.imp.length > 1 && k.startsWith('bancos') ? n + ' ' : '') + simb + ' ' + fmtMonto(tot[m][j])).filter((x, j) => k.startsWith('bancos') || j === 0 || tot[m][j]);
+      chip.innerHTML = '<strong>' + m + '</strong>: ' + docs[m].size + ' ' + (k.startsWith('bancos') ? 'movimientos' : 'documentos') + ' · ' + partes.join(' + ');
+      chip.title = 'Suma de las filas visibles (respeta filtros y búsqueda) en ' + m;
+      box.appendChild(chip);
+    });
+  }
   // Número junto al nombre de la pestaña: filas con datos; si hay filtros o búsqueda activos, «visibles / total» (cuántas se están seleccionando)
   function contarTab(k) {
     const b = document.querySelector('.tab[data-tab="' + k + '"]'), c = b && b.querySelector('.contador');
     if (!c || !porClave[k]) return;
+    resumenMoneda(k);
     const filas = [...cuerpo(k).rows].filter(tr => [...tr.querySelectorAll('input')].some(i => i.value.trim()));
     if (k === 'gastos' && pendGastos !== null) {       // Gastos: «pendientes / total» (pendiente = aún sin N° Transacción de NetSuite)
       c.textContent = pendGastos + ' / ' + filas.length; c.classList.toggle('hidden', filas.length === 0);
