@@ -98,7 +98,8 @@
           <input type="search" class="buscar-grilla border rounded px-3 py-1.5 w-96 max-w-full" placeholder="🔎 Buscar en {{ p.nombre }}: escribe cualquier dato (RUC, nombre, serie, importe, ID…)" title="Muestra solo las filas que contienen todas las palabras escritas (sin distinguir mayúsculas ni tildes). Solo cambia lo que ves: no afecta a lo que se genera">
           <span class="buscar-estado text-xs text-slate-500"></span>
         </div>
-        <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;">
+        {% if p.clave == 'anular proveedor' %}<div class="flex gap-4 items-start">{% endif %}
+        <div class="caja-grilla overflow-auto border rounded" style="height: calc(100vh - 24rem); min-height: 16rem;{% if p.clave == 'anular proveedor' %} flex: 0 1 auto; max-width: 55%;{% endif %}">
           <table class="grilla border-collapse text-left">
             <thead><tr>
               <th>#</th>
@@ -116,6 +117,16 @@
             <tbody></tbody>
           </table>
         </div>
+        {% if p.clave == 'anular proveedor' %}
+        <div class="flex-1 text-sm space-y-2" style="min-width: 16rem; max-width: 28rem;">
+          <label for="anular-pegar" class="font-semibold">Pegar ID interno como texto</label>
+          <textarea id="anular-pegar" rows="10" class="w-full border rounded px-2 py-1.5 font-mono text-sm" placeholder="Pega aquí los ID interno (uno por línea, o separados por coma, espacio o tabulación). Ejemplo:&#10;298701&#10;298705&#10;298706"></textarea>
+          <div class="flex items-center gap-2">
+            <button type="button" id="anular-pasar" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Agrega los ID de este cuadro a la columna «ID interno» (los repetidos y los que ya están no se duplican) y completa el nombre">⬅ Pasar a la tabla</button>
+            <span id="anular-estado" class="text-xs text-slate-600"></span>
+          </div>
+        </div>
+        </div>{% endif %}
         <div class="flex gap-2 text-sm">
           <button type="button" class="btn-fila border rounded px-3 py-1.5 hover:bg-slate-50">+ Agregar fila</button>
           <button type="button" class="btn-cargar border rounded px-3 py-1.5 bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100">⬆ Cargar Excel / CSV</button>
@@ -1404,6 +1415,25 @@
     if (n === ins[1].value) return false;
     ins[1].value = n; ins[1].dataset.auto = n ? '1' : ''; return !!n;
   }
+  $id('anular-pasar').addEventListener('click', () => {       // cuadro de texto -> columna «ID interno» (sin repetir los que ya están) y el nombre se completa solo
+    const caja = $id('anular-pegar'), est = $id('anular-estado'), tb = cuerpo('anular proveedor');
+    const existentes = new Set([...tb.rows].map(tr => tr.querySelector('input').value.trim()).filter(Boolean));
+    const ids = []; let ignorados = 0, repetidos = 0;
+    caja.value.split(/\r?\n/).forEach(linea => {
+      const toks = linea.split(/[\s,;]+/).filter(Boolean);
+      if (!toks.length) return;
+      const sel = toks.every(t => /^\d+$/.test(t)) ? toks : (/^\d+$/.test(toks[0]) ? [toks[0]] : []);       // línea con puros números: todos; si trae texto: solo el primero si es número
+      if (!sel.length) { ignorados++; return; }
+      sel.forEach(t => { if (existentes.has(t) || ids.includes(t)) repetidos++; else ids.push(t); });
+    });
+    if (ids.length) {
+      [...tb.rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
+      ids.forEach(id => nuevaFila('anular proveedor', [id, '']));
+      renumerar('anular proveedor'); completarAnular(); contadores(); guardar(); caja.value = '';
+    }
+    est.textContent = ids.length + ' ID agregado(s)' + (repetidos ? ' · ' + repetidos + ' repetido(s) omitido(s)' : '') + (ignorados ? ' · ' + ignorados + ' línea(s) sin número omitida(s)' : '') + '.';
+    est.style.color = ids.length ? '#15803d' : '#b45309';
+  });
   function completarAnular() { let c = 0; [...cuerpo('anular proveedor').rows].forEach(tr => { if (completarNombreAnular(tr)) c++; }); if (c) guardar(); return c; }
   // ---- Pestaña «CSV Anular Proveedor»: ID interno + Inactivo = T de los proveedores de la pestaña «Anular proveedor» (se arma en el navegador) ----
   function vistaAnular() {
