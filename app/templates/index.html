@@ -1006,6 +1006,13 @@
 
   // ---- Gastos: cargar el ID interno de las facturas ya registradas en NetSuite (export CSV) ----
   const normNombreNS = t => quitarTildes(String(t || '').toLowerCase()).replace(/[^a-z0-9]+/g, ' ').trim();
+  // ¿El nombre de NetSuite es el mismo proveedor que alguno de los nombres de Falcon? (NetSuite corta los nombres largos y a veces cambia tildes/símbolos: se acepta igual si comparten una palabra de 3+ letras)
+  const PALABRAS_GENERICAS = new Set(['sac', 'eirl', 'srl', 'scrl', 'sa', 'ltda', 'del', 'los', 'las', 'por', 'cia']);
+  function mismoProveedorNS(nombresFalcon, x) {
+    const toks = t => t.split(' ').filter(w => w.length >= 3 && !PALABRAS_GENERICAS.has(w));
+    const tx = new Set(toks(x));
+    return nombresFalcon.some(n => n === x || (n.length >= 25 && x.startsWith(n.slice(0, 25))) || (x.length >= 25 && n.startsWith(x.slice(0, 25))) || toks(n).some(w => tx.has(w)));
+  }
   function fechaISO(t) { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(t || '').trim()); if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); const n = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t || '').trim()); return n ? n[0] : ''; }
   function montoNS(t) {       // «S/. 334,00», «$230,185.64», «€1 432,19» -> número
     const x = String(t == null ? '' : t).replace(/[^\d.,-]/g, ''); if (!/\d/.test(x)) return null;
@@ -1040,8 +1047,7 @@
           let c = porRef[numeroReferencia(g[cG('Tipo Doc')], g[cG('Serie-Numero')])] || [];
           if (c.length && iNo >= 0) {       // el mismo número lo pueden tener proveedores distintos: la factura de NetSuite debe ser del mismo proveedor (aunque sea una sola; si es de otro, no se relaciona)
             const nombres = [g[cG('Razon Social')], ...(nomProvR[(g[cG('RUC')] || '').trim()] || [])].map(normNombreNS).filter(Boolean);
-            const mismo = x => nombres.some(n => n === x || (n.length >= 25 && x.startsWith(n.slice(0, 25))) || (x.length >= 25 && n.startsWith(x.slice(0, 25))));       // NetSuite corta los nombres largos
-            c = c.filter(f => mismo(normNombreNS(f[iNo])));
+            c = c.filter(f => mismoProveedorNS(nombres, normNombreNS(f[iNo])));
           }
           if (c.length === 1) { nuevos[id] = c[0][iId].trim(); nuevosNum[id] = iNt >= 0 ? (c[0][iNt] || '').trim() : ''; resueltos.add(id); ok++; porDoc++; }
         });
@@ -1071,6 +1077,18 @@
       });
     }
     Object.assign(idsFacturaNS, nuevos); Object.assign(numFacturaNS, nuevosNum);
+    // un ID guardado antes que en NetSuite es de OTRO proveedor (mismo número de factura en dos proveedores): se descarta
+    let descartados = 0;
+    if (iNo >= 0) {
+      const nsPorId = {}; filasNS.forEach(f => { nsPorId[f[iId].trim()] = normNombreNS(f[iNo]); });
+      const nomPorRuc = {}; [...cuerpo('proveedores').rows].forEach(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); const r = (v[cP('Latam - Tax Reg Number')] || '').trim(); if (r) nomPorRuc[r] = [v[cP('Nombre de la empresa')], ((v[cP('Nombres')] || '') + ' ' + (v[cP('Apellidos')] || '')).trim(), ((v[cP('Apellidos')] || '') + ' ' + (v[cP('Nombres')] || '')).trim()]; });
+      const nomsGasto = {}; gastos.forEach(g => { const id = (g[0] || '').trim() || idGasto(g); nomsGasto[id] = [g[cG('Razon Social')], ...(nomPorRuc[(g[cG('RUC')] || '').trim()] || [])].map(normNombreNS).filter(Boolean); });
+      Object.keys(idsFacturaNS).forEach(k => {
+        const x = nsPorId[idsFacturaNS[k]], nombres = nomsGasto[k];
+        if (!x || !nombres || !nombres.length) return;
+        if (!mismoProveedorNS(nombres, x)) { delete idsFacturaNS[k]; delete numFacturaNS[k]; delete impFacturaNS[k]; descartados++; }
+      });
+    }
     // los que ya tenían ID interno (de una carga anterior, sin N° de transacción o ambiguos ahora) completan el N° por su ID interno
     let completados = 0;
     if (iNt >= 0) {
@@ -1082,7 +1100,7 @@
       Object.keys(idsFacturaNS).forEach(k => { const m = impPorId[idsFacturaNS[k]]; if (m != null) impFacturaNS[k] = m; });
     }
     guardar(); vistoBuenoFactura();
-    estadoGrilla(ok + ' factura(s) con su ID interno' + (porDoc ? ' (' + porDoc + ' por número de documento)' : '') + (porOrden ? ' (' + porOrden + ' relacionadas por orden: facturas iguales el mismo día)' : '') + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
+    estadoGrilla(ok + ' factura(s) con su ID interno' + (descartados ? ' · ' + descartados + ' ID descartado(s) por ser de otro proveedor' : '') + (porDoc ? ' (' + porDoc + ' por número de documento)' : '') + (porOrden ? ' (' + porOrden + ' relacionadas por orden: facturas iguales el mismo día)' : '') + (completados ? ' · ' + completados + ' completadas con su N° de transacción por su ID interno' : '') + (sinCoin ? ' · ' + sinCoin + ' sin coincidencia en NetSuite' : '') + (ambiguas ? ' · ' + ambiguas + ' ambiguas (facturas iguales el mismo día; agrega «ID externo» a la vista de NetSuite para relacionarlas con exactitud)' : '') + '.', sinCoin || ambiguas ? '#b45309' : '#15803d');
   });
 
   // Cuenta contable de Gastos: Cuenta PCGE (se elige) -> Cuenta NetSuite (ID interno, según «Cuentas homologadas»)
