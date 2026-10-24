@@ -105,6 +105,7 @@
             <thead><tr>
               <th>#</th>
               {% if p.clave in ['bancos mn', 'bancos me'] %}<th title="Solo para ver: ID interno de la factura en NetSuite, tomado de «CSV Factura de Proveedor» (se busca por RUC + serie-número del comprobante). Es el que pasa a BILL en Pago Proveedor">ID Interno Factura</th>{% endif %}
+              {% if p.clave == 'liquidaciones' %}<th title="Solo para ver: ID de NetSuite del proveedor (por DNI/RUC, en la pestaña Proveedores). «⚠ no registrado» = clic para crearlo; «⚠ sin ID» = falta cargar su ID">ID Proveedor</th><th title="Solo para ver: ID interno de la factura en NetSuite (se carga en Gastos con «🔗 Cargar ID interno de facturas»; las liquidaciones pasan a Gastos con el botón verde). «⚠ sin ID» = ya está en Factura de Proveedor pero aún sin ID">ID Interno Factura</th><th title="Solo para ver: número de transacción de la factura en NetSuite (VENDBILL…), según el export cargado">N° Transacción</th><th title="Importe contabilizado de la factura en NetSuite (con IGV), según el export cargado">Importe NetSuite</th><th title="Compara el importe de NetSuite con el total de la L.C. en Falcon: ✔ = coincide · ⚠ ×N = N veces el importe · ✖ = difiere">Verif. importe</th>{% endif %}
               {% if p.clave == 'factura de proveedor' %}<th title="Marca las facturas que quieres actualizar en NetSuite: con el filtro «Solo marcadas» el CSV baja solo con ellas. Clic aquí para marcar o desmarcar todas las filas visibles"><span id="chk-todas" style="cursor:pointer">☐ Actualizar</span></th>{% endif %}
               {% if p.clave == 'factura de proveedor' %}<th title="Solo para ver (no va en el CSV): N° de referencia de la factura en NetSuite = tipo de documento + serie + número, p. ej. FA E001-1258">N° Referencia</th>{% endif %}
               {% if p.clave == 'gastos' %}<th title="⚠ = a este gasto le falta información y no pasa a Factura de Proveedor (pasa el cursor para ver qué falta). Vacío = sin problemas">Datos faltantes</th>{% endif %}
@@ -427,6 +428,7 @@
     n.append(num, bEd);
     tr.appendChild(n);
     if (clave === 'bancos mn' || clave === 'bancos me') { const bi = document.createElement('td'); bi.className = 'idfb'; bi.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem;white-space:nowrap'; tr.appendChild(bi); }
+    if (clave === 'liquidaciones') { ['idpl', 'idl', 'ntl', 'iml', 'vil'].forEach(k => { const t = document.createElement('td'); t.className = k; t.style.cssText = 'text-align:' + (k === 'iml' ? 'right' : 'center') + ';min-width:' + (k === 'vil' ? '6.5rem' : '8rem') + ';font-size:.8rem;white-space:nowrap;padding:0 6px' + (k === 'vil' ? ';font-weight:700' : ''); tr.appendChild(t); }); }
     if (clave === 'factura de proveedor') { const mk = document.createElement('td'); mk.className = 'chk'; mk.textContent = '☐'; mk.style.cssText = 'text-align:center;cursor:pointer;font-size:1.1rem;min-width:5.5rem;user-select:none'; mk.title = 'Marcar esta factura para actualizarla en NetSuite'; tr.appendChild(mk); }
     if (clave === 'factura de proveedor') { const rf = document.createElement('td'); rf.className = 'refn'; rf.style.cssText = 'white-space:nowrap;min-width:8rem;font-size:.8rem;padding:0 6px'; tr.appendChild(rf); }
     if (clave === 'gastos') { const vb = document.createElement('td'); vb.className = 'vb'; vb.style.cssText = 'text-align:center;font-weight:700;min-width:4.5rem'; tr.appendChild(vb); const ip = document.createElement('td'); ip.className = 'idp'; ip.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(ip); const idf = document.createElement('td'); idf.className = 'idf'; idf.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem'; tr.appendChild(idf); const nt = document.createElement('td'); nt.className = 'ntr'; nt.style.cssText = 'text-align:center;min-width:8rem;font-size:.8rem;white-space:nowrap'; tr.appendChild(nt); const im = document.createElement('td'); im.className = 'imn'; im.style.cssText = 'text-align:right;min-width:7rem;font-size:.8rem;white-space:nowrap;padding:0 6px'; tr.appendChild(im); const vi = document.createElement('td'); vi.className = 'vim'; vi.style.cssText = 'text-align:center;min-width:6.5rem;font-size:.8rem;font-weight:700;white-space:nowrap'; tr.appendChild(vi); }
@@ -482,7 +484,7 @@
   };
   // Buscador de cada hoja: muestra solo las filas que contienen todas las palabras escritas (cualquier columna, sin mayúsculas ni tildes)
   const normBusqueda = t => quitarTildes(String(t || '').toLowerCase());
-  const textoFila = tr => normBusqueda([...tr.querySelectorAll('input')].map(i => i.value).join(' ') + ' ' + [...tr.querySelectorAll('td.vb,td.idp,td.idf,td.ntr,td.imn,td.vim,td.idfb,td.refn,td.idcta,td.idfi,td.ntri')].map(td => td.textContent).join(' '));
+  const textoFila = tr => normBusqueda([...tr.querySelectorAll('input')].map(i => i.value).join(' ') + ' ' + [...tr.querySelectorAll('td.vb,td.idp,td.idf,td.ntr,td.imn,td.vim,td.idfb,td.idpl,td.idl,td.ntl,td.iml,td.vil,td.refn,td.idcta,td.idfi,td.ntri')].map(td => td.textContent).join(' '));
   function buscarEnGrilla(panel) {
     const clave = panel.dataset.hoja, q = normBusqueda(panel.querySelector('.buscar-grilla').value).split(/\s+/).filter(Boolean), filas = [...cuerpo(clave).rows];
     let n = 0;
@@ -623,6 +625,35 @@
         if (f.length) { vb.textContent = '⚠'; vb.style.color = '#b45309'; vb.title = (enFactura ? 'Ya está en Factura de Proveedor pero le falta: ' : 'No pasa a Factura de Proveedor: falta ') + f.join(', '); return; }
         vb.textContent = ''; vb.title = '';       // completo: sin marca (solo se muestra el ⚠ cuando falta algo)
       });
+      if (porClave.liquidaciones) {       // Liquidaciones: lo mismo que Gastos (ID del proveedor, ID interno y N° de la factura, importe y verificación), por DNI/RUC + serie-número
+        const cl = porClave.liquidaciones.columnas, ix = n => cl.findIndex(c => c.nombre === n), iR = ix('DNI/RUC'), iS = ix('Serie y N° COMP.'), iT = ix('S/ TOTAL L.C. Y/O FACTURAS'), iN = ix('NOMBRES Y APELLIDOS / RAZON SOCIAL');
+        const filasL = [...cuerpo('liquidaciones').rows].map(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); return { tr, v, cid: v[iS] && v[iS].trim() ? idComprobante(limpiarId(v[iR]), v[iS]) : '' }; });
+        const totL = {}; filasL.forEach(({ v, cid }) => { if (cid && montoNS(v[iT])) totL[cid] = montoNS(v[iT]); });       // el total de la L.C. viene en la primera fila de cada serie-número
+        filasL.forEach(({ tr, v, cid }) => {
+          const g = c => tr.querySelector('td.' + c); if (!g('idl')) return;
+          const ruc = (v[iR] || '').trim(), ip = g('idpl'), td = g('idl'), tn = g('ntl'), imn = g('iml'), vim = g('vil');
+          ip.style.cursor = ''; ip.onclick = null; ip.style.background = '';
+          if (!ruc) { ip.textContent = ''; ip.title = ''; }
+          else if (idsProv[ruc]) { ip.textContent = idsProv[ruc]; ip.style.color = '#15803d'; ip.title = 'ID de NetSuite del proveedor'; }
+          else if (ruc in idsProv) { ip.textContent = '⚠ sin ID'; ip.style.color = '#b45309'; ip.style.background = '#fef3c7'; ip.title = 'El proveedor está en la pestaña Proveedores pero sin ID de NetSuite (cargue el export con «Cargar ID de NetSuite»)'; }
+          else { ip.textContent = '⚠ no registrado'; ip.style.color = '#b91c1c'; ip.style.background = '#fee2e2'; ip.title = 'Este DNI/RUC no está en la pestaña Proveedores: clic para crear el proveedor'; ip.style.cursor = 'pointer'; ip.onclick = () => nuevoProveedorDesdeGasto(ruc, (v[iN] || '').trim(), null); }
+          const idi = cid ? idsFacturaNS[cid] : '';
+          td.style.background = ''; td.title = '';
+          if (idi) { td.textContent = idi; td.style.color = '#15803d'; td.title = 'ID interno de la factura en NetSuite'; }
+          else if (cid && ids.has(cid)) { td.textContent = '⚠ sin ID'; td.style.color = '#b45309'; td.style.background = '#fef3c7'; td.title = 'Ya está en Factura de Proveedor pero aún sin ID interno: cárgalo en Gastos con «🔗 Cargar ID interno de facturas»'; }
+          else td.textContent = '';
+          tn.textContent = (cid && numFacturaNS[cid]) || '';
+          const ns = cid ? impFacturaNS[cid] : null, fa = cid ? totL[cid] : null;
+          if (ns == null) { imn.textContent = ''; vim.textContent = ''; vim.title = ''; }
+          else {
+            imn.textContent = ns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const dif = ns - (fa || 0), k = fa ? ns / fa : 0;
+            if (fa != null && Math.abs(dif) <= 0.011) { vim.textContent = '✔'; vim.style.color = '#15803d'; vim.title = 'El importe de NetSuite coincide con el de la L.C. (' + fa.toFixed(2) + ')'; }
+            else if (fa && Math.round(k) >= 2 && Math.abs(k - Math.round(k)) < 0.01) { vim.textContent = '⚠ ×' + Math.round(k); vim.style.color = '#b45309'; vim.title = 'NetSuite tiene ' + Math.round(k) + ' veces el importe de la L.C. (' + fa.toFixed(2) + ')'; }
+            else { vim.textContent = '✖ difiere'; vim.style.color = '#b91c1c'; vim.title = 'NetSuite: ' + ns.toFixed(2) + ' · L.C.: ' + (fa == null ? 'sin total' : fa.toFixed(2)) + ' (diferencia ' + dif.toFixed(2) + ')'; }
+          }
+        });
+      }
       pendGastos = gTotal - gPasaron; contarTab('gastos');
     }, 250);
   }
