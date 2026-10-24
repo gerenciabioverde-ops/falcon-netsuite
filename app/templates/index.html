@@ -712,6 +712,7 @@
       const h = (datos.hojas && datos.hojas[p.clave]) || {}, bloq = h.bloqueadas || [];
       (h.filas || []).forEach((f, i) => nuevaFila(p.clave, f, bloq.includes(i)));
       if (p.clave === 'gastos') { [...cuerpo('gastos').rows].forEach(completarIdGasto); resincronizarCuentas(); }
+      if (p.clave === 'liquidaciones') aplicarDefectosLiq();       // completa las cuentas NetSuite de lo guardado
       if (p.clave === 'factura de proveedor') marcadasFP = new Set(Array.isArray(h.marcadas) ? h.marcadas : []);
       if (p.clave === 'gastos') { idsFacturaNS = Object.assign({}, h.ids_factura || {}); numFacturaNS = Object.assign({}, h.ids_factura_num || {}); impFacturaNS = Object.assign({}, h.ids_factura_imp || {}); }
       if (p.clave === 'factura de proveedor') [...cuerpo(p.clave).rows].forEach(tr => { const k = p.columnas.findIndex(c => c.nombre === 'Latam - Concepto Detracción'), i = tr.querySelectorAll('input')[k]; if (i && i.value.trim() === 'SIN DETRACCIÓN') i.value = ''; });
@@ -931,6 +932,8 @@
     Object.values(el).forEach(x => { x.addEventListener('change', guardarDef); x.addEventListener('input', guardarDef); });
   })();
   const defectosLiq = () => ({ cuenta: $id('liq-d-cuenta').value.trim(), depto: $id('liq-d-depto').value, imp: $id('liq-d-imp').value });
+  // Cuenta NetSuite (número del COA) de lo escrito en «Cuenta PCGE»: por el código de Falcon o, si ya se escribió el número del COA (1200.06), ese mismo
+  const nsDeLiq = cod => { const v = String(cod || '').trim(); return !v ? '' : (cuentaNS(v) || (tablaCuentas.some(x => coaDe(x) === v) ? v : '')); };
   // Llena en cada liquidación las columnas que necesita Factura de Proveedor: lo escrito a mano no se toca; lo propuesto (valores por defecto) se actualiza al cambiarlos
   function completarLiq(tr, def) {
     const ins = tr.querySelectorAll('input'), c = n => ins[colL(n)];
@@ -938,7 +941,7 @@
     let cambio = false;
     const poner = (n, val) => { const i = c(n); if (!val || !(!i.value.trim() || i.classList.contains('propuesta'))) return; if (i.value !== val) { i.value = val; cambio = true; } i.classList.add('propuesta'); };
     poner('Cuenta PCGE', def.cuenta); poner('Departamento', def.depto); poner('Código de impuesto', def.imp); poner('Cuenta por Pagar PCGE', pagarPorTipo('Liquidacion compra'));
-    [['Cuenta PCGE', 'Cuenta NetSuite'], ['Cuenta por Pagar PCGE', 'Cuenta por Pagar NetSuite']].forEach(([p, n]) => { const v = cuentaNS(c(p).value) || (c(p).value.trim() ? c(n).value : ''); if (c(n).value !== v) { c(n).value = v; cambio = true; } });
+    [['Cuenta PCGE', 'Cuenta NetSuite'], ['Cuenta por Pagar PCGE', 'Cuenta por Pagar NetSuite']].forEach(([p, n]) => { const v = nsDeLiq(c(p).value); if (c(n).value !== v) { c(n).value = v; cambio = true; } });
     return cambio;
   }
   function aplicarDefectosLiq() { const def = defectosLiq(); let cambio = false; [...cuerpo(LQ).rows].forEach(tr => { if (completarLiq(tr, def)) cambio = true; }); return cambio; }
@@ -968,7 +971,7 @@
       if (trG) {       // ya está en Gastos: solo se completan las celdas vacías (cuenta, departamento, impuesto)
         const ins = trG.querySelectorAll('input'); let cambio = false;
         [['Cuenta PCGE', cuenta], ['Departamento', depto], ['Código de impuesto', imp], ['Cuenta por Pagar PCGE', pagar]].forEach(([n, val]) => { if (val && !ins[colG(n)].value.trim()) { ins[colG(n)].value = val; cambio = true; } });
-        if (cambio) { sincronizarNS(trG); completarIdGasto(trG); r.completadas++; } else r.yaEstan++;
+        if (cambio) { if (cuentaNS(ins[colG('Cuenta PCGE')].value)) sincronizarNS(trG); else if (!ins[colG(COL_NS)].value.trim()) ins[colG(COL_NS)].value = nsDeLiq(ins[colG('Cuenta PCGE')].value); completarIdGasto(trG); r.completadas++; } else r.yaEstan++;
         return;
       }
       const total = numero(ls.map(l => l[colL('S/ TOTAL L.C. Y/O FACTURAS')]).find(t => numero(t) > 0)) || ls.reduce((t, l) => t + numero(l[colL('TOTAL DOCUMENTO DE RECEPCION')]), 0);
@@ -989,7 +992,7 @@
     if (nuevas.length) {
       [...cuerpo(GF).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
       nuevas.forEach(f => nuevaFila(GF, f, true));
-      [...cuerpo(GF).rows].slice(-nuevas.length).forEach(tr => { sincronizarNS(tr); completarIdGasto(tr); });
+      [...cuerpo(GF).rows].slice(-nuevas.length).forEach(tr => { const ins = tr.querySelectorAll('input'), pc = ins[colG('Cuenta PCGE')].value; if (cuentaNS(pc)) sincronizarNS(tr); else ins[colG(COL_NS)].value = nsDeLiq(pc); completarIdGasto(tr); });
       renumerar(GF);
     }
     r.nuevas = nuevas.length; contadores(); guardar();
