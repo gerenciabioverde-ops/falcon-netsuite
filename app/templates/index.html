@@ -638,7 +638,11 @@
   });
 
   document.addEventListener('input', ev => {
-    if (ev.target.closest && ev.target.closest('.grilla')) { guardar(); contadores(); }
+    if (ev.target.closest && ev.target.closest('.grilla')) {
+      const pn = ev.target.closest('.panel');
+      if (pn && pn.dataset.hoja === 'anular proveedor' && ev.target.dataset.col === '0') completarNombreAnular(ev.target.closest('tr'));       // al digitar el ID interno aparece el nombre
+      guardar(); contadores();
+    }
   });
   // fila seleccionada: la última en la que se hizo clic o se enfocó una celda (queda marcada aunque se pulse otro botón)
   document.addEventListener('focusin', ev => {
@@ -661,6 +665,7 @@
       const t = tipoProveedor(v('Nombre de la empresa'), v('Nombres'), v('Apellidos'), v('Latam - Tax Reg Number'));
       if (t) { ii[cs.findIndex(c => c.nombre === 'Tipo')].value = t; if (t === 'Individual') completarNombresProv(i.closest('tr'), cs, ii); }
     }
+    if (clave === 'anular proveedor' && col && col.nombre === 'ID interno') completarNombreAnular(i.closest('tr'));
     aplicarDefectos(clave, i.closest('tr'), i); guardar();
   });
 
@@ -1330,6 +1335,7 @@
     ['border-blue-700', 'text-blue-800', 'font-semibold'].forEach(c => bi.classList.toggle(c, enInfo)); bi.classList.toggle('border-transparent', !enInfo);
     if (enInfo) ultimaInfo = clave;
     document.getElementById('barra-grilla').classList.toggle('hidden', clave === 'cuentas' || clave === 'csvprov' || clave === 'csvanular');
+    if (clave === 'anular proveedor') completarAnular();
     if (vistasCsv[clave]) vistasCsv[clave]();
     try { sessionStorage.setItem('falcon-netsuite-tab', clave); } catch (e) {}
     ajustarAlto();
@@ -1381,8 +1387,27 @@
     $id(pf + '-solo-errores').addEventListener('change', () => { if (datos) pintar(); });
     return cargar;
   }
+  // ---- Anular proveedor: al digitar el ID interno aparece el nombre (Razón Social de la pestaña Gastos, por el RUC del proveedor con ese ID) ----
+  function nombrePorIdAnular(id) {
+    id = String(id || '').trim(); if (!id) return '';
+    const cp = porClave.proveedores.columnas, ip = n => cp.findIndex(c => c.nombre === n);
+    const prov = [...cuerpo('proveedores').rows].map(tr => [...tr.querySelectorAll('input')].map(i => i.value)).find(v => (v[ip('External ID')] || '').trim() === id);
+    if (!prov) return '';
+    const ruc = (prov[ip('Latam - Tax Reg Number')] || '').trim(), cg = porClave.gastos.columnas, iR = cg.findIndex(c => c.nombre === 'RUC'), iS = cg.findIndex(c => c.nombre === 'Razon Social');
+    if (ruc) for (const tr of cuerpo('gastos').rows) { const v = tr.querySelectorAll('input'); if (v[iR] && v[iR].value.trim() === ruc && v[iS] && v[iS].value.trim()) return v[iS].value.trim(); }
+    return (prov[ip('Nombre de la empresa')] || '').trim() || ((prov[ip('Nombres')] || '') + ' ' + (prov[ip('Apellidos')] || '')).trim();       // si no está en Gastos: el nombre de la pestaña Proveedores
+  }
+  function completarNombreAnular(tr) {       // el nombre se llena solo si está vacío o si lo puso esta misma función (al cambiar el ID se actualiza; lo que escribes tú no se pisa)
+    const ins = tr.querySelectorAll('input'); if (ins.length < 2) return false;
+    if (ins[1].value.trim() && ins[1].dataset.auto !== '1') return false;
+    const n = nombrePorIdAnular(ins[0].value);
+    if (n === ins[1].value) return false;
+    ins[1].value = n; ins[1].dataset.auto = n ? '1' : ''; return !!n;
+  }
+  function completarAnular() { let c = 0; [...cuerpo('anular proveedor').rows].forEach(tr => { if (completarNombreAnular(tr)) c++; }); if (c) guardar(); return c; }
   // ---- Pestaña «CSV Anular Proveedor»: ID interno + Inactivo = T de los proveedores de la pestaña «Anular proveedor» (se arma en el navegador) ----
   function vistaAnular() {
+    completarAnular();
     const filas = leer('anular proveedor', true), ids = [], repetidos = new Set(), malos = [], vistos = new Set();
     filas.forEach((f, i) => {
       const id = (f[0] || '').trim(); if (!id) return;
@@ -1631,6 +1656,10 @@
   document.getElementById('mf-cancelar').addEventListener('click', () => terminarFila(false));
   document.getElementById('mf-ant').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx - 1); });
   document.getElementById('mf-sig').addEventListener('click', () => { guardarFila(); abrirFila(mClave, mIdx + 1); });
+  document.getElementById('mf-campos').addEventListener('input', ev => {       // Anular proveedor: al digitar el ID interno aparece el nombre
+    if (mClave !== 'anular proveedor' || ev.target.dataset.col !== '0') return;
+    const nom = camposModal()[1]; if (nom && (!nom.value.trim() || nom.dataset.auto === '1')) { nom.value = nombrePorIdAnular(ev.target.value); nom.dataset.auto = nom.value ? '1' : ''; }
+  });
   document.getElementById('mf-auto').addEventListener('click', async () => {
     const d = await consultarFila(); if (!d) return;
     const ins = camposModal();
