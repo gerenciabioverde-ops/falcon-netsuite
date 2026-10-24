@@ -172,6 +172,8 @@ LIQUIDACIONES_ENCABEZADOS = [
     "DNI SOCIO", "NOMBRES SOCIO", "TIPO DE CAFÉ", "P.TAZA", "RDTO FISICO", "QQ NETOS", "KILOS NETOS", "P.U. S/", "TOTAL DOCUMENTO DE RECEPCION",
     "S/ TOTAL L.C. Y/O FACTURAS", "TIPO DE PAGO", "N° OPERACIÓN BANCO", "RESPUESTA SUNAT", "RESPUESTA VALIDEZ",    "Cuenta PCGE", "Cuenta NetSuite", "Cuenta por Pagar PCGE", "Cuenta por Pagar NetSuite", "Departamento", "Código de impuesto",      # los que necesita Factura de Proveedor (van al gasto); vacíos = los valores por defecto del panel
 ]
+# Orden de columnas distinto al de la plantilla (diseño 2 de Pago Proveedor: BILL y PAYMENT junto al beneficiario, como se llenan en NetSuite)
+ORDEN_COLUMNAS = {"Pago Proveedor": ["ExternalID", "A/P ACCOUNT", "Beneficiario", "BILL", "PAYMENT"]}
 HOJAS_EXTRA: dict[str, list[str]] = {"Proveedores": proveedores.ENCABEZADOS, "Gastos": GASTOS_ENCABEZADOS, "Bancos MN": BANCOS_MN_ENCABEZADOS,
                                     "Bancos ME": BANCOS_ME_ENCABEZADOS, "Anular proveedor": ["ID interno", "Nombre"],
                                     "Monedas proveedor": ["ID interno", "Nombre", "Moneda"], "Liquidaciones": LIQUIDACIONES_ENCABEZADOS}
@@ -384,6 +386,14 @@ def cargar_plantilla(ruta: Path = RUTA_PLANTILLA) -> Plantilla:
                 lt.opciones.append(extra)
     if h_fp and COL_PAIS_SUBSIDIARIA not in h_fp.encabezados:       # columna nueva al final: lo ya guardado (por posición) no se corre
         h_fp.encabezados.append(COL_PAIS_SUBSIDIARIA)
+    for nombre_h, orden in ORDEN_COLUMNAS.items():       # columnas que van antes que las demás (el resto conserva su orden); se remapean las listas desplegables
+        h = hojas.get(norm(nombre_h))
+        if h:
+            primeras = [e for o in orden for e in h.encabezados if norm(e) == norm(o)]
+            nuevo = primeras + [e for e in h.encabezados if e not in primeras]
+            mapa = {i: nuevo.index(e) for i, e in enumerate(h.encabezados)}
+            h.listas = {mapa[i]: lista for i, lista in h.listas.items() if i in mapa}
+            h.encabezados = nuevo
     for nombre, enc in HOJAS_EXTRA.items():
         listas_extra = proveedores.listas() if nombre == "Proveedores" else LISTAS_EXTRA.get(nombre, {})
         hojas.setdefault(norm(nombre), Hoja(
