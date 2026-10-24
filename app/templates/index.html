@@ -149,7 +149,12 @@
           <button type="button" id="btn-padron" class="border rounded px-3 py-1.5 bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100" title="Descarga el padrón reducido de RUC de SUNAT y guarda los RUC de tus gastos, proveedores y bancos (y los que consultaste y no estaban). Con eso, al escribir el RUC de un proveedor se completan nombre, dirección y ubigeo">🏛️ Actualizar padrón SUNAT</button>
           <span id="padron-estado" class="text-xs text-slate-500 self-center"></span>{% endif %}
           {% if p.clave == 'bancos mn' or p.clave == 'bancos me' %}<button type="button" class="btn-pasar-pagos" data-hoja="{{ p.clave }}" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Pago Proveedor» un pago por cada egreso del banco que corresponde a una factura de «Factura de Proveedor» (se relaciona por RUC + Serie-Número)">➜ Pasar a Pago Proveedor</button>{% endif %}
-          {% if p.clave == 'liquidaciones' %}<button type="button" id="btn-pasar-liq" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Gastos» un gasto por cada liquidación de compra (varias recepciones de una misma L.C. se suman). Desde Gastos pasan a Factura de Proveedor con «➜ Pasar a Factura de Proveedor»">➜ Pasar a Gastos</button>{% endif %}
+          {% if p.clave == 'liquidaciones' %}<button type="button" id="btn-pasar-liq" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Crea en «Gastos» un gasto por cada liquidación de compra (varias recepciones de una misma L.C. se suman). Desde Gastos pasan a Factura de Proveedor con «➜ Pasar a Factura de Proveedor»">➜ Pasar a Gastos</button>
+          <button type="button" id="btn-pasar-liq-fp" class="border rounded px-3 py-1.5 bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700" title="Hace los dos pasos: crea/actualiza los gastos y pasa directo a «Factura de Proveedor» las liquidaciones que tienen todo (cuenta, departamento, impuesto y proveedor con ID de NetSuite)">➜ Pasar a Factura de Proveedor</button>
+          <span class="flex flex-wrap items-center gap-2 border rounded px-2 py-1 bg-amber-50 border-amber-300 text-amber-900" title="Valores que se usan en las liquidaciones que no tienen la columna llenada (Cuenta PCGE, Departamento, Código de impuesto). Se recuerdan en este navegador">Por defecto para todas:
+            <input id="liq-d-cuenta" list="dl-cuentas-gasto" placeholder="Cuenta PCGE del café" class="border rounded px-1 py-0.5 bg-white w-44" autocomplete="off">
+            <select id="liq-d-depto" class="border rounded px-1 py-0.5 bg-white"><option value="">Departamento…</option></select>
+            <select id="liq-d-imp" class="border rounded px-1 py-0.5 bg-white"><option>VAT_PE:E-PE</option><option>VAT_PE:I-PE</option><option>VAT_PE:S-PE</option></select></span>{% endif %}
           {% if p.clave == 'pago proveedor' %}<button type="button" id="btn-ids-facturas" class="border rounded px-3 py-1.5 bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100" title="Sube el export de facturas de proveedor de NetSuite (CSV con «ID interno» y «ID externo»): pone el Internal ID de cada factura en BILL">🔗 Cargar ID de facturas de NetSuite (CSV)</button><input type="file" id="archivo-ids-facturas" accept=".csv,.txt" class="hidden">{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-limpiar-marcas" class="border rounded px-3 py-1.5 hover:bg-slate-50" title="Quita todas las marcas ☑ «Actualizar»">☐ Limpiar marcas</button>{% endif %}
           {% if p.clave == 'factura de proveedor' %}<button type="button" id="btn-actualizar-factura" class="border rounded px-3 py-1.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100" title="Trae de Gastos los datos que cambiaron (método de pago, cuenta, importe…) en todas las facturas a la vez">🔄 Actualizar desde Gastos</button>{% endif %}
@@ -432,6 +437,7 @@
       if (c.opciones.length) inp.setAttribute('list', 'dl-' + clave.replace(/ /g, '_') + '-' + i);
       if (clave === 'gastos' && c.nombre === COL_PCGE) inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_PAG) inp.setAttribute('list', 'dl-cuentas-gasto');
+      if (clave === 'liquidaciones' && c.nombre === 'Cuenta PCGE') inp.setAttribute('list', 'dl-cuentas-gasto');
       if (clave === 'gastos' && c.nombre === COL_PAGNS) { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: cuenta del COA de NetSuite'; }
       if (clave === 'gastos' && c.nombre === 'Monto Pagado') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total − Monto Detr.'; }
       if (clave === 'gastos' && c.nombre === 'Monto Retención') { inp.readOnly = true; inp.tabIndex = -1; inp.style.background = '#f1f5f9'; inp.title = 'Automático: Total × % Retención'; }
@@ -914,25 +920,46 @@
     renumerar(FP); contadores(); guardar();
   }
   // Liquidaciones de compra de café -> Gastos: una fila por L.C. (varias recepciones con la misma serie-número se suman; el total de la L.C. es el de la primera fila)
-  $id('btn-pasar-liq').addEventListener('click', () => {
-    const LQ = 'liquidaciones', colL = n => porClave[LQ].columnas.findIndex(c => c.nombre === n);
+  const LQ = 'liquidaciones', colL = n => porClave[LQ].columnas.findIndex(c => c.nombre === n), LLAVE_LIQ = 'falcon-liq-def';
+  (function () {       // valores por defecto de Liquidaciones (se recuerdan en el navegador)
+    const el = { cuenta: $id('liq-d-cuenta'), depto: $id('liq-d-depto'), imp: $id('liq-d-imp') };
+    porClave[LQ].columnas[colL('Departamento')].opciones.forEach(o => { const op = document.createElement('option'); op.textContent = o; el.depto.appendChild(op); });
+    let g = {}; try { g = JSON.parse(localStorage.getItem(LLAVE_LIQ) || '{}'); } catch (e) {}
+    el.cuenta.value = g.cuenta || ''; el.depto.value = g.depto || ''; el.imp.value = g.imp || 'VAT_PE:E-PE';
+    const guardarDef = () => { try { localStorage.setItem(LLAVE_LIQ, JSON.stringify({ cuenta: el.cuenta.value.trim(), depto: el.depto.value, imp: el.imp.value })); } catch (e) {} };
+    Object.values(el).forEach(x => { x.addEventListener('change', guardarDef); x.addEventListener('input', guardarDef); });
+  })();
+  function pasarLiquidacionesAGastos() {
+    const def = { cuenta: $id('liq-d-cuenta').value.trim(), depto: $id('liq-d-depto').value, imp: $id('liq-d-imp').value };
     const grupos = new Map();
     leer(LQ).forEach(l => { const sn = (l[colL('Serie y N° COMP.')] || '').trim(); if (sn) { if (!grupos.has(sn)) grupos.set(sn, []); grupos.get(sn).push(l); } });
-    if (!grupos.size) { alert('No hay liquidaciones cargadas: carga el reporte con «Cargar Excel / CSV».'); return; }
-    const yaEn = new Set(leer(GF).map(g => idComprobante(g[colG('RUC')], g[colG('Serie-Numero')]) + '|' + (g[colG('Serie-Numero')] || '').trim()));
-    const cuentaCafe = {}, nuevas = []; let yaEstan = 0, sinTotal = 0, sinDoc = 0;
+    const r = { ids: new Set(), total: grupos.size, nuevas: 0, completadas: 0, yaEstan: 0, sinDoc: 0, sinTotal: 0, sinCuenta: 0 };
+    if (!grupos.size) return r;
+    const enGastos = new Map([...cuerpo(GF).rows].map(tr => { const v = [...tr.querySelectorAll('input')].map(i => i.value); return [idComprobante(v[colG('RUC')], v[colG('Serie-Numero')]), tr]; }));
+    const nuevas = [];
     grupos.forEach((ls, sn) => {
       const l0 = ls[0], g = n => (l0[colL(n)] || '').trim(), ruc = limpiarId(g('DNI/RUC'));
-      if (!ruc) { sinDoc++; return; }
-      if (yaEn.has(idComprobante(ruc, sn) + '|' + sn)) { yaEstan++; return; }
+      if (!ruc) { r.sinDoc++; return; }
+      r.ids.add(idComprobante(ruc, sn));
+      const primero = n => (ls.map(l => (l[colL(n)] || '').trim()).find(Boolean) || '');
+      const cuenta = primero('Cuenta PCGE') || def.cuenta, depto = primero('Departamento') || def.depto, imp = primero('Código de impuesto') || def.imp;
+      if (!cuenta) r.sinCuenta++;
+      const trG = enGastos.get(idComprobante(ruc, sn));
+      if (trG) {       // ya está en Gastos: solo se completan las celdas vacías (cuenta, departamento, impuesto)
+        const ins = trG.querySelectorAll('input'); let cambio = false;
+        [['Cuenta PCGE', cuenta], ['Departamento', depto], ['Código de impuesto', imp]].forEach(([n, val]) => { if (val && !ins[colG(n)].value.trim()) { ins[colG(n)].value = val; cambio = true; } });
+        if (cambio) { sincronizarNS(trG); completarIdGasto(trG); r.completadas++; } else r.yaEstan++;
+        return;
+      }
       const total = numero(ls.map(l => l[colL('S/ TOTAL L.C. Y/O FACTURAS')]).find(t => numero(t) > 0)) || ls.reduce((t, l) => t + numero(l[colL('TOTAL DOCUMENTO DE RECEPCION')]), 0);
-      if (!(total > 0)) { sinTotal++; return; }
+      if (!(total > 0)) { r.sinTotal++; return; }
       const cafes = [...new Set(ls.map(l => (l[colL('TIPO DE CAFÉ')] || '').trim()).filter(Boolean))], recs = [...new Set(ls.map(l => (l[colL('Codigo Recepción')] || '').trim()).filter(Boolean))];
       const qq = ls.reduce((t, l) => t + numero(l[colL('QQ NETOS')]), 0), pago = g('TIPO DE PAGO'), sede = g('Sede');
       const fila = new Array(porClave[GF].columnas.length).fill(''), poner = (n, val) => { fila[colG(n)] = val; };
       poner('External ID', idComprobante(ruc, sn)); poner('Fecha Factura', fechaExcel(g('Fecha Emision Y/o Pago'))); poner('Fecha Pago', fechaExcel(g('Fecha Emision Y/o Pago')));
       poner('Cod.Pago', recs[0] || sn); poner('N° Operación', g('N° OPERACIÓN BANCO')); poner('RUC', g('DNI/RUC')); poner('Razon Social', g('NOMBRES Y APELLIDOS / RAZON SOCIAL'));
       poner('Tipo Doc', 'Liquidacion compra'); poner('Serie-Numero', sn); poner('Concepto', cafes.join(' / '));
+      poner('Cuenta PCGE', cuenta); poner('Departamento', depto); poner('Código de impuesto', imp);
       poner('Descripción Gasto', ('L.C. café ' + (sede ? sede + ' · ' : '') + recs.join(', ') + ' · ' + fmt2(qq) + ' QQ').slice(0, 250));
       poner('Moneda', 'PEN'); poner('Sub-Total', fmt2(total)); poner('Igv', '0.00'); poner('Total', fmt2(total)); poner('Monto Detr.', '0.00'); poner('Monto Pagado', fmt2(total));
       poner('Area/Contrato', sede); poner('Met. Pago', /^transfer/i.test(pago) ? 'Transferencia de Fondos' : /^cheque/i.test(pago) ? 'Cheque' : /^efectivo/i.test(pago) ? 'Efectivo' : '');
@@ -942,11 +969,28 @@
     if (nuevas.length) {
       [...cuerpo(GF).rows].filter(tr => ![...tr.querySelectorAll('input')].some(i => i.value.trim())).forEach(tr => tr.remove());
       nuevas.forEach(f => nuevaFila(GF, f, true));
-      [...cuerpo(GF).rows].slice(-nuevas.length).forEach(completarIdGasto);
-      renumerar(GF); contadores(); guardar(); activar(GF);
+      [...cuerpo(GF).rows].slice(-nuevas.length).forEach(tr => { sincronizarNS(tr); completarIdGasto(tr); });
+      renumerar(GF);
     }
-    alert(nuevas.length + ' liquidaciones nuevas en Gastos' + (yaEstan ? ' (' + yaEstan + ' ya estaban)' : '') + (sinDoc ? ' · ' + sinDoc + ' sin DNI/RUC' : '') + (sinTotal ? ' · ' + sinTotal + ' sin total' : '') + '.\n' +
-      (nuevas.length ? 'Siguiente: «Crear proveedores faltantes», «Proponer cuenta y departamento» (Cuenta PCGE del café) y luego «Pasar a Factura de Proveedor».' : ''));
+    r.nuevas = nuevas.length; contadores(); guardar();
+    return r;
+  }
+  const textoLiq = r => r.nuevas + ' liquidaciones nuevas en Gastos' + (r.completadas ? ', ' + r.completadas + ' completadas' : '') + (r.yaEstan ? ' (' + r.yaEstan + ' ya estaban)' : '') + (r.sinDoc ? ' · ' + r.sinDoc + ' sin DNI/RUC' : '') + (r.sinTotal ? ' · ' + r.sinTotal + ' sin total' : '') + (r.sinCuenta ? ' · ' + r.sinCuenta + ' sin Cuenta PCGE (escríbela en «Por defecto» o en la columna)' : '') + '.';
+  $id('btn-pasar-liq').addEventListener('click', () => {
+    const r = pasarLiquidacionesAGastos();
+    if (!r.total) { alert('No hay liquidaciones cargadas: carga el reporte con «Cargar Excel / CSV».'); return; }
+    if (r.nuevas) activar(GF);
+    alert(textoLiq(r) + '\n' + (r.nuevas ? 'Siguiente: «Crear proveedores faltantes» y «➜ Pasar a Factura de Proveedor» (o usa el botón directo de Liquidaciones).' : ''));
+  });
+  // Directo: Liquidaciones -> Gastos (de respaldo, para el ID del proveedor, el ID interno y las actualizaciones) -> Factura de Proveedor
+  $id('btn-pasar-liq-fp').addEventListener('click', () => {
+    const l = pasarLiquidacionesAGastos();
+    if (!l.total) { alert('No hay liquidaciones cargadas: carga el reporte con «Cargar Excel / CSV».'); return; }
+    const r = sincronizarFactura('completar');
+    r.incompletas = r.incompletas.filter(x => l.ids.has(x.id));       // solo las liquidaciones de esta carga
+    aplicarSincronizacion(r); activar(FP);
+    alert(textoLiq(l) + '\n' + r.nuevas.length + ' filas nuevas en Factura de Proveedor' + (r.cambios.length ? ', ' + r.cambios.length + ' existentes completadas' : '') + (r.sinCambios ? ' (' + r.sinCambios + ' sin cambios)' : '') + '.' + textoIncompletas(r) +
+      (r.incompletas.length ? '\n\nSi falta «ID Proveedor»: en Gastos pulsa «Crear proveedores faltantes» y sube el ID de NetSuite en Proveedores.' : ''));
   });
   $id('btn-pasar-factura').addEventListener('click', () => {
     const r = sincronizarFactura('completar');
